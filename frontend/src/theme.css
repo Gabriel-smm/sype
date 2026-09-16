@@ -1,0 +1,219 @@
+@import "tailwindcss";
+
+/* Cool ink, one warm accent. The metaphor is a desk lamp at night: warm light
+   marks the hours you focus well and the one action that matters; everything
+   else stays in cool ink. */
+@theme {
+  --color-ink-950: #12141c;
+  --color-ink-900: #181b25;
+  --color-ink-850: #1c2029;
+  --color-ink-800: #212533;
+  --color-ink-700: #2e3342;
+  --color-ink-600: #3c4256;
+
+  --color-chalk: #e8e9f0;
+  --color-chalk-dim: #9aa0b5;
+  --color-chalk-faint: #6b7288;
+
+  --color-lamp: #e8b04b;
+  --color-lamp-deep: #b7822a;
+  --color-alarm: #e05a5a;
+
+  /* Task types. Hue is information here, not decoration. */
+  --color-type-essay: #7c93e8;
+  --color-type-exam: #c77dd4;
+  --color-type-problem: #5fb3a3;
+  --color-type-reading: #6fa8d6;
+  --color-type-admin: #8a93a8;
+  --color-type-other: #9e8cc4;
+
+  --font-sans: "Instrument Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Fraunces", ui-serif, Georgia, serif;
+}
+
+@layer base {
+  * {
+    box-sizing: border-box;
+  }
+
+  html {
+    color-scheme: dark;
+  }
+
+  body {
+    margin: 0;
+    background: var(--color-ink-950);
+    color: var(--color-chalk);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* Fraunces has a "wonk" axis; a little of it is what keeps the task list from
+     reading as a spreadsheet. */
+  .font-display {
+    font-variation-settings: "SOFT" 20, "WONK" 1;
+    letter-spacing: -0.01em;
+  }
+
+  /* Times and durations sit in columns, so they need to line up. */
+  .tnum {
+    font-variant-numeric: tabular-nums;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-lamp);
+    outline-offset: 2px;
+    border-radius: 3px;
+  }
+
+  input,
+  select,
+  textarea,
+  button {
+    font: inherit;
+    color: inherit;
+  }
+
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--color-ink-700);
+    border-radius: 99px;
+    border: 3px solid var(--color-ink-950);
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--color-ink-600);
+  }
+}
+
+@layer components {
+  /* Fixed blocks: sleep, lunch, class. Hatching reads as "not available"
+     without competing with the work blocks for attention. */
+  .hatched {
+    background-image: repeating-linear-gradient(
+      -45deg,
+      var(--color-ink-700) 0 1px,
+      transparent 1px 7px
+    );
+  }
+
+  .field {
+    width: 100%;
+    background: var(--color-ink-950);
+    border: 1px solid var(--color-ink-700);
+    border-radius: 8px;
+    padding: 0.45rem 0.6rem;
+    font-size: 0.875rem;
+    transition: border-color 120ms ease;
+  }
+  .field:hover {
+    border-color: var(--color-ink-600);
+  }
+  .field:focus {
+    outline: none;
+    border-color: var(--color-lamp);
+  }
+
+  .field-label {
+    display: block;
+    font-size: 0.75rem;
+    color: var(--color-chalk-dim);
+    margin-bottom: 0.3rem;
+  }
+
+  /* One accent, one primary button. */
+  .btn-lamp {
+    background: var(--color-lamp);
+    color: #1a1406;
+    border-radius: 8px;
+    padding: 0.4rem 0.85rem;
+    font-size: 0.85rem;
+    font-weight: 600;
+    transition: background 120ms ease;
+  }
+  .btn-lamp:hover:not(:disabled) {
+    background: #f0be66;
+  }
+  .btn-lamp:disabled {
+    opacity: 0.5;
+    cursor: progress;
+  }
+
+  .btn-quiet {
+    border: 1px solid var(--color-ink-700);
+    border-radius: 8px;
+    padding: 0.35rem 0.7rem;
+    font-size: 0.8rem;
+    color: var(--color-chalk-dim);
+    transition:
+      color 120ms ease,
+      border-color 120ms ease;
+  }
+  .btn-quiet:hover:not(:disabled) {
+    color: var(--color-chalk);
+    border-color: var(--color-ink-600);
+  }
+  .btn-quiet:disabled {
+    opacity: 0.45;
+  }
+
+  /* Range inputs are the parameters page's main control; the browser default
+     is unreadable on ink. */
+  .slider-lamp {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 22px;
+    background: transparent;
+    cursor: ew-resize;
+  }
+  .slider-lamp::-webkit-slider-runnable-track {
+    height: 4px;
+    border-radius: 99px;
+    background: var(--color-ink-700);
+  }
+  .slider-lamp::-moz-range-track {
+    height: 4px;
+    border-radius: 99px;
+    background: var(--color-ink-700);
+  }
+  .slider-lamp::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 14px;
+    height: 14px;
+    margin-top: -5px;
+    border-radius: 99px;
+    background: var(--color-chalk);
+    border: none;
+    transition: background 120ms ease;
+  }
+  .slider-lamp::-moz-range-thumb {
+    width: 14px;
+    height: 14px;
+    border-radius: 99px;
+    background: var(--color-chalk);
+    border: none;
+  }
+  .slider-lamp:hover::-webkit-slider-thumb {
+    background: var(--color-lamp);
+  }
+  .slider-lamp:hover::-moz-range-thumb {
+    background: var(--color-lamp);
+  }
+}
+
+/* Motion only ever answers an action, so there is very little of it. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
