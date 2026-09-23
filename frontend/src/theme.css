@@ -38,6 +38,8 @@
 
   html {
     color-scheme: dark;
+    /* Firefox ignores the ::-webkit-scrollbar rules below. */
+    scrollbar-color: var(--color-ink-700) transparent;
   }
 
   body {
