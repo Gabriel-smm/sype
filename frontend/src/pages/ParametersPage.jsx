@@ -4,11 +4,13 @@ import WeekStrip from '../components/WeekStrip'
 import { api } from '../api'
 import { BLOCK_KIND_LABELS, dueLabel, typeColor } from '../lib/taskMeta'
 import { DAY_NAMES } from '../lib/time'
+import RecurringTasks from './parameters/RecurringTasks'
 
 const SECTIONS = [
   ['ranking', 'What comes first'],
   ['busy', 'When you are busy'],
   ['focus', 'When you focus best'],
+  ['routines', 'What repeats'],
   ['activity', 'What you have done'],
 ]
 
@@ -21,7 +23,7 @@ const SLIDERS = [
 
 const SLIDER_COLORS = ['#e8b04b', '#7c93e8', '#e05a5a', '#5fb3a3']
 
-export default function ParametersPage({ settings, events, busy, actions }) {
+export default function ParametersPage({ settings, events, taskTypes, busy, actions }) {
   const [active, setActive] = useState('ranking')
   const panes = useRef({})
 
@@ -99,6 +101,16 @@ export default function ParametersPage({ settings, events, busy, actions }) {
             onDelete={actions.deleteProductiveWindow}
           />
           <BlockList blocks={settings.productive_hours} onDelete={actions.deleteProductiveWindow} />
+        </Section>
+
+        <Section id="routines" title="What repeats" ref={register('routines')}
+                 blurb="The parts of the week that come back on their own — gym, laundry, chores. Each active one lands on the calendar every week it's due, right alongside your deadline work.">
+          <RecurringTasks
+            recurringTasks={settings.recurring_tasks}
+            taskTypes={taskTypes}
+            busy={busy}
+            actions={actions}
+          />
         </Section>
 
         <Section id="activity" title="What you have done" ref={register('activity')}

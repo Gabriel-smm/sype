@@ -72,6 +72,9 @@ export default function App() {
     deleteFixedBlock: (id) => run(() => api.deleteFixedBlock(id)),
     addProductiveWindow: (window) => run(() => api.addProductiveWindow(window)),
     deleteProductiveWindow: (id) => run(() => api.deleteProductiveWindow(id)),
+    createRecurringTask: (task) => run(() => api.createRecurringTask(task)),
+    updateRecurringTask: (id, changes) => run(() => api.updateRecurringTask(id, changes)),
+    deleteRecurringTask: (id) => run(() => api.deleteRecurringTask(id)),
   }
   // The block editors need to know whether to offer a "kind" field.
   actions.addFixedBlock.withKind = true
@@ -125,7 +128,13 @@ export default function App() {
 
           {page === 'parameters' && (
             <div className="h-full overflow-y-auto">
-              <ParametersPage settings={settings} events={events} busy={busy} actions={actions} />
+              <ParametersPage
+                settings={settings}
+                events={events}
+                taskTypes={meta.task_types}
+                busy={busy}
+                actions={actions}
+              />
             </div>
           )}
         </div>

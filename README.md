@@ -1,16 +1,26 @@
-# Student Task Scheduler (MVP)
+# Student Task Scheduler
 
-Schedules student work onto a week calendar with awareness of **grade impact**,
-**self-reported stress** and **effort already invested**, and breaks long tasks
-into manageable sessions.
+A personal tool, not a product: this is what I use to actually run my own
+week — academic deadlines and the routine stuff (gym, laundry, chores) side by
+side on one calendar. The benchmark for any change here is whether I'd keep
+using it, not whether it's ready to ship to anyone else.
+
+Schedules work onto a week calendar with awareness of **grade impact**,
+**self-reported stress** and **effort already invested**, breaks long tasks
+into manageable sessions, and rolls recurring routine items forward onto the
+calendar every week alongside them.
 
 **Core principle:** no LLM decides the schedule. Prioritisation, decomposition
-and placement are all deterministic, unit-tested Python. (An LLM is only
-envisaged later, for parsing natural-language task input into structured fields.)
+and placement are all deterministic, unit-tested Python. The chat page is a
+deliberate exception, kept firmly opt-in: it defaults to a no-network echo
+stub and stays off unless I explicitly wire up a provider (see below) — a
+convenience, never a dependency.
 
 ```
-Task input (form)
-     ↓
+Task input (form)         Recurring routine template
+     ↓                         ↓ (materialised weekly)
+     └──────────────┬──────────┘
+                     ↓
 [Rule-based decomposer]      essay -> research/outline/draft/revise
      ↓                       exam  -> spaced sessions at 10/6/3/1 days out
 [Deterministic priority scorer]  weighted urgency / grade / stress / effort gap
@@ -22,7 +32,8 @@ Week-view calendar
 
 ## Running it
 
-Two processes. Backend first:
+Two processes. Backend first (`pip install -r backend/requirements.txt` into
+the venv once):
 
 ```bash
 cd backend && ../.venv/bin/python -m uvicorn app.main:app --reload --port 8000
@@ -65,15 +76,30 @@ added to `PROVIDERS`. The endpoint emits provider-independent server-sent events
 Chat is not allowed near the schedule. It reads and writes tasks; placement stays
 deterministic.
 
+## Recurring tasks
+
+The Parameters page's "What repeats" section holds routine templates — title,
+duration, which weekdays, a due time — for things like the gym or laundry that
+aren't one-off deadline work but still need a slot every week. Each active
+template is rolled forward into ordinary `Task` rows (`recurring_task_id` on
+the response marks the ones it produced) whenever the tasks list or the
+schedule is read, so there is no background job: materialisation is lazy and
+idempotent, keyed on one instance per template per calendar day. From there a
+materialised task is indistinguishable from a hand-entered one to the
+decomposer, scorer and scheduler — pausing a template stops future instances
+without touching ones already on the calendar, and deleting one leaves past
+instances standing as ordinary tasks rather than deleting your history.
+
 ## Tests
 
 ```bash
 cd backend && ../.venv/bin/python -m pytest -q
 ```
 
-105 tests. The scoring, decomposition and scheduling modules are tested in
-isolation (no DB, no HTTP); `test_api.py` covers the wired-together pipeline and
-`test_chat.py` covers the provider contract and the event-stream format.
+116 tests. The scoring, decomposition and scheduling modules are tested in
+isolation (no DB, no HTTP); `test_api.py` covers the wired-together pipeline,
+`test_chat.py` covers the provider contract and the event-stream format, and
+`test_recurring.py` covers routine-template materialisation.
 
 ## Layout
 
@@ -82,10 +108,11 @@ isolation (no DB, no HTTP); `test_api.py` covers the wired-together pipeline and
 | `backend/app/scoring.py` | `priority_score` and ranking. Pure functions. |
 | `backend/app/decompose.py` | Essay-phase and exam-session rules. Pure functions. |
 | `backend/app/scheduler.py` | Free-slot construction and greedy placement. Pure functions. |
-| `backend/app/pipeline.py` | The only module that joins the above to SQLAlchemy. |
+| `backend/app/pipeline.py` | The only module that joins the above to SQLAlchemy; also where recurring templates are materialised into tasks. |
 | `backend/app/models.py` | SQLAlchemy models. |
 | `backend/app/chat.py` | Chat providers. Pure functions; no model wired up. |
-| `backend/app/api/` | FastAPI routers. |
+| `backend/app/api/` | FastAPI routers, including `recurring.py` (routine-template CRUD). |
+| `backend/requirements.txt` | Pinned backend dependencies. |
 | `frontend/src/pages/` | The four screens: week, tasks, chat, parameters. |
 | `frontend/src/components/` | Pieces shared between screens. |
 | `frontend/src/lib/` | Week arithmetic and task vocabulary. |

@@ -7,6 +7,7 @@ export const TYPE_LABELS = {
   reading: 'Reading',
   admin: 'Admin',
   other: 'Other',
+  routine: 'Routine',
 }
 
 export const TYPE_COLORS = {
@@ -16,6 +17,7 @@ export const TYPE_COLORS = {
   reading: '#6fa8d6',
   admin: '#8a93a8',
   other: '#9e8cc4',
+  routine: '#e0a05a',
 }
 
 export const LAMP = '#e8b04b'

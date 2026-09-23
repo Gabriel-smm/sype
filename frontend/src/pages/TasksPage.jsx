@@ -152,6 +152,19 @@ function TaskRow({
                 {task.grade_weight}% of grade
               </span>
             )}
+            {task.recurring_task_id != null && (
+              <span
+                aria-label="Repeats weekly"
+                title="Repeats weekly"
+                className="shrink-0 text-chalk-faint"
+              >
+                <svg viewBox="0 0 14 14" width="12" height="12" fill="none" stroke="currentColor"
+                     strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M2 6.5A5 5 0 0111.5 4.3M12 2v2.5H9.5" />
+                  <path d="M12 7.5a5 5 0 01-9.5 2.2M2 12v-2.5h2.5" />
+                </svg>
+              </span>
+            )}
           </div>
 
           <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1.5">

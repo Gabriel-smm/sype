@@ -4,7 +4,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from .api import chat, events, schedule, students, tasks
+from .api import chat, events, recurring, schedule, students, tasks
 from .models import BLOCK_KINDS, EVENT_TYPES, TASK_TYPES
 from .seed import bootstrap
 
@@ -19,7 +19,8 @@ app = FastAPI(
     title="Student Task Scheduler",
     version="0.1.0",
     description=(
-        "Grade-, stress- and procrastination-aware task scheduling. "
+        "Grade-, stress- and procrastination-aware scheduling for a student's "
+        "one-off deadline work and their recurring weekly routine alike. "
         "All prioritisation and scheduling is deterministic rule-based code; "
         "no LLM participates in any scheduling decision."
     ),
@@ -36,6 +37,7 @@ app.add_middleware(
 
 app.include_router(students.router)
 app.include_router(tasks.router)
+app.include_router(recurring.router)
 app.include_router(schedule.router)
 app.include_router(events.router)
 app.include_router(chat.router)
