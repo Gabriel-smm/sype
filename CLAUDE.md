@@ -15,7 +15,8 @@ sections. Don't duplicate that here; read it once per session if you need it.
 - Frontend: `frontend/` — React 19 + Vite + Tailwind 4.
   Run: `npm run dev --prefix frontend`.
 - Both at once: `./dev.sh` (`--seed` loads demo tasks; bootstraps deps on first run).
-- Tests: `cd backend && ../.venv/bin/python -m pytest -q` (116 tests).
+- Tests: `cd backend && ../.venv/bin/python -m pytest -q` (116 tests);
+  frontend `npm test --prefix frontend` (Vitest, `src/lib/` only).
 - Lint: `npm run lint --prefix frontend` (oxlint).
 - **Never read, search, or edit `.venv/`, `frontend/dist/`, or `node_modules/`**
   — vendored/build output, not project source (already gitignored).
@@ -51,3 +52,20 @@ with another session) → implement with TDD → verify → PR via
 - **No auth.** Everything operates on student 1.
 - **Phase precedence is enforced** beyond the original brief — see README
   "Decisions taken beyond the brief" before touching `scheduler.py` ordering.
+
+## Model routing
+
+Subagents default to Sonnet (`CLAUDE_CODE_SUBAGENT_MODEL` in `.claude/settings.json`). Two agents
+are pinned:
+
+| Task | Agent | Model |
+|---|---|---|
+| Run tests / build, report failures | `test-runner` | haiku, low effort |
+| Change scoring, decomposition, placement or `pipeline.py` | `scheduler-architect` | opus, high effort |
+| Everything else (search, API routes, frontend, reviews) | built-in / general-purpose | sonnet (default) |
+
+- Don't pass a `model` override to the Agent tool when one of the agents above fits — a per-call
+  override beats the agent's pinned model.
+- Only override to a bigger model after a Sonnet attempt has actually failed, not in advance.
+- Main session: Sonnet is enough for routine UI/API work; switch with `/model` to Opus only for
+  scheduling-core design.

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 
 import Drawer from '../components/Drawer'
+import FitFixes from '../components/FitFixes'
 import WeekGrid from './calendar/WeekGrid'
 import { formatClock, formatWeekRange, hoursLabel, weekStartOf } from '../lib/time'
 import { typeColor, typeLabel } from '../lib/taskMeta'
@@ -15,11 +16,10 @@ function Chevron({ left }) {
 }
 
 export default function CalendarPage({
-  schedule, settings, busy, onRegenerate, onMoveSlot, onComplete, onSkip,
+  schedule, settings, busy, onRegenerate, onMoveSlot, onComplete, onSkip, onOpenTask, fixes,
 }) {
   const [date, setDate] = useState(() => new Date())
   const [selected, setSelected] = useState(null)
-  const [showMisses, setShowMisses] = useState(false)
 
   const shiftWeek = (weeks) => {
     const next = new Date(date)
@@ -27,7 +27,6 @@ export default function CalendarPage({
     setDate(next)
   }
 
-  const misses = schedule.unschedulable
   const thisWeek = weekStartOf(date).getTime() === weekStartOf(new Date()).getTime()
 
   return (
@@ -53,41 +52,14 @@ export default function CalendarPage({
 
         <div className="ml-auto flex items-center gap-3">
           <Legend />
-          <button type="button" className="btn-lamp" onClick={onRegenerate} disabled={busy}>
-            {busy ? 'Rebuilding…' : 'Rebuild schedule'}
+          <button type="button" className="btn-quiet" onClick={onRegenerate} disabled={busy}
+                  title="The week rebuilds itself after every change; this also undoes any sessions you dragged">
+            {busy ? 'Rebuilding…' : 'Rebuild'}
           </button>
         </div>
       </header>
 
-      {misses.length > 0 && (
-        <section className="rounded-lg border border-lamp/25 bg-lamp/[0.06]">
-          <button
-            type="button"
-            onClick={() => setShowMisses(!showMisses)}
-            aria-expanded={showMisses}
-            className="flex w-full items-center gap-2 px-3 py-2 text-left text-[13px] text-lamp"
-          >
-            <span className="rotate-0 transition-transform" style={{ transform: showMisses ? 'rotate(90deg)' : undefined }}>
-              <Chevron />
-            </span>
-            {misses.length === 1
-              ? 'One piece of work did not fit in your week'
-              : `${misses.length} pieces of work did not fit in your week`}
-          </button>
-          {showMisses && (
-            <ul className="space-y-1 px-3 pb-3 pl-9 text-[13px] text-chalk-dim">
-              {misses.map((item) => (
-                <li key={`${item.task_id}-${item.subtask_id}`}>
-                  <span className="text-chalk">{item.title}</span>{' '}
-                  <span className="text-chalk-faint">
-                    needs {hoursLabel(item.estimated_duration)} — {item.reason}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
-      )}
+      <FitFixes items={schedule.unschedulable} busy={busy} {...fixes} />
 
       <WeekGrid
         slots={schedule.slots}
@@ -101,6 +73,7 @@ export default function CalendarPage({
 
       <Drawer open={Boolean(selected)} title={selected?.title ?? ''} onClose={() => setSelected(null)}>
         {selected && <SlotDetail slot={selected} onComplete={onComplete} onSkip={onSkip}
+                                 onEdit={() => { onOpenTask(selected.task_id); setSelected(null) }}
                                  onDone={() => setSelected(null)} />}
       </Drawer>
     </div>
@@ -122,7 +95,7 @@ function Legend() {
   )
 }
 
-function SlotDetail({ slot, onComplete, onSkip, onDone }) {
+function SlotDetail({ slot, onComplete, onSkip, onEdit, onDone }) {
   const start = new Date(slot.start_time)
   const end = new Date(slot.end_time)
   const color = typeColor(slot.task_type)
@@ -183,6 +156,10 @@ function SlotDetail({ slot, onComplete, onSkip, onDone }) {
         <button type="button" className="btn-quiet"
                 onClick={() => act((id, sub) => onSkip(id, sub))}>
           Skip it
+        </button>
+        <button type="button" className="ml-auto text-[12.5px] text-chalk-dim hover:text-chalk"
+                onClick={onEdit}>
+          Edit task
         </button>
       </div>
     </div>

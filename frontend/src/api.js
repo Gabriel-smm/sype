@@ -46,6 +46,8 @@ export const api = {
 
   tasks: () => request(`${base}/tasks`),
   createTask: (task) => request(`${base}/tasks`, { method: 'POST', body: JSON.stringify(task) }),
+  updateTask: (id, changes) =>
+    request(`/api/tasks/${id}`, { method: 'PATCH', body: JSON.stringify(changes) }),
   deleteTask: (id) => request(`/api/tasks/${id}`, { method: 'DELETE' }),
   completeTask: (id) => request(`/api/tasks/${id}/complete`, { method: 'POST' }),
   skipTask: (id) => request(`/api/tasks/${id}/skip`, { method: 'POST' }),

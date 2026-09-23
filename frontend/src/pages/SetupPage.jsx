@@ -6,11 +6,12 @@ import { BLOCK_KIND_LABELS, dueLabel, typeColor } from '../lib/taskMeta'
 import { DAY_NAMES } from '../lib/time'
 import RecurringTasks from './parameters/RecurringTasks'
 
+// The first three are what a new student has to fill in; they come first.
 const SECTIONS = [
-  ['ranking', 'What comes first'],
   ['busy', 'When you are busy'],
   ['focus', 'When you focus best'],
   ['routines', 'What repeats'],
+  ['ranking', 'What comes first'],
   ['activity', 'What you have done'],
 ]
 
@@ -23,8 +24,8 @@ const SLIDERS = [
 
 const SLIDER_COLORS = ['#e8b04b', '#7c93e8', '#e05a5a', '#5fb3a3']
 
-export default function ParametersPage({ settings, events, taskTypes, busy, actions }) {
-  const [active, setActive] = useState('ranking')
+export default function SetupPage({ settings, events, taskTypes, busy, actions }) {
+  const [active, setActive] = useState('busy')
   const panes = useRef({})
 
   // Light the index entry for whichever section is in view.
@@ -65,17 +66,13 @@ export default function ParametersPage({ settings, events, taskTypes, busy, acti
 
       <div className="min-w-0 flex-1 space-y-12">
         <header>
-          <h1 className="font-display text-[24px] tracking-tight">Parameters</h1>
+          <h1 className="font-display text-[24px] tracking-tight">How your week works</h1>
           <p className="mt-1 text-[13px] text-chalk-dim">
-            Everything the scheduler knows about you. None of it is learned yet — you set it all
-            by hand.
+            Everything the scheduler knows about you. Start with when you are busy and when you
+            focus best — the rest is fine-tuning.
           </p>
         </header>
 
-        <Section id="ranking" title="What comes first" ref={register('ranking')}
-                 blurb="Four things decide the order your work is scheduled in. These weights say how loudly each one speaks.">
-          <Weights weights={settings.weights} busy={busy} onSave={actions.saveWeights} />
-        </Section>
 
         <Section id="busy" title="When you are busy" ref={register('busy')}
                  blurb="Sleep, meals and classes. The scheduler never puts work inside these.">
@@ -111,6 +108,10 @@ export default function ParametersPage({ settings, events, taskTypes, busy, acti
             busy={busy}
             actions={actions}
           />
+        </Section>
+        <Section id="ranking" title="What comes first" ref={register('ranking')}
+                 blurb="Four things decide the order your work is scheduled in. These weights say how loudly each one speaks.">
+          <Weights weights={settings.weights} busy={busy} onSave={actions.saveWeights} />
         </Section>
 
         <Section id="activity" title="What you have done" ref={register('activity')}
@@ -280,8 +281,7 @@ function BlockList({ blocks, onDelete, withKind }) {
           <button
             type="button"
             onClick={() => onDelete(block.id)}
-            className="ml-auto text-[12px] text-chalk-faint opacity-0 transition-opacity
-                       group-hover:opacity-100 hover:text-alarm focus-visible:opacity-100"
+            className="ml-auto text-[12px] text-chalk-faint transition-colors hover:text-alarm"
           >
             Remove
           </button>

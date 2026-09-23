@@ -64,7 +64,7 @@ Interactive API docs: http://localhost:8000/docs
 
 ## The chat page
 
-The fourth screen is a chat. **No model is connected**, and the app works without
+Chat opens as a side panel from the rail, beside whatever page is showing. **No model is connected**, and the app works without
 one: `CHAT_PROVIDER` defaults to `echo`, which streams back a deterministic reply
 naming the fields it recognised. The page says so rather than pretending.
 
@@ -86,7 +86,7 @@ deterministic.
 
 ## Recurring tasks
 
-The Parameters page's "What repeats" section holds routine templates — title,
+The Setup page's "What repeats" section holds routine templates — title,
 duration, which weekdays, a due time — for things like the gym or laundry that
 aren't one-off deadline work but still need a slot every week. Each active
 template is rolled forward into ordinary `Task` rows (`recurring_task_id` on
@@ -109,6 +109,13 @@ isolation (no DB, no HTTP); `test_api.py` covers the wired-together pipeline,
 `test_chat.py` covers the provider contract and the event-stream format, and
 `test_recurring.py` covers routine-template materialisation.
 
+The frontend's pure logic — the one-line capture parser and the Today-page
+agenda — has its own Vitest suite:
+
+```bash
+npm test --prefix frontend
+```
+
 ## Layout
 
 | Path | What lives there |
@@ -121,9 +128,9 @@ isolation (no DB, no HTTP); `test_api.py` covers the wired-together pipeline,
 | `backend/app/chat.py` | Chat providers. Pure functions; no model wired up. |
 | `backend/app/api/` | FastAPI routers, including `recurring.py` (routine-template CRUD). |
 | `backend/requirements.txt` | Pinned backend dependencies. |
-| `frontend/src/pages/` | The four screens: week, tasks, chat, parameters. |
+| `frontend/src/pages/` | The four screens: today (home), week, tasks, setup — plus chat, shown in a side panel. |
 | `frontend/src/components/` | Pieces shared between screens. |
-| `frontend/src/lib/` | Week arithmetic and task vocabulary. |
+| `frontend/src/lib/` | Week arithmetic, task vocabulary, the capture parser (`parseCapture.js`) and Today's agenda (`agenda.js`). Pure, Vitest-tested. |
 | `frontend/src/theme.css` | The design tokens. Dark only. |
 
 The three algorithm modules import nothing from FastAPI or SQLAlchemy, so the
