@@ -160,16 +160,14 @@ function RecurringTaskList({ recurringTasks, actions }) {
           <button
             type="button"
             onClick={() => actions.updateRecurringTask(item.id, { active: !item.active })}
-            className="ml-auto text-[12px] text-chalk-faint opacity-0 transition-opacity
-                       group-hover:opacity-100 hover:text-chalk-dim focus-visible:opacity-100"
+            className="ml-auto text-[12px] text-chalk-faint transition-colors hover:text-chalk-dim"
           >
             {item.active ? 'Pause' : 'Resume'}
           </button>
           <button
             type="button"
             onClick={() => actions.deleteRecurringTask(item.id)}
-            className="text-[12px] text-chalk-faint opacity-0 transition-opacity
-                       group-hover:opacity-100 hover:text-alarm focus-visible:opacity-100"
+            className="text-[12px] text-chalk-faint transition-colors hover:text-alarm"
           >
             Remove
           </button>
