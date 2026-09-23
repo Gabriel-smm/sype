@@ -32,8 +32,16 @@ Week-view calendar
 
 ## Running it
 
-Two processes. Backend first (`pip install -r backend/requirements.txt` into
-the venv once):
+One command starts both servers; Ctrl+C stops both:
+
+```bash
+./dev.sh          # add --seed to load the demo tasks first
+```
+
+On first run it creates `.venv` and installs `frontend/node_modules`.
+
+Or run the two processes by hand. Backend first (`pip install -r
+backend/requirements.txt` into the venv once):
 
 ```bash
 cd backend && ../.venv/bin/python -m uvicorn app.main:app --reload --port 8000
