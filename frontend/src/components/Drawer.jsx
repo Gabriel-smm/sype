@@ -1,7 +1,14 @@
 import { useEffect, useRef } from 'react'
 
-/** A right-hand detail panel. Slides in because the motion shows where it came from. */
-export default function Drawer({ open, title, onClose, children }) {
+/**
+ * A right-hand detail panel. Slides in because the motion shows where it came from.
+ * `bare` hands the whole body to the child (chat manages its own scrolling).
+ * `keepMounted` hides rather than unmounts when closed, so the child keeps its
+ * state (a chat conversation survives closing the panel).
+ */
+export default function Drawer({
+  open, title, onClose, children, width = 360, bare = false, keepMounted = false,
+}) {
   const panel = useRef(null)
 
   useEffect(() => {
@@ -12,10 +19,10 @@ export default function Drawer({ open, title, onClose, children }) {
     return () => window.removeEventListener('keydown', onKey)
   }, [open, onClose])
 
-  if (!open) return null
+  if (!open && !keepMounted) return null
 
   return (
-    <>
+    <div hidden={!open}>
       <button
         type="button"
         aria-label="Close panel"
@@ -27,10 +34,10 @@ export default function Drawer({ open, title, onClose, children }) {
         tabIndex={-1}
         role="dialog"
         aria-label={title}
-        className="fixed top-0 right-0 z-50 flex h-full w-[min(360px,90vw)] flex-col
+        className="fixed top-0 right-0 z-50 flex h-full max-w-[94vw] flex-col
                    border-l border-ink-700 bg-ink-900 shadow-2xl
                    motion-safe:animate-[slide-in_160ms_ease-out]"
-        style={{ '--tw-enter-translate-x': '100%' }}
+        style={{ width }}
       >
         <style>{`@keyframes slide-in { from { transform: translateX(100%) } to { transform: none } }`}</style>
         <header className="flex items-start justify-between gap-3 border-b border-ink-800 px-5 py-4">
@@ -46,8 +53,10 @@ export default function Drawer({ open, title, onClose, children }) {
             </svg>
           </button>
         </header>
-        <div className="flex-1 overflow-y-auto px-5 py-4">{children}</div>
+        {bare
+          ? <div className="min-h-0 flex-1">{children}</div>
+          : <div className="flex-1 overflow-y-auto px-5 py-4">{children}</div>}
       </aside>
-    </>
+    </div>
   )
 }
