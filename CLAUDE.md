@@ -14,6 +14,7 @@ sections. Don't duplicate that here; read it once per session if you need it.
   Run: `cd backend && ../.venv/bin/python -m uvicorn app.main:app --reload --port 8000`.
 - Frontend: `frontend/` — React 19 + Vite + Tailwind 4.
   Run: `npm run dev --prefix frontend`.
+- Both at once: `./dev.sh` (`--seed` loads demo tasks; bootstraps deps on first run).
 - Tests: `cd backend && ../.venv/bin/python -m pytest -q` (116 tests);
   frontend `npm test --prefix frontend` (Vitest, `src/lib/` only).
 - Lint: `npm run lint --prefix frontend` (oxlint).
