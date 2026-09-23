@@ -4,7 +4,7 @@ All the decisions live in scoring.py / decompose.py / scheduler.py; this module
 only translates between those pure functions and SQLAlchemy.
 """
 import json
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from sqlalchemy.orm import Session
 
@@ -18,7 +18,7 @@ from .scheduler import (
     schedule,
 )
 from .scoring import ScorableTask, Weights, days_until
-from .timeutil import utcnow
+from .timeutil import at_minute, day_start, utcnow
 
 # Task types that always demand a productive-hour slot when scheduled whole.
 FOCUS_TASK_TYPES = {models.TASK_TYPE_ESSAY, models.TASK_TYPE_EXAM}
@@ -73,6 +73,69 @@ def apply_decomposition(db: Session, task: models.Task, now: datetime) -> list[m
         db.add(subtask)
         created.append(subtask)
     db.flush()
+    return created
+
+
+def materialize_recurring_tasks(
+    db: Session, student_id: int, now: datetime, *, horizon_days: int = DEFAULT_HORIZON_DAYS,
+) -> list[models.Task]:
+    """Roll active recurring templates forward into plain Task rows.
+
+    Idempotent: a RecurringTaskInstance row is the "already materialised"
+    marker for a (template, calendar date) pair, independent of the Task's
+    current status - so completed/skipped occurrences are never recreated.
+    Called lazily wherever the day's tasks matter (reading tasks, generating a
+    schedule), rather than by a background job - there is no scheduler process
+    to run one.
+    """
+    templates = (
+        db.query(models.RecurringTask)
+        .filter(models.RecurringTask.student_id == student_id, models.RecurringTask.active == True)  # noqa: E712
+        .all()
+    )
+    if not templates:
+        return []
+
+    start_date = day_start(now).date()
+    existing = {
+        (row.recurring_task_id, row.occurrence_date)
+        for row in db.query(models.RecurringTaskInstance).filter(
+            models.RecurringTaskInstance.recurring_task_id.in_([t.id for t in templates])
+        )
+    }
+
+    created: list[models.Task] = []
+    for template in templates:
+        weekdays = {int(d) for d in template.weekdays.split(",") if d != ""}
+        for offset in range(horizon_days):
+            occurrence_date = start_date + timedelta(days=offset)
+            if occurrence_date.weekday() not in weekdays:
+                continue
+            if (template.id, occurrence_date) in existing:
+                continue
+
+            task = models.Task(
+                student_id=student_id,
+                title=template.title,
+                due_date=at_minute(datetime.combine(occurrence_date, datetime.min.time()), template.due_minute),
+                estimated_duration=template.estimated_duration,
+                task_type=template.task_type,
+                grade_weight=template.grade_weight,
+                stress_rating=template.stress_rating,
+            )
+            db.add(task)
+            db.flush()
+            apply_decomposition(db, task, now)
+            db.add(models.RecurringTaskInstance(
+                recurring_task_id=template.id, task_id=task.id, occurrence_date=occurrence_date,
+            ))
+            log_event(
+                db, student_id, "created", task_id=task.id,
+                details={"title": task.title, "recurring_task_id": template.id},
+            )
+            created.append(task)
+
+    db.commit()
     return created
 
 
@@ -149,6 +212,8 @@ def generate_schedule(
     student = db.get(models.Student, student_id)
     if student is None:
         raise ValueError(f"no student {student_id}")
+
+    materialize_recurring_tasks(db, student_id, now, horizon_days=horizon_days)
 
     weights = get_weights(db, student_id)
     slots = build_free_slots(

@@ -260,6 +260,7 @@ function EventBlock({ entry, selected, drag, onSelect, onPointerDown, onPointerM
         slot.parent_title ? `Part of ${slot.parent_title}` : slot.title,
         `Priority ${slot.priority_score.toFixed(2)}`,
         slot.requires_focus ? 'Needs your focused hours' : null,
+        slot.recurring ? 'Repeats weekly' : null,
       ].filter(Boolean).join('\n')}
       className={`absolute z-20 cursor-grab touch-none overflow-hidden rounded-[5px] px-1.5 py-0.5
                   text-[11px] leading-tight select-none
@@ -284,6 +285,15 @@ function EventBlock({ entry, selected, drag, onSelect, onPointerDown, onPointerM
             className="size-[5px] shrink-0 rounded-full"
             style={{ background: color }}
           />
+        )}
+        {slot.recurring && (
+          <span aria-label="Repeats weekly" className="shrink-0" style={{ color }}>
+            <svg viewBox="0 0 14 14" width="8" height="8" fill="none" stroke="currentColor"
+                 strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M2 6.5A5 5 0 0111.5 4.3M12 2v2.5H9.5" />
+              <path d="M12 7.5a5 5 0 01-9.5 2.2M2 12v-2.5h2.5" />
+            </svg>
+          </span>
         )}
         <span className="truncate">{slot.title}</span>
       </div>

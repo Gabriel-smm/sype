@@ -4,25 +4,31 @@ Durations are stored in minutes everywhere. Fixed blocks and productive
 windows are weekly-recurring and stored as minutes-from-midnight; a block
 whose end_minute <= start_minute wraps past midnight (e.g. sleep 23:00-07:00).
 """
-from datetime import datetime
+from datetime import date, datetime
 
 from sqlalchemy import (
     Boolean,
+    Date,
     DateTime,
     Float,
     ForeignKey,
     Integer,
     String,
+    UniqueConstraint,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .db import Base
-from .timeutil import utcnow
+from .timeutil import MINUTES_PER_DAY, utcnow
 
 # Task types the decomposer knows about; anything else is scheduled whole.
 TASK_TYPE_ESSAY = "essay_project"
 TASK_TYPE_EXAM = "exam_study"
-TASK_TYPES = [TASK_TYPE_ESSAY, TASK_TYPE_EXAM, "reading", "problem_set", "admin", "other"]
+TASK_TYPE_ROUTINE = "routine"
+TASK_TYPES = [
+    TASK_TYPE_ESSAY, TASK_TYPE_EXAM, "reading", "problem_set", "admin", "other",
+    TASK_TYPE_ROUTINE,
+]
 
 STATUS_PENDING = "pending"
 STATUS_DONE = "done"
@@ -46,6 +52,9 @@ class Student(Base):
         back_populates="student", cascade="all, delete-orphan"
     )
     tasks: Mapped[list["Task"]] = relationship(
+        back_populates="student", cascade="all, delete-orphan"
+    )
+    recurring_tasks: Mapped[list["RecurringTask"]] = relationship(
         back_populates="student", cascade="all, delete-orphan"
     )
     weights: Mapped["Weights"] = relationship(
@@ -107,6 +116,16 @@ class Task(Base):
     slots: Mapped[list["ScheduledSlot"]] = relationship(
         back_populates="task", cascade="all, delete-orphan"
     )
+    # No delete cascade: removing a RecurringTask template must not delete the
+    # Task rows it already produced, only the link (see RecurringTaskInstance).
+    recurring_instance: Mapped["RecurringTaskInstance | None"] = relationship(
+        back_populates="task", uselist=False
+    )
+
+    @property
+    def recurring_task_id(self) -> int | None:
+        """None for a one-off task; the owning template's id for a materialised one."""
+        return self.recurring_instance.recurring_task_id if self.recurring_instance else None
 
 
 class Subtask(Base):
@@ -127,6 +146,56 @@ class Subtask(Base):
     slots: Mapped[list["ScheduledSlot"]] = relationship(
         back_populates="subtask", cascade="all, delete-orphan"
     )
+
+
+class RecurringTask(Base):
+    """Template for a routine item that recurs weekly (gym, laundry, chores).
+
+    Not decomposed itself - it is materialised into whole Task rows on the days
+    it recurs (see RecurringTaskInstance), and those rows flow through the
+    existing decompose -> score -> schedule pipeline unchanged.
+    """
+
+    __tablename__ = "recurring_tasks"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    student_id: Mapped[int] = mapped_column(ForeignKey("students.id"), nullable=False)
+    title: Mapped[str] = mapped_column(String, nullable=False)
+    task_type: Mapped[str] = mapped_column(String, nullable=False, default=TASK_TYPE_ROUTINE)
+    estimated_duration: Mapped[int] = mapped_column(Integer, nullable=False)  # minutes
+    grade_weight: Mapped[float] = mapped_column(Float, default=0.0)  # percent, 0-100
+    stress_rating: Mapped[int] = mapped_column(Integer, default=3)  # 1-5
+    # CSV of 0=Mon..6=Sun, e.g. "0,2,4" - same stringly-encoded style as EventLog.details.
+    weekdays: Mapped[str] = mapped_column(String, nullable=False)
+    due_minute: Mapped[int] = mapped_column(Integer, default=MINUTES_PER_DAY - 1)
+    active: Mapped[bool] = mapped_column(Boolean, default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+
+    student: Mapped[Student] = relationship(back_populates="recurring_tasks")
+    instances: Mapped[list["RecurringTaskInstance"]] = relationship(
+        back_populates="recurring_task", cascade="all, delete-orphan"
+    )
+
+
+class RecurringTaskInstance(Base):
+    """Join between a RecurringTask template and the Task materialised for one
+    calendar occurrence. Exists so materialisation can be idempotent per
+    (template, date) without adding a column to the existing `tasks` table.
+    """
+
+    __tablename__ = "recurring_task_instances"
+    __table_args__ = (
+        UniqueConstraint("recurring_task_id", "occurrence_date", name="uq_recurring_instance_per_day"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    recurring_task_id: Mapped[int] = mapped_column(ForeignKey("recurring_tasks.id"), nullable=False)
+    task_id: Mapped[int] = mapped_column(ForeignKey("tasks.id"), nullable=False, unique=True)
+    occurrence_date: Mapped[date] = mapped_column(Date, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+
+    recurring_task: Mapped[RecurringTask] = relationship(back_populates="instances")
+    task: Mapped["Task"] = relationship(back_populates="recurring_instance")
 
 
 class ScheduledSlot(Base):

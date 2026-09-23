@@ -10,6 +10,7 @@ from ..pipeline import collect_scorable
 from ..scoring import Weights as ScoringWeights
 from ..scoring import rank
 from ..timeutil import format_hhmm, parse_hhmm
+from .recurring import _recurring_out
 
 router = APIRouter(prefix="/api/students", tags=["students"])
 
@@ -48,6 +49,9 @@ def get_settings(student_id: int, db: Session = Depends(get_db)):
         "productive_hours": [
             _block_out(w)
             for w in sorted(student.productive_hours, key=lambda w: (w.day_of_week is not None, w.start_minute))
+        ],
+        "recurring_tasks": [
+            _recurring_out(r) for r in sorted(student.recurring_tasks, key=lambda r: r.title)
         ],
         "weights": weights,
     }

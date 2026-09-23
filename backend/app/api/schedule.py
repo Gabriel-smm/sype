@@ -20,11 +20,13 @@ def _slot_out(slot: models.ScheduledSlot, now: datetime) -> dict:
         due = slot.subtask.due_by
         requires_focus = slot.subtask.requires_focus
         parent_title, task_type, task_id = parent.title, parent.task_type, parent.id
+        recurring = parent.recurring_task_id is not None
     else:
         task = slot.task
         title, parent_title, due = task.title, None, task.due_date
         task_type, task_id = task.task_type, task.id
         requires_focus = task.task_type in (models.TASK_TYPE_ESSAY, models.TASK_TYPE_EXAM)
+        recurring = task.recurring_task_id is not None
 
     return {
         "id": slot.id,
@@ -37,6 +39,7 @@ def _slot_out(slot: models.ScheduledSlot, now: datetime) -> dict:
         "end_time": slot.end_time,
         "in_productive_hours": slot.in_productive_hours,
         "requires_focus": requires_focus,
+        "recurring": recurring,
         "priority_score": slot.priority_score,
         "due_date": due,
         "overdue": due <= now,

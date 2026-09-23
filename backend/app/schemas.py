@@ -6,7 +6,7 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-from .models import BLOCK_KINDS, EVENT_TYPES, TASK_TYPES
+from .models import BLOCK_KINDS, EVENT_TYPES, TASK_TYPE_ROUTINE, TASK_TYPES
 from .timeutil import format_hhmm, parse_hhmm
 
 
@@ -56,6 +56,7 @@ class StudentSettings(BaseModel):
     student: StudentOut
     fixed_blocks: list[FixedBlockOut]
     productive_hours: list[ProductiveWindowOut]
+    recurring_tasks: list["RecurringTaskOut"]
     weights: "WeightsOut"
 
 
@@ -115,7 +116,77 @@ class TaskOut(BaseModel):
     stress_rating: int
     time_invested: int
     status: str
+    recurring_task_id: int | None = None
     subtasks: list[SubtaskOut] = []
+
+
+class RecurringTaskBase(BaseModel):
+    title: str = Field(..., min_length=1)
+    task_type: str = TASK_TYPE_ROUTINE
+    estimated_duration: int = Field(..., gt=0, description="minutes")
+    grade_weight: float = Field(0.0, ge=0, le=100)
+    stress_rating: int = Field(3, ge=1, le=5)
+    weekdays: list[int] = Field(..., min_length=1, description="0=Mon .. 6=Sun")
+    due_time: str = Field("23:59", examples=["18:00"])
+
+    @field_validator("task_type")
+    @classmethod
+    def _valid_type(cls, value: str) -> str:
+        if value not in TASK_TYPES:
+            raise ValueError(f"task_type must be one of {TASK_TYPES}")
+        return value
+
+    @field_validator("weekdays")
+    @classmethod
+    def _valid_weekdays(cls, value: list[int]) -> list[int]:
+        if not all(0 <= d <= 6 for d in value):
+            raise ValueError("weekdays entries must be 0 (Mon) through 6 (Sun)")
+        return sorted(set(value))
+
+    @field_validator("due_time")
+    @classmethod
+    def _valid_due_time(cls, value: str) -> str:
+        return format_hhmm(parse_hhmm(value))
+
+
+class RecurringTaskCreate(RecurringTaskBase):
+    pass
+
+
+class RecurringTaskUpdate(BaseModel):
+    title: str | None = None
+    task_type: str | None = None
+    estimated_duration: int | None = Field(None, gt=0)
+    grade_weight: float | None = Field(None, ge=0, le=100)
+    stress_rating: int | None = Field(None, ge=1, le=5)
+    weekdays: list[int] | None = Field(None, min_length=1)
+    due_time: str | None = None
+    active: bool | None = None
+
+    @field_validator("task_type")
+    @classmethod
+    def _valid_type(cls, value: str | None) -> str | None:
+        if value is not None and value not in TASK_TYPES:
+            raise ValueError(f"task_type must be one of {TASK_TYPES}")
+        return value
+
+    @field_validator("weekdays")
+    @classmethod
+    def _valid_weekdays(cls, value: list[int] | None) -> list[int] | None:
+        if value is not None and not all(0 <= d <= 6 for d in value):
+            raise ValueError("weekdays entries must be 0 (Mon) through 6 (Sun)")
+        return sorted(set(value)) if value is not None else None
+
+    @field_validator("due_time")
+    @classmethod
+    def _valid_due_time(cls, value: str | None) -> str | None:
+        return format_hhmm(parse_hhmm(value)) if value is not None else None
+
+
+class RecurringTaskOut(RecurringTaskBase):
+    id: int
+    student_id: int
+    active: bool
 
 
 class WeightsUpdate(BaseModel):
@@ -163,6 +234,7 @@ class ScheduledSlotOut(BaseModel):
     end_time: datetime
     in_productive_hours: bool
     requires_focus: bool
+    recurring: bool
     priority_score: float
     due_date: datetime
     overdue: bool

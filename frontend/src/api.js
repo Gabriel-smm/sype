@@ -52,6 +52,12 @@ export const api = {
   completeSubtask: (id) => request(`/api/subtasks/${id}/complete`, { method: 'POST' }),
   skipSubtask: (id) => request(`/api/subtasks/${id}/skip`, { method: 'POST' }),
 
+  createRecurringTask: (task) =>
+    request(`${base}/recurring-tasks`, { method: 'POST', body: JSON.stringify(task) }),
+  updateRecurringTask: (id, changes) =>
+    request(`/api/recurring-tasks/${id}`, { method: 'PATCH', body: JSON.stringify(changes) }),
+  deleteRecurringTask: (id) => request(`/api/recurring-tasks/${id}`, { method: 'DELETE' }),
+
   schedule: () => request(`${base}/schedule`),
   generateSchedule: () => request(`${base}/schedule/generate`, { method: 'POST' }),
   moveSlot: (slotId, startTime, endTime) =>

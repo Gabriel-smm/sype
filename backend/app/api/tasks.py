@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 
 from .. import models, schemas
 from ..db import get_db
-from ..pipeline import apply_decomposition, log_event
+from ..pipeline import apply_decomposition, log_event, materialize_recurring_tasks
 
 router = APIRouter(prefix="/api", tags=["tasks"])
 
@@ -23,6 +23,8 @@ def _get_task(db: Session, task_id: int) -> models.Task:
 
 @router.get("/students/{student_id}/tasks", response_model=list[schemas.TaskOut])
 def list_tasks(student_id: int, status: str | None = None, db: Session = Depends(get_db)):
+    # Make sure this week's routines exist before listing - no cron job runs this.
+    materialize_recurring_tasks(db, student_id, datetime.now().replace(second=0, microsecond=0))
     query = db.query(models.Task).filter(models.Task.student_id == student_id)
     if status:
         query = query.filter(models.Task.status == status)
