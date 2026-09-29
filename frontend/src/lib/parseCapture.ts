@@ -5,7 +5,7 @@
 import { toApiDateTime, weekdayIndex } from './time'
 
 // How long a task probably takes when the line does not say.
-export const DEFAULT_MINUTES = {
+export const DEFAULT_MINUTES: Record<string, number> = {
   essay_project: 360,
   exam_study: 240,
   problem_set: 120,
@@ -17,7 +17,7 @@ export const DEFAULT_MINUTES = {
 
 // Words that name the kind of work. They stay in the title - "HIST essay" is
 // still the essay's name - but they pick the type.
-const TYPE_WORDS = [
+const TYPE_WORDS: [string, string[]][] = [
   ['essay_project', ['essay', 'essays', 'paper', 'project']],
   ['exam_study', ['exam', 'exams', 'midterm', 'final', 'finals', 'quiz', 'test']],
   ['problem_set', ['pset', 'psets', 'hw', 'homework', 'problem set']],
@@ -42,12 +42,12 @@ const MONTHS = [
 
 const END_OF_DAY = 23 * 60 + 59
 
-function weekdayOf(word) {
+function weekdayOf(word: string): number | null {
   const index = WEEKDAYS.findIndex((names) => names.includes(word))
   return index === -1 ? null : index
 }
 
-function monthOf(word) {
+function monthOf(word: string): number | null {
   // "oct", "octo", "october" and "sept." all count; "marbles" does not.
   const bare = word.replace(/\.$/, '')
   if (bare.length < 3) return null
@@ -55,14 +55,14 @@ function monthOf(word) {
   return index === -1 ? null : index
 }
 
-function dayOf(word) {
+function dayOf(word: string): number | null {
   const match = /^(\d{1,2})(?:st|nd|rd|th)?$/.exec(word)
   if (!match) return null
   const day = Number(match[1])
   return day >= 1 && day <= 31 ? day : null
 }
 
-function parseDuration(word) {
+function parseDuration(word: string): number | null {
   let match = /^(\d+(?:\.\d+)?)(?:h|hr|hrs|hour|hours)(?:(\d{1,2})m?)?$/.exec(word)
   if (match) return Math.round(Number(match[1]) * 60 + Number(match[2] ?? 0))
   match = /^(\d+)(?:m|min|mins|minutes?)$/.exec(word)
@@ -71,7 +71,7 @@ function parseDuration(word) {
 }
 
 // Minutes since midnight, or null.
-function parseTime(word) {
+function parseTime(word: string): number | null {
   if (word === 'noon') return 12 * 60
   if (word === 'midnight') return END_OF_DAY
   let match = /^(\d{1,2})(?::(\d{2}))?(am|pm)$/.exec(word)
@@ -87,13 +87,13 @@ function parseTime(word) {
   return null
 }
 
-function addDays(date, days) {
+function addDays(date: Date, days: number): Date {
   const next = new Date(date)
   next.setDate(next.getDate() + days)
   return next
 }
 
-function atMinutes(date, minutes) {
+function atMinutes(date: Date, minutes: number): Date {
   const next = new Date(date)
   next.setHours(Math.floor(minutes / 60), minutes % 60, 0, 0)
   return next
@@ -103,31 +103,41 @@ function atMinutes(date, minutes) {
  * Try to read a date starting at token `i`. Returns `{ length, resolve }`
  * where `resolve(time, now)` produces the Date, or null.
  */
-function matchDate(words, i) {
+type Resolve = (time: number, now: Date) => Date
+
+interface DateMatch {
+  length: number
+  resolve: Resolve
+}
+
+function matchDate(words: string[], i: number): DateMatch | null {
   const word = words[i]
   const next = words[i + 1]
 
   if (word === 'today' || word === 'tonight') {
-    return { length: 1, resolve: (time, now) => atMinutes(now, time) }
+    return { length: 1, resolve: (time: number, now: Date) => atMinutes(now, time) }
   }
   if (['tomorrow', 'tmr', 'tmrw', 'tmw'].includes(word)) {
-    return { length: 1, resolve: (time, now) => atMinutes(addDays(now, 1), time) }
+    return { length: 1, resolve: (time: number, now: Date) => atMinutes(addDays(now, 1), time) }
   }
 
-  if (word === 'next' && next != null && weekdayOf(next) != null) {
-    const target = weekdayOf(next)
+  const nextWeekday = next == null ? null : weekdayOf(next)
+  if (word === 'next' && nextWeekday != null) {
+    const target = nextWeekday
     return {
       length: 2,
       // The named day in next calendar week.
-      resolve: (time, now) => atMinutes(addDays(now, 7 - weekdayIndex(now) + target), time),
+      resolve: (time: number, now: Date) =>
+        atMinutes(addDays(now, 7 - weekdayIndex(now) + target), time),
     }
   }
 
-  if (weekdayOf(word) != null) {
-    const target = weekdayOf(word)
+  const weekday = weekdayOf(word)
+  if (weekday != null) {
+    const target = weekday
     return {
       length: 1,
-      resolve: (time, now) => {
+      resolve: (time: number, now: Date) => {
         const due = atMinutes(addDays(now, (target - weekdayIndex(now) + 7) % 7), time)
         // Today's own weekday only means today while there is time left.
         return due <= now ? addDays(due, 7) : due
@@ -137,7 +147,7 @@ function matchDate(words, i) {
 
   if (word === 'in' && /^\d+$/.test(next ?? '') && /^days?$/.test(words[i + 2] ?? '')) {
     const days = Number(next)
-    return { length: 3, resolve: (time, now) => atMinutes(addDays(now, days), time) }
+    return { length: 3, resolve: (time: number, now: Date) => atMinutes(addDays(now, days), time) }
   }
 
   const slash = /^(\d{1,2})\/(\d{1,2})(?:\/(\d{2}|\d{4}))?$/.exec(word)
@@ -149,18 +159,22 @@ function matchDate(words, i) {
     return { length: 1, resolve: calendarDate(month, day, year) }
   }
 
-  if (monthOf(word) != null && next != null && dayOf(next) != null) {
-    return { length: 2, resolve: calendarDate(monthOf(word), dayOf(next), null) }
+  const month = monthOf(word)
+  const nextDay = next == null ? null : dayOf(next)
+  if (month != null && nextDay != null) {
+    return { length: 2, resolve: calendarDate(month, nextDay, null) }
   }
-  if (dayOf(word) != null && next != null && monthOf(next) != null) {
-    return { length: 2, resolve: calendarDate(monthOf(next), dayOf(word), null) }
+  const day = dayOf(word)
+  const nextMonth = next == null ? null : monthOf(next)
+  if (day != null && nextMonth != null) {
+    return { length: 2, resolve: calendarDate(nextMonth, day, null) }
   }
 
   return null
 }
 
 // A month and day with no year means the next time that date comes round.
-function calendarDate(month, day, year) {
+function calendarDate(month: number, day: number, year: number | null): Resolve {
   return (time, now) => {
     const due = atMinutes(new Date(year ?? now.getFullYear(), month, day), time)
     if (year == null && atMinutes(due, END_OF_DAY) < now) due.setFullYear(due.getFullYear() + 1)
@@ -168,7 +182,7 @@ function calendarDate(month, day, year) {
   }
 }
 
-function findType(words) {
+function findType(words: string[]): [string, string] | null {
   for (let i = 0; i < words.length; i += 1) {
     const pair = `${words[i]} ${words[i + 1] ?? ''}`
     for (const [type, names] of TYPE_WORDS) {
@@ -186,21 +200,35 @@ function findType(words) {
  * was read from, so the form can show what was understood and what was
  * defaulted.
  */
-export function parseCapture(text, now = new Date()) {
+export type CaptureField =
+  | 'title' | 'due_date' | 'due_time' | 'estimated_duration' | 'task_type'
+  | 'grade_weight' | 'stress_rating'
+
+export interface ParsedCapture {
+  title: string
+  due_date: string
+  estimated_duration: number
+  task_type: string
+  grade_weight: number
+  stress_rating: number
+  matched: Partial<Record<CaptureField, string>>
+}
+
+export function parseCapture(text: string, now = new Date()): ParsedCapture {
   const tokens = text.trim().split(/\s+/).filter(Boolean)
   const words = tokens.map((token) => token.toLowerCase())
   const used = new Array(tokens.length).fill(false)
-  const matched = {}
-  const take = (field, start, length) => {
+  const matched: ParsedCapture['matched'] = {}
+  const take = (field: CaptureField, start: number, length: number) => {
     for (let k = start; k < start + length; k += 1) used[k] = true
     matched[field] = tokens.slice(start, start + length).join(' ')
   }
 
-  let estimated = null
-  let grade = null
-  let stress = null
-  let time = null
-  let date = null
+  let estimated: number | null = null
+  let grade: number | null = null
+  let stress: number | null = null
+  let time: number | null = null
+  let date: DateMatch | null = null
 
   for (let i = 0; i < words.length; i += 1) {
     if (used[i]) continue
@@ -233,7 +261,7 @@ export function parseCapture(text, now = new Date()) {
       continue
     }
 
-    const found = date == null ? matchDate(words, i) : null
+    const found: DateMatch | null = date == null ? matchDate(words, i) : null
     if (found) {
       date = found
       take('due_date', i, found.length)
@@ -246,7 +274,7 @@ export function parseCapture(text, now = new Date()) {
   if (type) matched.task_type = type[1]
   const taskType = type ? type[0] : 'other'
 
-  let due
+  let due: Date
   if (date) {
     due = date.resolve(time ?? END_OF_DAY, now)
   } else if (time != null) {

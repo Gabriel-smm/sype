@@ -2,7 +2,27 @@ import DueChip from '../components/DueChip'
 import FitFixes from '../components/FitFixes'
 import { dueSoon, setupNeeded, todayAgenda } from '../lib/agenda'
 import { typeColor } from '../lib/taskMeta'
+import type { ReactNode } from 'react'
+
 import { formatClock, hoursLabel } from '../lib/time'
+import type { Schedule, ScheduleSlot, Settings, Task } from '../types/api'
+import type { Fixes, Navigate, SlotAction } from '../types/app'
+
+interface TodayPageProps {
+  schedule: Schedule
+  tasks: Task[]
+  settings: Settings
+  busy: boolean
+  onComplete: SlotAction
+  onSkip: SlotAction
+  onOpenTask: (taskId: number) => void
+  onNavigate: Navigate
+  onCapture: () => void
+  fixes: Fixes
+}
+
+const minutesBetween = (start: string, end: string) =>
+  (new Date(end).getTime() - new Date(start).getTime()) / 60000
 
 /**
  * The home screen: what to do now, what is left today, what is closing in,
@@ -10,15 +30,15 @@ import { formatClock, hoursLabel } from '../lib/time'
  */
 export default function TodayPage({
   schedule, tasks, settings, busy, onComplete, onSkip, onOpenTask, onNavigate, onCapture, fixes,
-}) {
+}: TodayPageProps) {
   const now = new Date()
   const agenda = todayAgenda(schedule.slots, now)
   const soon = dueSoon(tasks, now)
   const focus = agenda.current ?? agenda.later[0] ?? null
   const rest = agenda.current ? agenda.later : agenda.later.slice(1)
   const minutesLeft = [agenda.current, ...agenda.later]
-    .filter(Boolean)
-    .reduce((sum, slot) => sum + (new Date(slot.end_time) - new Date(slot.start_time)) / 60000, 0)
+    .filter((slot): slot is ScheduleSlot => slot !== null)
+    .reduce((sum, slot) => sum + minutesBetween(slot.start_time, slot.end_time), 0)
 
   const hasTasks = tasks.some((task) => task.status === 'pending')
 
@@ -116,7 +136,7 @@ export default function TodayPage({
   )
 }
 
-function Kbd({ children }) {
+function Kbd({ children }: { children: ReactNode }) {
   return (
     <kbd className="rounded border border-ink-600 bg-ink-800 px-1.5 py-px font-sans text-[11px] text-chalk-dim">
       {children}
@@ -124,7 +144,7 @@ function Kbd({ children }) {
   )
 }
 
-function Section({ title, children }) {
+function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
     <section>
       <h2 className="mb-1 text-[12px] text-chalk-faint">{title}</h2>
@@ -133,7 +153,7 @@ function Section({ title, children }) {
   )
 }
 
-function SetupCard({ onNavigate }) {
+function SetupCard({ onNavigate }: { onNavigate: Navigate }) {
   const steps = [
     ['busy', 'When you are busy', 'Sleep, classes, meals — so work never lands on them.'],
     ['focus', 'When you focus best', 'Essays and exam study only go here.'],
@@ -162,7 +182,17 @@ function SetupCard({ onNavigate }) {
   )
 }
 
-function FocusCard({ slot, running, upcoming, busy, onComplete, onSkip, onOpenTask }) {
+interface FocusCardProps {
+  slot: ScheduleSlot | null
+  running: boolean
+  upcoming: ScheduleSlot | null
+  busy: boolean
+  onComplete: SlotAction
+  onSkip: SlotAction
+  onOpenTask: (taskId: number) => void
+}
+
+function FocusCard({ slot, running, upcoming, busy, onComplete, onSkip, onOpenTask }: FocusCardProps) {
   if (!slot) {
     return (
       <section className="rounded-xl border border-ink-800 bg-ink-900 px-5 py-5">
@@ -191,13 +221,13 @@ function FocusCard({ slot, running, upcoming, busy, onComplete, onSkip, onOpenTa
       <p className="text-[12px]" style={{ color }}>
         {running ? 'Now' : `Up next · starts ${formatClock(start)}`}
       </p>
-      <button type="button" onClick={() => onOpenTask(slot.task_id)} className="mt-1 block text-left">
+      <button type="button" onClick={() => slot.task_id != null && onOpenTask(slot.task_id)} className="mt-1 block text-left">
         <h2 className="font-display text-[21px] leading-snug">{slot.title}</h2>
         {slot.parent_title && <p className="text-[13px] text-chalk-dim">{slot.parent_title}</p>}
       </button>
       <p className="mt-1 text-[13px] text-chalk-dim tnum">
         {formatClock(start)} – {formatClock(end)}
-        <span className="text-chalk-faint"> · {hoursLabel((end - start) / 60000)}</span>
+        <span className="text-chalk-faint"> · {hoursLabel(minutesBetween(slot.start_time, slot.end_time))}</span>
         {slot.requires_focus && <span className="text-chalk-faint"> · needs focus</span>}
       </p>
       <div className="mt-3">
@@ -207,7 +237,13 @@ function FocusCard({ slot, running, upcoming, busy, onComplete, onSkip, onOpenTa
   )
 }
 
-function SlotRow({ slot, onOpenTask, children }) {
+interface SlotRowProps {
+  slot: ScheduleSlot
+  onOpenTask: (taskId: number) => void
+  children?: ReactNode
+}
+
+function SlotRow({ slot, onOpenTask, children }: SlotRowProps) {
   const start = new Date(slot.start_time)
   const end = new Date(slot.end_time)
   return (
@@ -216,7 +252,7 @@ function SlotRow({ slot, onOpenTask, children }) {
         {formatClock(start)}–{formatClock(end)}
       </span>
       <span className="size-2 shrink-0 rounded-full" style={{ background: typeColor(slot.task_type) }} />
-      <button type="button" onClick={() => onOpenTask(slot.task_id)}
+      <button type="button" onClick={() => slot.task_id != null && onOpenTask(slot.task_id)}
               className="min-w-0 flex-1 truncate text-left text-[14px]">
         {slot.title}
         {slot.parent_title && <span className="text-chalk-faint"> · {slot.parent_title}</span>}
@@ -227,8 +263,16 @@ function SlotRow({ slot, onOpenTask, children }) {
 }
 
 /** Done / Skip for one scheduled session; a session is a step when it has a subtask. */
-export function SlotButtons({ slot, busy, onComplete, onSkip, small }) {
-  const id = slot.subtask_id ?? slot.task_id
+interface SlotButtonsProps {
+  slot: ScheduleSlot
+  busy: boolean
+  onComplete: SlotAction
+  onSkip: SlotAction
+  small?: boolean
+}
+
+export function SlotButtons({ slot, busy, onComplete, onSkip, small }: SlotButtonsProps) {
+  const id = (slot.subtask_id ?? slot.task_id)!
   const isSubtask = Boolean(slot.subtask_id)
   const size = small ? '!px-2 !py-0.5 !text-[11.5px]' : ''
   return (

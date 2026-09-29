@@ -3,34 +3,46 @@ import { useState } from 'react'
 import DueChip from '../components/DueChip'
 import StressMeter from '../components/StressMeter'
 import { hoursLabel } from '../lib/time'
-import { BUCKET_HEADINGS, dueBucket, typeColor, typeLabel } from '../lib/taskMeta'
+import { BUCKET_HEADINGS, dueBucket, typeColor, typeLabel, type DueBucket } from '../lib/taskMeta'
+import type { Task } from '../types/api'
+import type { Actions } from '../types/app'
 
-const ORDER = ['overdue', 'today', 'week', 'later']
+const ORDER: DueBucket[] = ['overdue', 'today', 'week', 'later']
 
-const FILTERS = [
+type Filter = 'all' | 'coursework' | 'routines'
+
+const FILTERS: [Filter, string, (task: Task) => boolean][] = [
   ['all', 'All', () => true],
   ['coursework', 'Coursework', (task) => task.recurring_task_id == null],
   ['routines', 'Routines', (task) => task.recurring_task_id != null],
 ]
 
-export default function TasksPage({ tasks, busy, actions, onOpenTask, onCapture }) {
-  const [showDone, setShowDone] = useState(false)
-  const [filter, setFilter] = useState('all')
-  const [leaving, setLeaving] = useState(() => new Set())
+interface TasksPageProps {
+  tasks: Task[]
+  busy: boolean
+  actions: Actions
+  onOpenTask: (taskId: number) => void
+  onCapture: () => void
+}
 
-  const keep = FILTERS.find(([key]) => key === filter)[2]
+export default function TasksPage({ tasks, busy, actions, onOpenTask, onCapture }: TasksPageProps) {
+  const [showDone, setShowDone] = useState(false)
+  const [filter, setFilter] = useState<Filter>('all')
+  const [leaving, setLeaving] = useState(() => new Set<number>())
+
+  const keep = FILTERS.find(([key]) => key === filter)![2]
   const pending = tasks.filter((task) => task.status === 'pending' && keep(task))
   const finished = tasks.filter((task) => task.status !== 'pending' && keep(task))
 
-  const grouped = ORDER.map((bucket) => [
+  const grouped = ORDER.map((bucket): [DueBucket, Task[]] => [
     bucket,
     pending
       .filter((task) => dueBucket(task.due_date) === bucket)
-      .sort((a, b) => new Date(a.due_date) - new Date(b.due_date)),
+      .sort((a, b) => new Date(a.due_date).getTime() - new Date(b.due_date).getTime()),
   ]).filter(([, items]) => items.length)
 
   // Let the strike-through land before the row disappears.
-  async function settle(id, action) {
+  async function settle(id: number, action: () => Promise<unknown>) {
     setLeaving((current) => new Set(current).add(id))
     try {
       await action()
@@ -133,7 +145,15 @@ export default function TasksPage({ tasks, busy, actions, onOpenTask, onCapture 
   )
 }
 
-function TaskRow({ task, leaving, busy, onOpen, onComplete }) {
+interface TaskRowProps {
+  task: Task
+  leaving: boolean
+  busy: boolean
+  onOpen: () => void
+  onComplete: () => void
+}
+
+function TaskRow({ task, leaving, busy, onOpen, onComplete }: TaskRowProps) {
   const color = typeColor(task.task_type)
   const subtasks = task.subtasks ?? []
   const remaining = subtasks.filter((subtask) => subtask.status === 'pending').length
@@ -193,7 +213,10 @@ function TaskRow({ task, leaving, busy, onOpen, onComplete }) {
   )
 }
 
-function Tick({ done, small, color = 'var(--color-chalk-faint)' }) {
+function Tick(
+  { done = false, small = false, color = 'var(--color-chalk-faint)' }:
+    { done?: boolean; small?: boolean; color?: string },
+) {
   const size = small ? 13 : 18
   return (
     <span
@@ -216,7 +239,7 @@ function Tick({ done, small, color = 'var(--color-chalk-faint)' }) {
 }
 
 /** How much work this is, and how much of it is already behind you. */
-function EffortBar({ minutes, invested, color }) {
+function EffortBar({ minutes, invested, color }: { minutes: number; invested: number; color: string }) {
   const progress = minutes > 0 ? Math.min(invested / minutes, 1) : 0
   // Six hours of work fills the bar; anything longer simply maxes it out.
   const weight = Math.min(minutes / 360, 1)

@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type KeyboardEvent } from 'react'
 
 import { api } from '../api'
+import type { ChatMessage, ChatProvider } from '../types/api'
 
 const OPENERS = [
   'Add my ethics paper, due Friday, worth 30%',
@@ -10,14 +11,14 @@ const OPENERS = [
 ]
 
 export default function ChatPage() {
-  const [messages, setMessages] = useState([])
+  const [messages, setMessages] = useState<ChatMessage[]>([])
   const [input, setInput] = useState('')
   const [streaming, setStreaming] = useState(false)
-  const [provider, setProvider] = useState(null)
-  const [error, setError] = useState(null)
+  const [provider, setProvider] = useState<ChatProvider | null>(null)
+  const [error, setError] = useState<string | null>(null)
 
-  const bottom = useRef(null)
-  const composer = useRef(null)
+  const bottom = useRef<HTMLDivElement>(null)
+  const composer = useRef<HTMLTextAreaElement>(null)
 
   useEffect(() => {
     api.chatProvider().then(setProvider).catch(() => setProvider(null))
@@ -27,11 +28,11 @@ export default function ChatPage() {
     bottom.current?.scrollIntoView({ behavior: 'smooth', block: 'end' })
   }, [messages, streaming])
 
-  async function send(text) {
+  async function send(text: string) {
     const trimmed = text.trim()
     if (!trimmed || streaming) return
 
-    const history = [...messages, { role: 'user', content: trimmed }]
+    const history: ChatMessage[] = [...messages, { role: 'user', content: trimmed }]
     setMessages([...history, { role: 'assistant', content: '' }])
     setInput('')
     setStreaming(true)
@@ -43,7 +44,7 @@ export default function ChatPage() {
           setMessages([...history, { role: 'assistant', content: reply }]),
       })
     } catch (err) {
-      setError(err.message)
+      setError((err as Error).message)
       setMessages(history)
     } finally {
       setStreaming(false)
@@ -51,14 +52,14 @@ export default function ChatPage() {
     }
   }
 
-  function onKeyDown(event) {
+  function onKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
     if (event.key === 'Enter' && !event.shiftKey) {
       event.preventDefault()
       send(input)
     }
   }
 
-  function grow(element) {
+  function grow(element: HTMLTextAreaElement | null) {
     if (!element) return
     element.style.height = 'auto'
     element.style.height = `${Math.min(element.scrollHeight, 200)}px`
@@ -149,7 +150,9 @@ export default function ChatPage() {
   )
 }
 
-function Opening({ provider, onPick }) {
+function Opening(
+  { provider, onPick }: { provider: ChatProvider | null; onPick: (text: string) => void },
+) {
   return (
     <div className="pt-[8vh] pb-4">
       <h1 className="font-display text-[26px] tracking-tight">What are you working on?</h1>

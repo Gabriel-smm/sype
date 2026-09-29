@@ -1,6 +1,25 @@
-import { useState } from 'react'
+import { useState, type FormEvent, type MouseEvent } from 'react'
 
 import { DAY_NAMES, MINUTES_IN_DAY, expandRecurring, formatHhmm } from '../lib/time'
+import type { Block, BlockInput, BlockKind } from '../types/api'
+import type { AddBlock } from '../types/app'
+
+interface Draft {
+  label: string
+  kind: BlockKind
+  day_of_week: string
+  start_time: string
+  end_time: string
+}
+
+interface WeekStripProps {
+  blocks: Block[]
+  tint: string
+  onAdd: AddBlock
+  onDelete: (id: number) => void
+  addLabel: string
+  busy: boolean
+}
 
 const STRIP_HEIGHT = 200
 const GUIDE_HOURS = [0, 6, 12, 18, 24]
@@ -15,13 +34,13 @@ const GENERIC_MONDAY = new Date(2024, 0, 1)
  * than as rows in a table. Click a gap to add one there; click a band to remove
  * it. The list underneath carries the exact times and the keyboard path.
  */
-export default function WeekStrip({ blocks, tint, onAdd, onDelete, addLabel, busy }) {
-  const [draft, setDraft] = useState(null)
-  const [error, setError] = useState(null)
+export default function WeekStrip({ blocks, tint, onAdd, onDelete, addLabel, busy }: WeekStripProps) {
+  const [draft, setDraft] = useState<Draft | null>(null)
+  const [error, setError] = useState<string | null>(null)
 
   const spans = expandRecurring(blocks, GENERIC_MONDAY, 'strip')
 
-  function startDraft(dayIndex, event) {
+  function startDraft(dayIndex: number, event: MouseEvent<HTMLElement>) {
     const bounds = event.currentTarget.getBoundingClientRect()
     const fraction = (event.clientY - bounds.top) / bounds.height
     const hour = Math.min(22, Math.max(0, Math.floor(fraction * 24)))
@@ -35,11 +54,12 @@ export default function WeekStrip({ blocks, tint, onAdd, onDelete, addLabel, bus
     })
   }
 
-  async function submit(event) {
+  async function submit(event: FormEvent) {
     event.preventDefault()
+    if (!draft) return
     setError(null)
     try {
-      const payload = {
+      const payload: BlockInput = {
         label: draft.label.trim(),
         day_of_week: draft.day_of_week === '' ? null : Number(draft.day_of_week),
         start_time: draft.start_time,
@@ -49,7 +69,7 @@ export default function WeekStrip({ blocks, tint, onAdd, onDelete, addLabel, bus
       await onAdd(payload)
       setDraft(null)
     } catch (err) {
-      setError(err.message)
+      setError((err as Error).message)
     }
   }
 
@@ -155,7 +175,7 @@ export default function WeekStrip({ blocks, tint, onAdd, onDelete, addLabel, bus
               <select
                 className="field"
                 value={draft.kind}
-                onChange={(event) => setDraft({ ...draft, kind: event.target.value })}
+                onChange={(event) => setDraft({ ...draft, kind: event.target.value as BlockKind })}
               >
                 <option value="class">Class</option>
                 <option value="sleep">Sleep</option>

@@ -4,7 +4,7 @@ import { parseCapture } from './parseCapture'
 
 // Wednesday 23 September 2026, 10:00 local.
 const NOW = new Date(2026, 8, 23, 10, 0)
-const parse = (text) => parseCapture(text, NOW)
+const parse = (text: string) => parseCapture(text, NOW)
 
 describe('title', () => {
   it('keeps plain words and tidies whitespace', () => {

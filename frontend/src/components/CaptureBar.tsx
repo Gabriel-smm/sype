@@ -3,10 +3,22 @@ import { useEffect, useRef, useState } from 'react'
 import { parseCapture } from '../lib/parseCapture'
 import { decompositionHint, typeColor, typeLabel } from '../lib/taskMeta'
 import { hoursLabel } from '../lib/time'
+import type { Task, TaskInput } from '../types/api'
+
+type Field = 'due_date' | 'estimated_duration' | 'task_type' | 'grade_weight' | 'stress_rating'
+type Overrides = Partial<Pick<TaskInput, Field>>
+
+interface CaptureBarProps {
+  open: boolean
+  onClose: () => void
+  taskTypes: string[]
+  busy: boolean
+  onCreate: (task: TaskInput) => Promise<Task>
+}
 
 const STRESS_WORDS = ['calm', 'easy', 'fine', 'tense', 'dreading it']
 
-function dueText(value) {
+function dueText(value: string) {
   const due = new Date(value)
   const day = due.toLocaleDateString([], { weekday: 'short', day: 'numeric', month: 'short' })
   const endOfDay = due.getHours() === 23 && due.getMinutes() === 59
@@ -20,18 +32,18 @@ function dueText(value) {
  * line was understood as is shown as chips; tapping one opens the field behind
  * it, and anything edited by hand stays put while typing continues.
  */
-export default function CaptureBar({ open, onClose, taskTypes, busy, onCreate }) {
+export default function CaptureBar({ open, onClose, taskTypes, busy, onCreate }: CaptureBarProps) {
   const [text, setText] = useState('')
-  const [overrides, setOverrides] = useState({})
+  const [overrides, setOverrides] = useState<Overrides>({})
   const [details, setDetails] = useState(false)
-  const [error, setError] = useState(null)
-  const input = useRef(null)
-  const fields = useRef({})
+  const [error, setError] = useState<string | null>(null)
+  const input = useRef<HTMLInputElement>(null)
+  const fields = useRef<Partial<Record<Field, HTMLElement | null>>>({})
 
   useEffect(() => {
     if (!open) return undefined
     input.current?.focus()
-    const onKey = (event) => event.key === 'Escape' && onClose()
+    const onKey = (event: KeyboardEvent) => event.key === 'Escape' && onClose()
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [open, onClose])
@@ -40,11 +52,11 @@ export default function CaptureBar({ open, onClose, taskTypes, busy, onCreate })
 
   const parsed = parseCapture(text)
   const task = { ...parsed, ...overrides }
-  const guessed = (field) => !(field in overrides) && !(field in parsed.matched)
+  const guessed = (field: Field) => !(field in overrides) && !(field in parsed.matched)
 
-  const override = (field, value) => setOverrides({ ...overrides, [field]: value })
+  const override = <K extends Field>(field: K, value: Overrides[K]) => setOverrides({ ...overrides, [field]: value })
 
-  function reveal(field) {
+  function reveal(field: Field) {
     setDetails(true)
     // Wait for the fields to render before focusing.
     requestAnimationFrame(() => fields.current[field]?.focus())
@@ -57,7 +69,7 @@ export default function CaptureBar({ open, onClose, taskTypes, busy, onCreate })
     setError(null)
   }
 
-  async function submit(keepOpen) {
+  async function submit(keepOpen: boolean) {
     setError(null)
     if (!task.title.trim()) return setError('Give it a name first.')
     if (!(task.estimated_duration > 0)) return setError('Estimated time has to be more than zero.')
@@ -75,12 +87,12 @@ export default function CaptureBar({ open, onClose, taskTypes, busy, onCreate })
       if (keepOpen) input.current?.focus()
       else onClose()
     } catch (err) {
-      setError(err.message)
+      setError((err as Error).message)
     }
   }
 
   const color = typeColor(task.task_type)
-  const chips = [
+  const chips: [Field, string][] = [
     ['task_type', typeLabel(task.task_type)],
     ['due_date', dueText(task.due_date)],
     ['estimated_duration', hoursLabel(task.estimated_duration)],

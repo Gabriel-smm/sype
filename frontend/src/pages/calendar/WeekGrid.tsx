@@ -1,4 +1,6 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import {
+  useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type PointerEvent,
+} from 'react'
 
 import {
   MINUTES_IN_DAY,
@@ -11,14 +13,38 @@ import {
   weekStartOf,
 } from '../../lib/time'
 import { ALARM, typeColor } from '../../lib/taskMeta'
+import type { Placed } from '../../lib/time'
+import type { FixedBlock, ProductiveWindow, ScheduleSlot } from '../../types/api'
+
+type Entry = Placed<{ slot: ScheduleSlot; startMinute: number; endMinute: number }>
+
+interface Drag {
+  slot: ScheduleSlot
+  originX: number
+  originY: number
+  columnWidth: number
+  offsetDays: number
+  offsetMinutes: number
+  moved: boolean
+}
+
+interface WeekGridProps {
+  slots: ScheduleSlot[]
+  fixedBlocks: FixedBlock[]
+  productiveHours: ProductiveWindow[]
+  date: Date
+  selectedId?: number
+  onSelectSlot: (slot: ScheduleSlot) => void
+  onMoveSlot: (slot: ScheduleSlot, start: Date, end: Date) => void
+}
 
 const HOUR_HEIGHT = 46
 const DAY_HEIGHT = HOUR_HEIGHT * 24
 const SNAP_MINUTES = 15
 const DRAG_THRESHOLD = 4
 
-const top = (minute) => (minute / MINUTES_IN_DAY) * DAY_HEIGHT
-const height = (minutes) => Math.max((minutes / MINUTES_IN_DAY) * DAY_HEIGHT, 15)
+const top = (minute: number) => (minute / MINUTES_IN_DAY) * DAY_HEIGHT
+const height = (minutes: number) => Math.max((minutes / MINUTES_IN_DAY) * DAY_HEIGHT, 15)
 
 function useNow() {
   const [now, setNow] = useState(() => new Date())
@@ -31,11 +57,11 @@ function useNow() {
 
 export default function WeekGrid({
   slots, fixedBlocks, productiveHours, date, selectedId, onSelectSlot, onMoveSlot,
-}) {
+}: WeekGridProps) {
   const now = useNow()
-  const scroller = useRef(null)
-  const body = useRef(null)
-  const [drag, setDrag] = useState(null)
+  const scroller = useRef<HTMLDivElement>(null)
+  const body = useRef<HTMLDivElement>(null)
+  const [drag, setDrag] = useState<Drag | null>(null)
 
   const weekStart = weekStartOf(date)
   const days = daysOfWeek(date)
@@ -49,7 +75,7 @@ export default function WeekGrid({
   const focus = expandRecurring(productiveHours, weekStart, 'productive')
 
   // Work blocks, bucketed by the day column they belong to.
-  const byDay = days.map(() => [])
+  const byDay = days.map((): Omit<Entry, 'column' | 'columns'>[] => [])
   slots.forEach((slot) => {
     const start = new Date(slot.start_time)
     const end = new Date(slot.end_time)
@@ -59,7 +85,7 @@ export default function WeekGrid({
       slot,
       startMinute: minutesSinceMidnight(start),
       endMinute: Math.min(
-        minutesSinceMidnight(start) + Math.round((end - start) / 60000),
+        minutesSinceMidnight(start) + Math.round((end.getTime() - start.getTime()) / 60000),
         MINUTES_IN_DAY,
       ),
     })
@@ -67,7 +93,7 @@ export default function WeekGrid({
   const laidOut = byDay.map(layoutColumns)
 
   // --- Dragging a block to a new time ---------------------------------------
-  function beginDrag(event, slot) {
+  function beginDrag(event: PointerEvent<HTMLElement>, slot: ScheduleSlot) {
     if (event.button !== 0) return
     const columnWidth = body.current
       ? (body.current.getBoundingClientRect().width - 56) / 7
@@ -84,7 +110,7 @@ export default function WeekGrid({
     event.currentTarget.setPointerCapture(event.pointerId)
   }
 
-  function onDragMove(event) {
+  function onDragMove(event: PointerEvent<HTMLElement>) {
     if (!drag) return
     const dx = event.clientX - drag.originX
     const dy = event.clientY - drag.originY
@@ -99,7 +125,7 @@ export default function WeekGrid({
     })
   }
 
-  function endDrag(event) {
+  function endDrag(event: PointerEvent<HTMLElement>) {
     if (!drag) return
     event.currentTarget.releasePointerCapture?.(event.pointerId)
     const { slot, moved, offsetDays, offsetMinutes } = drag
@@ -234,7 +260,21 @@ export default function WeekGrid({
   )
 }
 
-function EventBlock({ entry, selected, drag, onSelect, onPointerDown, onPointerMove, onPointerUp }) {
+type PointerHandler = (event: PointerEvent<HTMLElement>) => void
+
+interface EventBlockProps {
+  entry: Entry
+  selected: boolean
+  drag: Drag | null
+  onSelect: () => void
+  onPointerDown: PointerHandler
+  onPointerMove: PointerHandler
+  onPointerUp: PointerHandler
+}
+
+function EventBlock(
+  { entry, selected, drag, onSelect, onPointerDown, onPointerMove, onPointerUp }: EventBlockProps,
+) {
   const { slot, startMinute, endMinute, column, columns } = entry
   const color = slot.overdue ? ALARM : typeColor(slot.task_type)
   const minutes = endMinute - startMinute
@@ -276,7 +316,7 @@ function EventBlock({ entry, selected, drag, onSelect, onPointerDown, onPointerM
         borderLeft: `3px solid ${color}`,
         color: `color-mix(in srgb, ${color} 55%, white)`,
         '--tw-ring-color': color,
-      }}
+      } as CSSProperties}
     >
       <div className="flex items-center gap-1 font-medium">
         {slot.requires_focus && (

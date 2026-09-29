@@ -5,7 +5,7 @@ import { ALARM, LAMP, dueLabel, urgency } from '../lib/taskMeta'
  * the information: a glance across the list tells you what is closing in,
  * without reading a single date.
  */
-export default function DueChip({ due, now }) {
+export default function DueChip({ due, now }: { due: string; now?: Date }) {
   const heat = urgency(due, now)
   const overdue = new Date(due) < (now ?? new Date())
   const color = overdue ? ALARM : LAMP

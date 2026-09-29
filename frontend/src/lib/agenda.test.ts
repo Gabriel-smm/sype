@@ -1,14 +1,16 @@
 import { describe, expect, it } from 'vitest'
 
+import type { FixedBlock, ProductiveWindow, Schedule, ScheduleSlot, Task, UnschedulableItem } from '../types/api'
 import { dueSoon, placementSummary, setupNeeded, todayAgenda } from './agenda'
 
 // Wednesday 23 September 2026, 14:30 local.
 const NOW = new Date(2026, 8, 23, 14, 30)
 
-const slot = (id, start, end, extra = {}) => ({
+// Fixtures carry only the fields under test.
+const slot = (id: number, start: string, end: string, extra: Partial<ScheduleSlot> = {}) => ({
   id, task_id: id, subtask_id: null, title: `slot ${id}`,
   start_time: start, end_time: end, ...extra,
-})
+}) as ScheduleSlot
 
 describe('todayAgenda', () => {
   const slots = [
@@ -50,7 +52,8 @@ describe('todayAgenda', () => {
 })
 
 describe('dueSoon', () => {
-  const task = (id, due, status = 'pending') => ({ id, due_date: due, status })
+  const task = (id: number, due: string, status = 'pending') =>
+    ({ id, due_date: due, status }) as Task
   const tasks = [
     task(1, '2026-09-30T23:59:00'),
     task(2, '2026-09-25T17:00:00'),
@@ -71,19 +74,19 @@ describe('dueSoon', () => {
 describe('setupNeeded', () => {
   it('is true only when neither busy blocks nor focus hours exist', () => {
     expect(setupNeeded({ fixed_blocks: [], productive_hours: [] })).toBe(true)
-    expect(setupNeeded({ fixed_blocks: [{}], productive_hours: [] })).toBe(false)
-    expect(setupNeeded({ fixed_blocks: [], productive_hours: [{}] })).toBe(false)
+    expect(setupNeeded({ fixed_blocks: [{} as FixedBlock], productive_hours: [] })).toBe(false)
+    expect(setupNeeded({ fixed_blocks: [], productive_hours: [{} as ProductiveWindow] })).toBe(false)
   })
 })
 
 describe('placementSummary', () => {
-  const schedule = {
+  const schedule: Schedule = {
     slots: [
       slot(10, '2026-09-25T09:00:00', '2026-09-25T10:00:00', { task_id: 7 }),
       slot(11, '2026-09-24T14:00:00', '2026-09-24T16:00:00', { task_id: 7 }),
       slot(12, '2026-09-24T09:00:00', '2026-09-24T10:00:00', { task_id: 8 }),
     ],
-    unschedulable: [{ task_id: 7, subtask_id: 3 }, { task_id: 9, subtask_id: null }],
+    unschedulable: [{ task_id: 7, subtask_id: 3 }, { task_id: 9, subtask_id: null }] as UnschedulableItem[],
   }
 
   it('counts sessions and finds the earliest', () => {

@@ -1,10 +1,14 @@
 import { useEffect } from 'react'
 
+import type { ToastState } from '../types/app'
+
 /**
  * A short confirmation of what just happened, with at most one follow-up
  * action (Undo, Show me). It leaves by itself; nothing depends on reading it.
  */
-export default function Toast({ toast, onDismiss }) {
+export default function Toast(
+  { toast, onDismiss }: { toast: ToastState | null; onDismiss: () => void },
+) {
   useEffect(() => {
     if (!toast) return undefined
     const timer = setTimeout(onDismiss, toast.action ? 7000 : 4500)
@@ -24,7 +28,7 @@ export default function Toast({ toast, onDismiss }) {
         <button
           type="button"
           className="font-semibold text-lamp hover:underline"
-          onClick={() => { toast.action.onClick(); onDismiss() }}
+          onClick={() => { toast.action?.onClick(); onDismiss() }}
         >
           {toast.action.label}
         </button>

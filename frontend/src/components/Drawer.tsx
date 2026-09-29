@@ -1,4 +1,14 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, type ReactNode } from 'react'
+
+interface DrawerProps {
+  open: boolean
+  title: string
+  onClose: () => void
+  children?: ReactNode
+  width?: number
+  bare?: boolean
+  keepMounted?: boolean
+}
 
 /**
  * A right-hand detail panel. Slides in because the motion shows where it came from.
@@ -8,12 +18,12 @@ import { useEffect, useRef } from 'react'
  */
 export default function Drawer({
   open, title, onClose, children, width = 360, bare = false, keepMounted = false,
-}) {
-  const panel = useRef(null)
+}: DrawerProps) {
+  const panel = useRef<HTMLElement>(null)
 
   useEffect(() => {
     if (!open) return undefined
-    const onKey = (event) => event.key === 'Escape' && onClose()
+    const onKey = (event: KeyboardEvent) => event.key === 'Escape' && onClose()
     window.addEventListener('keydown', onKey)
     panel.current?.focus()
     return () => window.removeEventListener('keydown', onKey)

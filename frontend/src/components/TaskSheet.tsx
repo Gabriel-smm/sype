@@ -1,12 +1,31 @@
-import { useState } from 'react'
+import { useState, type ChangeEvent, type FormEvent } from 'react'
 
 import Drawer from './Drawer'
 import { decompositionHint, dueLabel, typeColor, typeLabel } from '../lib/taskMeta'
 import { hoursLabel } from '../lib/time'
+import type { Task, TaskChanges } from '../types/api'
+import type { Actions } from '../types/app'
+
+interface Draft {
+  title: string
+  due_date: string
+  hours: string
+  task_type: string
+  grade_weight: string
+  stress_rating: number
+  invested: string
+}
+
+interface SheetProps {
+  taskTypes: string[]
+  busy: boolean
+  actions: Actions
+  onClose: () => void
+}
 
 const STRESS_WORDS = ['calm', 'easy', 'fine', 'tense', 'dreading it']
 
-function draftOf(task) {
+function draftOf(task: Task): Draft {
   return {
     title: task.title,
     due_date: task.due_date.slice(0, 16),
@@ -19,7 +38,9 @@ function draftOf(task) {
 }
 
 /** Everything about one task, editable, in a side panel. */
-export default function TaskSheet({ task, taskTypes, busy, actions, onClose }) {
+export default function TaskSheet(
+  { task, taskTypes, busy, actions, onClose }: SheetProps & { task: Task | null },
+) {
   return (
     <Drawer open={Boolean(task)} title={task?.title ?? ''} onClose={onClose} width={400}>
       {/* Keyed so switching tasks starts from a fresh draft. */}
@@ -29,28 +50,30 @@ export default function TaskSheet({ task, taskTypes, busy, actions, onClose }) {
   )
 }
 
-function SheetBody({ task, taskTypes, busy, actions, onClose }) {
+function SheetBody({ task, taskTypes, busy, actions, onClose }: SheetProps & { task: Task }) {
   const [draft, setDraft] = useState(() => draftOf(task))
   const [confirmDelete, setConfirmDelete] = useState(false)
-  const [error, setError] = useState(null)
+  const [error, setError] = useState<string | null>(null)
   const [saved, setSaved] = useState(false)
 
-  const set = (field) => (event) => setDraft({ ...draft, [field]: event.target.value })
+  const set = (field: keyof Draft) =>
+    (event: ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
+      setDraft({ ...draft, [field]: event.target.value })
   const subtasks = task.subtasks ?? []
   const color = typeColor(task.task_type)
   const pending = task.status === 'pending'
 
   const original = draftOf(task)
-  const dirty = Object.keys(draft).some((key) => String(draft[key]) !== String(original[key]))
+  const dirty = (Object.keys(draft) as (keyof Draft)[]).some((key) => String(draft[key]) !== String(original[key]))
 
-  async function save(event) {
+  async function save(event: FormEvent) {
     event.preventDefault()
     setError(null)
     const hours = Number(draft.hours)
     if (!draft.title.trim()) return setError('Give it a name first.')
     if (!(hours > 0)) return setError('Estimated time has to be more than zero.')
 
-    const next = {
+    const next: TaskChanges = {
       title: draft.title.trim(),
       due_date: `${draft.due_date}:00`,
       estimated_duration: Math.round(hours * 60),
@@ -61,18 +84,18 @@ function SheetBody({ task, taskTypes, busy, actions, onClose }) {
     }
     // Send only what moved, so an untouched due date does not re-split the task.
     const changes = Object.fromEntries(
-      Object.entries(next).filter(([key, value]) => value !== task[key]),
-    )
+      Object.entries(next).filter(([key, value]) => value !== task[key as keyof Task]),
+    ) as TaskChanges
     try {
       await actions.updateTask(task.id, changes)
       setSaved(true)
       setTimeout(() => setSaved(false), 1600)
     } catch (err) {
-      setError(err.message)
+      setError((err as Error).message)
     }
   }
 
-  const close = (action) => async () => {
+  const close = (action: () => Promise<unknown>) => async () => {
     await action()
     onClose()
   }
@@ -136,7 +159,8 @@ function SheetBody({ task, taskTypes, busy, actions, onClose }) {
               <span className="text-chalk-dim">{STRESS_WORDS[draft.stress_rating - 1]}</span>
             </span>
             <input type="range" min="1" max="5" className="slider-lamp"
-                   value={draft.stress_rating} onChange={set('stress_rating')} />
+                   value={draft.stress_rating}
+                   onChange={(event) => setDraft({ ...draft, stress_rating: Number(event.target.value) })} />
           </label>
         </div>
 

@@ -1,4 +1,10 @@
-const ICONS = {
+import type { ReactNode } from 'react'
+
+import type { Navigate, PageKey } from '../types/app'
+
+export type IconName = 'today' | 'add' | 'calendar' | 'tasks' | 'chat' | 'parameters'
+
+const ICONS: Record<IconName, ReactNode> = {
   today: (
     <>
       <circle cx="10" cy="10" r="3.2" />
@@ -36,7 +42,7 @@ const ICONS = {
   ),
 }
 
-function Icon({ name }) {
+function Icon({ name }: { name: IconName }) {
   return (
     <svg
       viewBox="0 0 20 20"
@@ -60,8 +66,20 @@ function Icon({ name }) {
  * that is always in reach, so it sits above the pages (a floating button on
  * phones); chat opens beside whatever page is showing.
  */
-export default function Rail({ pages, current, onNavigate, onAdd, onChat, pendingCount, online }) {
-  const item = (active) =>
+interface RailProps {
+  pages: { key: PageKey; label: string; icon: IconName }[]
+  current: PageKey
+  onNavigate: Navigate
+  onAdd: () => void
+  onChat: () => void
+  pendingCount: number
+  online: boolean
+}
+
+export default function Rail(
+  { pages, current, onNavigate, onAdd, onChat, pendingCount, online }: RailProps,
+) {
+  const item = (active: boolean) =>
     `relative flex flex-1 flex-col items-center gap-1 rounded-lg px-1 py-2 text-[11px]
      transition-colors md:w-[60px] md:flex-none ${
        active ? 'bg-ink-800 text-chalk' : 'text-chalk-faint hover:bg-ink-850 hover:text-chalk-dim'

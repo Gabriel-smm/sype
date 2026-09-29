@@ -1,9 +1,11 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, type ReactNode, type Ref } from 'react'
 
 import WeekStrip from '../components/WeekStrip'
 import { api } from '../api'
 import { BLOCK_KIND_LABELS, dueLabel, typeColor } from '../lib/taskMeta'
 import { DAY_NAMES } from '../lib/time'
+import type { ActivityEvent, Block, FixedBlock, Settings, Weights, WeightsPreview } from '../types/api'
+import type { Actions } from '../types/app'
 import RecurringTasks from './parameters/RecurringTasks'
 
 // The first three are what a new student has to fill in; they come first.
@@ -15,7 +17,7 @@ const SECTIONS = [
   ['activity', 'What you have done'],
 ]
 
-const SLIDERS = [
+const SLIDERS: [keyof Weights, string, string][] = [
   ['w_urgency', 'A deadline getting close', 'How hard a near deadline pulls work forward.'],
   ['w_grade', 'How much the grade rides on it', 'How much a heavy assessment outranks a light one.'],
   ['w_stress', 'How much it is weighing on you', 'How much your own stress rating counts.'],
@@ -24,9 +26,17 @@ const SLIDERS = [
 
 const SLIDER_COLORS = ['#e8b04b', '#7c93e8', '#e05a5a', '#5fb3a3']
 
-export default function SetupPage({ settings, events, taskTypes, busy, actions }) {
+interface SetupPageProps {
+  settings: Settings
+  events: ActivityEvent[]
+  taskTypes: string[]
+  busy: boolean
+  actions: Actions
+}
+
+export default function SetupPage({ settings, events, taskTypes, busy, actions }: SetupPageProps) {
   const [active, setActive] = useState('busy')
-  const panes = useRef({})
+  const panes = useRef<Record<string, HTMLElement | null>>({})
 
   // Light the index entry for whichever section is in view.
   useEffect(() => {
@@ -41,7 +51,7 @@ export default function SetupPage({ settings, events, taskTypes, busy, actions }
     return () => observer.disconnect()
   }, [])
 
-  const register = (key) => (node) => { panes.current[key] = node }
+  const register = (key: string) => (node: HTMLElement | null) => { panes.current[key] = node }
 
   return (
     <div className="mx-auto flex w-full max-w-[1000px] gap-8 px-4 py-6 md:px-6 md:py-8">
@@ -111,7 +121,7 @@ export default function SetupPage({ settings, events, taskTypes, busy, actions }
         </Section>
         <Section id="ranking" title="What comes first" ref={register('ranking')}
                  blurb="Four things decide the order your work is scheduled in. These weights say how loudly each one speaks.">
-          <Weights weights={settings.weights} busy={busy} onSave={actions.saveWeights} />
+          <WeightsEditor weights={settings.weights} busy={busy} onSave={actions.saveWeights} />
         </Section>
 
         <Section id="activity" title="What you have done" ref={register('activity')}
@@ -123,7 +133,15 @@ export default function SetupPage({ settings, events, taskTypes, busy, actions }
   )
 }
 
-function Section({ id, title, blurb, children, ref }) {
+interface SectionProps {
+  id: string
+  title: string
+  blurb: string
+  children: ReactNode
+  ref: Ref<HTMLElement>
+}
+
+function Section({ id, title, blurb, children, ref }: SectionProps) {
   return (
     <section id={id} ref={ref} className="scroll-mt-8">
       <h2 className="font-display text-[18px]">{title}</h2>
@@ -133,9 +151,17 @@ function Section({ id, title, blurb, children, ref }) {
   )
 }
 
-function Weights({ weights, busy, onSave }) {
-  const [draft, setDraft] = useState(weights)
-  const [preview, setPreview] = useState(null)
+type WeightDraft = Record<keyof Weights, number | string>
+
+interface WeightsProps {
+  weights: Weights
+  busy: boolean
+  onSave: (weights: Weights) => Promise<unknown>
+}
+
+function WeightsEditor({ weights, busy, onSave }: WeightsProps) {
+  const [draft, setDraft] = useState<WeightDraft>(weights)
+  const [preview, setPreview] = useState<WeightsPreview | null>(null)
   const [saved, setSaved] = useState(false)
   const [serverWeights, setServerWeights] = useState(weights)
 
@@ -150,7 +176,7 @@ function Weights({ weights, busy, onSave }) {
   const total = SLIDERS.reduce((sum, [key]) => sum + Number(draft[key]), 0)
 
   const asNumbers = useMemo(
-    () => Object.fromEntries(SLIDERS.map(([key]) => [key, Number(draft[key])])),
+    () => Object.fromEntries(SLIDERS.map(([key]) => [key, Number(draft[key])])) as unknown as Weights,
     [draft],
   )
 
@@ -237,7 +263,7 @@ function Weights({ weights, busy, onSave }) {
             ))}
           </ol>
         )}
-        {preview?.total_pending > preview?.ranked.length && (
+        {preview && preview.total_pending > preview.ranked.length && (
           <p className="mt-2 text-[11.5px] text-chalk-faint">
             and {preview.total_pending - preview.ranked.length} more after that
           </p>
@@ -259,7 +285,13 @@ function Weights({ weights, busy, onSave }) {
   )
 }
 
-function BlockList({ blocks, onDelete, withKind }) {
+interface BlockListProps {
+  blocks: (Block & Partial<Pick<FixedBlock, 'kind'>>)[]
+  onDelete: (id: number) => void
+  withKind?: boolean
+}
+
+function BlockList({ blocks, onDelete, withKind = false }: BlockListProps) {
   if (!blocks.length) {
     return <p className="mt-3 text-[13px] text-chalk-faint">Nothing set yet.</p>
   }
@@ -269,7 +301,7 @@ function BlockList({ blocks, onDelete, withKind }) {
       {blocks.map((block) => (
         <li key={block.id} className="group flex items-center gap-3 py-2">
           <span className="w-24 shrink-0 truncate">
-            {block.label || (withKind ? BLOCK_KIND_LABELS[block.kind] : 'Focus time')}
+            {block.label || (withKind ? BLOCK_KIND_LABELS[block.kind ?? 'other'] : 'Focus time')}
           </span>
           <span className="w-20 shrink-0 text-chalk-dim">
             {block.day_of_week === null ? 'Every day' : DAY_NAMES[block.day_of_week]}
@@ -291,7 +323,7 @@ function BlockList({ blocks, onDelete, withKind }) {
   )
 }
 
-const EVENT_COLORS = {
+const EVENT_COLORS: Record<string, string> = {
   completed: '#5fb3a3',
   skipped: '#e05a5a',
   rescheduled: '#7c93e8',
@@ -300,7 +332,7 @@ const EVENT_COLORS = {
   scheduled: '#8a93a8',
 }
 
-const EVENT_WORDS = {
+const EVENT_WORDS: Record<string, string> = {
   completed: 'finished',
   skipped: 'skipped',
   rescheduled: 'moved',
@@ -309,7 +341,7 @@ const EVENT_WORDS = {
   scheduled: 'placed on the calendar',
 }
 
-function Activity({ events }) {
+function Activity({ events }: { events: ActivityEvent[] }) {
   const [open, setOpen] = useState(false)
 
   if (!events.length) {

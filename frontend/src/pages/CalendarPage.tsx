@@ -1,12 +1,26 @@
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 
 import Drawer from '../components/Drawer'
 import FitFixes from '../components/FitFixes'
 import WeekGrid from './calendar/WeekGrid'
 import { formatClock, formatWeekRange, hoursLabel, weekStartOf } from '../lib/time'
 import { typeColor, typeLabel } from '../lib/taskMeta'
+import type { Schedule, ScheduleSlot, Settings } from '../types/api'
+import type { Fixes, SlotAction } from '../types/app'
 
-function Chevron({ left }) {
+interface CalendarPageProps {
+  schedule: Schedule
+  settings: Settings
+  busy: boolean
+  onRegenerate: () => void
+  onMoveSlot: (slot: ScheduleSlot, start: Date, end: Date) => void
+  onComplete: SlotAction
+  onSkip: SlotAction
+  onOpenTask: (taskId: number) => void
+  fixes: Fixes
+}
+
+function Chevron({ left = false }: { left?: boolean }) {
   return (
     <svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor"
          strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -17,11 +31,11 @@ function Chevron({ left }) {
 
 export default function CalendarPage({
   schedule, settings, busy, onRegenerate, onMoveSlot, onComplete, onSkip, onOpenTask, fixes,
-}) {
+}: CalendarPageProps) {
   const [date, setDate] = useState(() => new Date())
-  const [selected, setSelected] = useState(null)
+  const [selected, setSelected] = useState<ScheduleSlot | null>(null)
 
-  const shiftWeek = (weeks) => {
+  const shiftWeek = (weeks: number) => {
     const next = new Date(date)
     next.setDate(next.getDate() + weeks * 7)
     setDate(next)
@@ -73,7 +87,7 @@ export default function CalendarPage({
 
       <Drawer open={Boolean(selected)} title={selected?.title ?? ''} onClose={() => setSelected(null)}>
         {selected && <SlotDetail slot={selected} onComplete={onComplete} onSkip={onSkip}
-                                 onEdit={() => { onOpenTask(selected.task_id); setSelected(null) }}
+                                 onEdit={() => { if (selected.task_id != null) onOpenTask(selected.task_id); setSelected(null) }}
                                  onDone={() => setSelected(null)} />}
       </Drawer>
     </div>
@@ -81,7 +95,7 @@ export default function CalendarPage({
 }
 
 function Legend() {
-  const items = [
+  const items: [string, ReactNode][] = [
     ['Your focus hours', <span key="a" className="block size-2.5 rounded-[2px] bg-lamp/25" />],
     ['Busy', <span key="b" className="hatched block size-2.5 rounded-[2px] border border-ink-700" />],
     ['Needs focus', <span key="c" className="block size-1.5 rounded-full bg-type-essay" />],
@@ -95,13 +109,21 @@ function Legend() {
   )
 }
 
-function SlotDetail({ slot, onComplete, onSkip, onEdit, onDone }) {
+interface SlotDetailProps {
+  slot: ScheduleSlot
+  onComplete: SlotAction
+  onSkip: SlotAction
+  onEdit: () => void
+  onDone: () => void
+}
+
+function SlotDetail({ slot, onComplete, onSkip, onEdit, onDone }: SlotDetailProps) {
   const start = new Date(slot.start_time)
   const end = new Date(slot.end_time)
   const color = typeColor(slot.task_type)
 
-  const act = async (action) => {
-    await action(slot.subtask_id ?? slot.task_id, Boolean(slot.subtask_id))
+  const act = async (action: SlotAction) => {
+    await action((slot.subtask_id ?? slot.task_id)!, Boolean(slot.subtask_id))
     onDone()
   }
 
@@ -113,7 +135,7 @@ function SlotDetail({ slot, onComplete, onSkip, onEdit, onDone }) {
         </div>
         <div className="tnum text-chalk-dim">
           {formatClock(start)} – {formatClock(end)}
-          <span className="text-chalk-faint"> ({hoursLabel((end - start) / 60000)})</span>
+          <span className="text-chalk-faint"> ({hoursLabel((end.getTime() - start.getTime()) / 60000)})</span>
         </div>
       </div>
 
@@ -150,11 +172,11 @@ function SlotDetail({ slot, onComplete, onSkip, onEdit, onDone }) {
 
       <div className="flex gap-2 border-t border-ink-800 pt-4">
         <button type="button" className="btn-lamp"
-                onClick={() => act((id, sub) => onComplete(id, sub))}>
+                onClick={() => act(onComplete)}>
           Mark done
         </button>
         <button type="button" className="btn-quiet"
-                onClick={() => act((id, sub) => onSkip(id, sub))}>
+                onClick={() => act(onSkip)}>
           Skip it
         </button>
         <button type="button" className="ml-auto text-[12.5px] text-chalk-dim hover:text-chalk"
@@ -166,7 +188,7 @@ function SlotDetail({ slot, onComplete, onSkip, onEdit, onDone }) {
   )
 }
 
-function Fact({ label, children }) {
+function Fact({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div>
       <div className="mb-1 text-[11px] text-chalk-faint">{label}</div>

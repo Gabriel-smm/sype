@@ -1,17 +1,25 @@
 import { useState } from 'react'
 
 import { hoursLabel } from '../lib/time'
+import type { UnschedulableItem } from '../types/api'
+import type { Fixes } from '../types/app'
+
+interface FitFixesProps extends Fixes {
+  items: UnschedulableItem[]
+  busy: boolean
+  defaultOpen?: boolean
+}
 
 /**
  * Work the scheduler could not place, with the fixes a student would actually
  * reach for. Grouped by task, since a fix (a later deadline, a smaller
  * estimate) applies to the whole task rather than one of its steps.
  */
-export default function FitFixes({ items, busy, onPushDeadline, onEdit, onFocusHours, defaultOpen = false }) {
+export default function FitFixes({ items, busy, onPushDeadline, onEdit, onFocusHours, defaultOpen = false }: FitFixesProps) {
   const [open, setOpen] = useState(defaultOpen)
   if (!items.length) return null
 
-  const groups = []
+  const groups: { taskId: number | null; items: UnschedulableItem[] }[] = []
   for (const item of items) {
     const group = groups.find((g) => item.task_id != null && g.taskId === item.task_id)
     if (group) group.items.push(item)
@@ -49,20 +57,20 @@ export default function FitFixes({ items, busy, onPushDeadline, onEdit, onFocusH
                   </span>
                 </p>
               ))}
-              {group.taskId != null && (
+              {group.taskId != null && ((taskId) => (
                 <div className="mt-2 flex flex-wrap gap-1.5">
                   <button type="button" className="btn-quiet" disabled={busy}
-                          onClick={() => onPushDeadline(group.taskId, 2)}>
+                          onClick={() => onPushDeadline(taskId, 2)}>
                     Due 2 days later
                   </button>
-                  <button type="button" className="btn-quiet" onClick={() => onEdit(group.taskId)}>
+                  <button type="button" className="btn-quiet" onClick={() => onEdit(taskId)}>
                     Change estimate…
                   </button>
                   <button type="button" className="btn-quiet" onClick={onFocusHours}>
                     Add focus hours
                   </button>
                 </div>
-              )}
+              ))(group.taskId)}
             </li>
           ))}
         </ul>

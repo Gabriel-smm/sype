@@ -11,11 +11,16 @@ import ChatPage from './pages/ChatPage'
 import SetupPage from './pages/SetupPage'
 import TasksPage from './pages/TasksPage'
 import TodayPage from './pages/TodayPage'
-import { placementSummary } from './lib/agenda'
+import { placementSummary, type PlacementSummary } from './lib/agenda'
 import { formatClock, toApiDateTime } from './lib/time'
+import type {
+  ActivityEvent, Meta, Schedule, ScheduleSlot, Settings, Task, TaskChanges,
+} from './types/api'
+import type { Actions, Fixes, Navigate, PageKey, ToastState } from './types/app'
+import type { IconName } from './components/Rail'
 import './theme.css'
 
-const PAGES = [
+const PAGES: { key: PageKey; label: string; icon: IconName }[] = [
   { key: 'today', label: 'Today', icon: 'today' },
   { key: 'calendar', label: 'Week', icon: 'calendar' },
   { key: 'tasks', label: 'Tasks', icon: 'tasks' },
@@ -23,12 +28,12 @@ const PAGES = [
 ]
 
 // Keys typed into a field are text, not shortcuts.
-function isTyping(target) {
+function isTyping(target: HTMLElement) {
   return target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName)
 }
 
-function whereItLanded(title, summary) {
-  if (summary.sessions > 0) {
+function whereItLanded(title: string, summary: PlacementSummary): Omit<ToastState, 'action'> {
+  if (summary.sessions > 0 && summary.first) {
     const first = new Date(summary.first)
     const day = first.toLocaleDateString([], { weekday: 'short' })
     const sessions = summary.sessions === 1 ? '1 session' : `${summary.sessions} sessions`
@@ -45,19 +50,19 @@ function whereItLanded(title, summary) {
 }
 
 export default function App() {
-  const [page, setPage] = useState('today')
-  const section = useRef(null)
-  const [meta, setMeta] = useState(null)
-  const [settings, setSettings] = useState(null)
-  const [tasks, setTasks] = useState([])
-  const [schedule, setSchedule] = useState({ slots: [], unschedulable: [] })
-  const [events, setEvents] = useState([])
+  const [page, setPage] = useState<PageKey>('today')
+  const section = useRef<string | null>(null)
+  const [meta, setMeta] = useState<Meta | null>(null)
+  const [settings, setSettings] = useState<Settings | null>(null)
+  const [tasks, setTasks] = useState<Task[]>([])
+  const [schedule, setSchedule] = useState<Schedule>({ slots: [], unschedulable: [] })
+  const [events, setEvents] = useState<ActivityEvent[]>([])
   const [busy, setBusy] = useState(false)
-  const [error, setError] = useState(null)
+  const [error, setError] = useState<string | null>(null)
   const [capturing, setCapturing] = useState(false)
   const [chatOpen, setChatOpen] = useState(false)
-  const [editingId, setEditingId] = useState(null)
-  const [toast, setToast] = useState(null)
+  const [editingId, setEditingId] = useState<number | null>(null)
+  const [toast, setToast] = useState<ToastState | null>(null)
 
   const refresh = useCallback(async () => {
     try {
@@ -71,14 +76,14 @@ export default function App() {
       setEvents(eventData)
       setError(null)
     } catch (err) {
-      setError(`Could not reach the scheduler: ${err.message}`)
+      setError(`Could not reach the scheduler: ${(err as Error).message}`)
     }
   }, [])
 
   useEffect(() => { refresh() }, [refresh])
 
   // Wrap every mutation so failures surface instead of vanishing.
-  const run = useCallback(async (action) => {
+  const run = useCallback(async <T,>(action: () => Promise<T>): Promise<T> => {
     setBusy(true)
     try {
       const result = await action()
@@ -86,7 +91,7 @@ export default function App() {
       setError(null)
       return result
     } catch (err) {
-      setError(err.message)
+      setError((err as Error).message)
       throw err
     } finally {
       setBusy(false)
@@ -95,8 +100,8 @@ export default function App() {
 
   // `n` or `/` from anywhere opens capture.
   useEffect(() => {
-    const onKey = (event) => {
-      if (event.metaKey || event.ctrlKey || event.altKey || isTyping(event.target)) return
+    const onKey = (event: KeyboardEvent) => {
+      if (event.metaKey || event.ctrlKey || event.altKey || isTyping(event.target as HTMLElement)) return
       if (event.key === 'n' || event.key === '/') {
         event.preventDefault()
         setCapturing(true)
@@ -114,7 +119,7 @@ export default function App() {
     section.current = null
   }, [navigation])
 
-  const navigate = useCallback((next, target = null) => {
+  const navigate: Navigate = useCallback((next, target = null) => {
     section.current = target
     setPage(next)
     setNavigation((count) => count + 1)
@@ -127,12 +132,12 @@ export default function App() {
 
   // The schedule is derived state: anything that changes what needs doing
   // rebuilds it, so the calendar is never stale.
-  const updateTask = (id, changes) => run(async () => {
+  const updateTask = (id: number, changes: TaskChanges) => run(async () => {
     await api.updateTask(id, changes)
     await api.generateSchedule()
   })
 
-  const actions = {
+  const actions: Actions = {
     createTask: (task) => run(async () => {
       const created = await api.createTask(task)
       const rebuilt = await api.generateSchedule()
@@ -173,13 +178,13 @@ export default function App() {
   // The block editors need to know whether to offer a "kind" field.
   actions.addFixedBlock.withKind = true
 
-  const onComplete = (id, isSubtask) =>
+  const onComplete = (id: number, isSubtask: boolean) =>
     isSubtask ? actions.completeSubtask(id) : actions.completeTask(id)
-  const onSkip = (id, isSubtask) =>
+  const onSkip = (id: number, isSubtask: boolean) =>
     isSubtask ? actions.skipSubtask(id) : actions.skipTask(id)
 
   // One-tap fixes for work that did not fit, shared by Today and Week.
-  const fixes = {
+  const fixes: Fixes = {
     onPushDeadline: async (taskId, days) => {
       const task = tasks.find((t) => t.id === taskId)
       if (!task) return
@@ -243,7 +248,7 @@ export default function App() {
               settings={settings}
               busy={busy}
               onRegenerate={() => run(async () => setSchedule(await api.generateSchedule()))}
-              onMoveSlot={(slot, start, end) =>
+              onMoveSlot={(slot: ScheduleSlot, start: Date, end: Date) =>
                 run(() => api.moveSlot(slot.id, toApiDateTime(start), toApiDateTime(end)))}
               onComplete={onComplete}
               onSkip={onSkip}
@@ -311,7 +316,7 @@ function Loading() {
   )
 }
 
-function Offline({ message, onRetry }) {
+function Offline({ message, onRetry }: { message: string; onRetry: () => void }) {
   return (
     <div className="grid h-screen place-items-center px-6">
       <div className="max-w-[46ch] text-center">

@@ -1,7 +1,7 @@
 const WORDS = ['calm', 'easy', 'fine', 'tense', 'dreading it']
 
 /** Self-reported stress, 1 to 5, as segments rather than a number out of five. */
-export default function StressMeter({ value }) {
+export default function StressMeter({ value }: { value: number }) {
   const level = Math.min(Math.max(Number(value) || 1, 1), 5)
 
   return (

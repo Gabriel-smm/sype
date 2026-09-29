@@ -1,9 +1,21 @@
-import { useState } from 'react'
+import { useState, type ChangeEvent, type FormEvent } from 'react'
 
 import { DAY_NAMES } from '../../lib/time'
 import { typeLabel } from '../../lib/taskMeta'
+import type { RecurringTask } from '../../types/api'
+import type { Actions } from '../../types/app'
 
-const EMPTY = {
+interface Form {
+  title: string
+  task_type: string
+  hours: string
+  grade_weight: string
+  stress_rating: number
+  weekdays: number[]
+  due_time: string
+}
+
+const EMPTY: Form = {
   title: '',
   task_type: 'routine',
   hours: '1',
@@ -19,23 +31,34 @@ const EMPTY = {
  * forward into ordinary tasks by the backend; this form only edits the
  * template, never the individual occurrences it produces.
  */
-export default function RecurringTasks({ recurringTasks, taskTypes, busy, actions }) {
-  const [form, setForm] = useState(EMPTY)
-  const [error, setError] = useState(null)
+interface RecurringTasksProps {
+  recurringTasks: RecurringTask[]
+  taskTypes: string[]
+  busy: boolean
+  actions: Actions
+}
 
-  const set = (field) => (event) => setForm({ ...form, [field]: event.target.value })
+export default function RecurringTasks(
+  { recurringTasks, taskTypes, busy, actions }: RecurringTasksProps,
+) {
+  const [form, setForm] = useState<Form>(EMPTY)
+  const [error, setError] = useState<string | null>(null)
+
+  const set = (field: keyof Form) =>
+    (event: ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
+      setForm({ ...form, [field]: event.target.value })
   const hours = Number(form.hours)
 
-  function toggleDay(day) {
+  function toggleDay(day: number) {
     setForm((current) => ({
       ...current,
       weekdays: current.weekdays.includes(day)
         ? current.weekdays.filter((d) => d !== day)
-        : [...current.weekdays, day].sort(),
+        : [...current.weekdays, day].sort((a, b) => a - b),
     }))
   }
 
-  async function submit(event) {
+  async function submit(event: FormEvent) {
     event.preventDefault()
     setError(null)
 
@@ -55,7 +78,7 @@ export default function RecurringTasks({ recurringTasks, taskTypes, busy, action
       })
       setForm(EMPTY)
     } catch (err) {
-      setError(err.message)
+      setError((err as Error).message)
     }
   }
 
@@ -107,7 +130,8 @@ export default function RecurringTasks({ recurringTasks, taskTypes, busy, action
               </span>
             </span>
             <input type="range" min="1" max="5" className="slider-lamp"
-                   value={form.stress_rating} onChange={set('stress_rating')} />
+                   value={form.stress_rating}
+                   onChange={(event) => setForm({ ...form, stress_rating: Number(event.target.value) })} />
           </label>
         </div>
 
@@ -143,7 +167,9 @@ export default function RecurringTasks({ recurringTasks, taskTypes, busy, action
   )
 }
 
-function RecurringTaskList({ recurringTasks, actions }) {
+function RecurringTaskList(
+  { recurringTasks, actions }: { recurringTasks: RecurringTask[]; actions: Actions },
+) {
   if (!recurringTasks.length) {
     return <p className="mt-3 text-[13px] text-chalk-faint">Nothing set yet.</p>
   }
