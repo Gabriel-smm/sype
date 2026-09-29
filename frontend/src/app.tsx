@@ -1,10 +1,11 @@
-import { AnimatePresence, motion } from 'motion/react'
+import { AnimatePresence, motion, MotionConfig } from 'motion/react'
 import { useCallback, useEffect, useState } from 'react'
 import { Navigate as Redirect, Route, Routes, useLocation, useNavigate } from 'react-router'
 
 import { ChatPanel } from '@/components/chat/chat-panel'
+import { SplashCursor } from '@/components/effects/splash-cursor'
 import { Background } from '@/components/layout/background'
-import { MobileNav } from '@/components/layout/mobile-nav'
+import { Footer } from '@/components/layout/footer'
 import { Logo, Navbar } from '@/components/layout/navbar'
 import { CaptureDialog } from '@/components/tasks/capture-dialog'
 import { TaskSheet } from '@/components/tasks/task-sheet'
@@ -14,6 +15,7 @@ import { Toaster } from '@/components/ui/sonner'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { useAppData } from '@/hooks/use-app-data'
 import { useChat } from '@/hooks/use-chat'
+import { useCursorTrail } from '@/hooks/use-cursor-trail'
 import { SetupPage } from '@/pages/setup'
 import { TasksPage } from '@/pages/tasks'
 import { TodayPage } from '@/pages/today'
@@ -34,6 +36,7 @@ export function App() {
 
   const data = useAppData({ openTask: setEditingId, navigate })
   const chat = useChat()
+  const cursor = useCursorTrail()
   const { meta, settings, tasks, schedule, events, busy, error, actions } = data
 
   // `n` or `/` from anywhere opens capture.
@@ -56,22 +59,24 @@ export function App() {
   const openCapture = () => setCapturing(true)
 
   return (
+    <MotionConfig reducedMotion="user">
     <TooltipProvider delayDuration={300}>
       <Background />
+      {cursor.active && <SplashCursor />}
       <Navbar
         pendingCount={tasks.filter((task) => task.status === 'pending').length}
         onAdd={openCapture}
         onChat={() => setChatOpen(true)}
       />
 
-      <main className="mx-auto w-full max-w-6xl px-4 pt-24 pb-28 md:px-6 md:pt-28 md:pb-10">
+      <main className="mx-auto w-full max-w-7xl px-4 pt-28 pb-10 md:px-6 md:pt-36">
         {error && (
           <p role="alert" className="mb-6 rounded-2xl border border-destructive/30 bg-destructive/[0.08] px-4 py-3 text-sm text-destructive">
             {error}
           </p>
         )}
 
-        <AnimatePresence mode="wait" initial={false}>
+        <AnimatePresence mode="wait">
           <motion.div
             key={location.pathname}
             initial={{ opacity: 0, y: 8 }}
@@ -98,7 +103,7 @@ export function App() {
               } />
               <Route path="setup" element={
                 <SetupPage settings={settings} events={events} taskTypes={meta.task_types}
-                           busy={busy} actions={actions} />
+                           busy={busy} actions={actions} cursor={cursor} />
               } />
               <Route path="*" element={<Redirect to="/" replace />} />
             </Routes>
@@ -106,7 +111,7 @@ export function App() {
         </AnimatePresence>
       </main>
 
-      <MobileNav />
+      {location.pathname !== '/week' && <Footer />}
 
       <CaptureDialog open={capturing} onOpenChange={setCapturing} taskTypes={meta.task_types}
                      busy={busy} onCreate={actions.createTask} />
@@ -123,6 +128,7 @@ export function App() {
 
       <Toaster />
     </TooltipProvider>
+    </MotionConfig>
   )
 }
 

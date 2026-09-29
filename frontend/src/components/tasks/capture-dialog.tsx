@@ -104,7 +104,7 @@ export function CaptureDialog({ open, onOpenChange, taskTypes, busy, onCreate }:
           Describe the task in one line. What was understood appears below as chips you can change.
         </DialogDescription>
         <form onSubmit={(event) => { event.preventDefault(); void submit(false) }}>
-          <div className="flex items-center gap-3 px-6 pt-6 pb-4">
+          <div className="flex items-center gap-4 px-8 pt-8 pb-5">
             <span aria-hidden="true" className="size-5 shrink-0 rounded-full border-2 border-dashed"
                   style={{ borderColor: color }} />
             <input
@@ -119,11 +119,11 @@ export function CaptureDialog({ open, onOpenChange, taskTypes, busy, onCreate }:
               }}
               aria-label="What needs doing?"
               placeholder="What needs doing?"
-              className="w-full bg-transparent text-xl font-medium tracking-tight outline-none placeholder:text-faint"
+              className="w-full bg-transparent text-2xl font-semibold tracking-tight outline-none placeholder:text-white/40"
             />
           </div>
 
-          <div className="flex flex-wrap gap-1.5 px-6 pb-4">
+          <div className="flex flex-wrap gap-2 px-8 pb-5">
             {chips.map(([field, label]) => {
               const soft = guessed(field)
               const tint = field === 'task_type' ? color : 'var(--accent-ink)'
@@ -148,7 +148,7 @@ export function CaptureDialog({ open, onOpenChange, taskTypes, busy, onCreate }:
           </div>
 
           {!text && !details && (
-            <p className="px-6 pb-4 text-sm text-faint">
+            <p className="px-8 pb-4 text-sm text-faint">
               Try <span className="text-muted-foreground">“HIST essay fri 5pm 4h 20%”</span>. Add{' '}
               <span className="text-muted-foreground">!</span> or <span className="text-muted-foreground">!!</span>{' '}
               if it is stressing you out.
@@ -156,7 +156,7 @@ export function CaptureDialog({ open, onOpenChange, taskTypes, busy, onCreate }:
           )}
 
           {details && (
-            <div className="grid grid-cols-2 gap-4 border-t border-white/[0.08] px-6 pt-4 pb-2 sm:grid-cols-4">
+            <div className="grid grid-cols-2 gap-4 border-t border-white/[0.08] px-8 pt-4 pb-2 sm:grid-cols-4">
               <label className="col-span-2">
                 <Label>Due</Label>
                 <Input
@@ -206,19 +206,19 @@ export function CaptureDialog({ open, onOpenChange, taskTypes, busy, onCreate }:
             </div>
           )}
 
-          <div className="flex flex-wrap items-center gap-3 border-t border-white/[0.08] px-6 py-4">
+          <div className="flex flex-wrap items-center gap-3 border-t border-white/[0.08] px-8 py-4">
             <p className="min-w-0 flex-1 text-[13px] text-faint">
               {decompositionHint(task.task_type, task.estimated_duration / 60)}
             </p>
             <span className="hidden items-center gap-1 text-xs text-faint md:inline-flex">
               <Kbd>⇧</Kbd><Kbd><CornerDownLeft className="size-3" /></Kbd> add another
             </span>
-            <Button type="submit" disabled={busy}>
+            <Button type="submit" size="lg" disabled={busy}>
               {busy ? 'Adding…' : 'Add task'}
             </Button>
           </div>
 
-          {error && <p role="alert" className="px-6 pb-4 text-sm text-destructive">{error}</p>}
+          {error && <p role="alert" className="px-8 pb-4 text-sm text-destructive">{error}</p>}
         </form>
       </DialogContent>
     </Dialog>

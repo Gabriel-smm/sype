@@ -50,7 +50,7 @@ export function ChatPanel({ chat }: { chat: Chat }) {
             {messages.map((message, index) => (
               <li key={index} className={message.role === 'user' ? 'flex justify-end' : ''}>
                 {message.role === 'user' ? (
-                  <p className="max-w-[85%] rounded-3xl rounded-br-lg bg-primary px-4 py-2.5 text-[15px] leading-relaxed whitespace-pre-wrap text-white">
+                  <p className="max-w-[85%] rounded-3xl rounded-br-lg bg-blue-500 px-4 py-2.5 text-[15px] leading-relaxed whitespace-pre-wrap text-white">
                     {message.content}
                   </p>
                 ) : (
@@ -79,8 +79,8 @@ export function ChatPanel({ chat }: { chat: Chat }) {
       </div>
 
       <div className="border-t border-white/[0.08] px-4 pt-3 pb-4">
-        <div className="flex items-end gap-2 rounded-3xl border border-white/10 bg-white/[0.05] py-2 pr-2 pl-4
-                        transition-colors focus-within:border-accent-ink/50">
+        <div className="flex items-end gap-2 rounded-3xl border border-white/20 bg-white/10 py-2 pr-2 pl-5
+                        backdrop-blur-md transition-all focus-within:border-blue-400/50 focus-within:bg-white/15">
           <textarea
             ref={composer}
             rows={1}
@@ -97,7 +97,7 @@ export function ChatPanel({ chat }: { chat: Chat }) {
             disabled={!ready}
             aria-label="Send"
             className={cn('grid size-9 shrink-0 place-items-center rounded-full transition-colors',
-              ready ? 'bg-primary text-white hover:bg-primary-hover' : 'bg-white/10 text-faint')}
+              ready ? 'bg-blue-500 text-white hover:scale-105 hover:bg-blue-600' : 'bg-white/10 text-faint')}
           >
             <ArrowUp className="size-4" strokeWidth={2.2} />
           </button>
@@ -140,8 +140,8 @@ function Opening({ provider, onPick }: { provider: ChatProvider | null; onPick: 
             <button
               type="button"
               onClick={() => onPick(opener)}
-              className="rounded-full border border-white/10 bg-white/[0.03] px-4 py-2 text-left text-sm
-                         text-muted-foreground transition-colors hover:border-white/20 hover:text-foreground"
+              className="rounded-full border border-white/20 bg-white/10 px-5 py-2.5 text-left text-sm text-white/70
+                         backdrop-blur-md transition-all hover:border-blue-400/50 hover:bg-white/15 hover:text-white"
             >
               {opener}
             </button>

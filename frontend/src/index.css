@@ -35,12 +35,13 @@
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
 
-  --animate-blob: blob 18s ease-in-out infinite;
+  --animate-blob: blob 7s infinite;
 
   @keyframes blob {
-    0%, 100% { transform: translate(0, 0) scale(1); }
-    33% { transform: translate(30px, -40px) scale(1.08); }
-    66% { transform: translate(-20px, 20px) scale(0.94); }
+    0% { transform: translate(0, 0) scale(1); }
+    33% { transform: translate(30px, -50px) scale(1.1); }
+    66% { transform: translate(-20px, 20px) scale(0.9); }
+    100% { transform: translate(0, 0) scale(1); }
   }
 }
 
@@ -71,13 +72,20 @@
     @apply border-border;
   }
 
+  /* Glows and blobs bleed past the edges on purpose; never let them widen the
+     page, or phones zoom out and the nav slides off screen. */
+  html,
+  body {
+    overflow-x: clip;
+  }
+
   html {
     scrollbar-color: oklch(1 0 0 / 0.16) transparent;
     -webkit-tap-highlight-color: transparent;
   }
 
   body {
-    @apply bg-background text-foreground antialiased;
+    @apply bg-background text-foreground antialiased selection:bg-blue-500/30;
     font-family: var(--font-sans);
     font-feature-settings: "cv11", "ss01";
   }
@@ -116,6 +124,22 @@
     @apply border border-white/10 bg-white/[0.04] shadow-[0_8px_32px_0_rgba(0,0,0,0.36)] backdrop-blur-xl;
   }
 
+  .glass-hover {
+    @apply transition-all duration-300 hover:border-white/20 hover:bg-white/10;
+  }
+
+  /* Sype's heading gradient: white fading to half white. */
+  .text-gradient {
+    @apply bg-gradient-to-r from-white via-white/80 to-white/50 bg-clip-text text-transparent;
+  }
+
+  .animation-delay-2000 {
+    animation-delay: 2s;
+  }
+  .animation-delay-4000 {
+    animation-delay: 4s;
+  }
+
   /* Times and durations sit in columns, so they need to line up. */
   .tnum {
     font-variant-numeric: tabular-nums;
@@ -132,7 +156,7 @@
   }
 }
 
-/* Motion only ever answers an action, plus one slow glow on Today. */
+/* Reduced motion stills the blobs and reveals; app.tsx also skips the cursor trail. */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

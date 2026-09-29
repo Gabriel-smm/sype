@@ -25,7 +25,7 @@ function SheetContent({ className, title, description, bare = false, children, .
       <SheetPrimitive.Content
         className={cn(
           `fixed inset-y-0 right-0 z-50 flex h-full w-full max-w-[min(94vw,440px)] flex-col
-           border-l border-white/10 bg-neutral-950/85 shadow-2xl backdrop-blur-2xl outline-none
+           border-l border-white/10 bg-black/70 shadow-[0_8px_32px_0_rgba(0,0,0,0.36)] backdrop-blur-xl outline-none
            data-[state=closed]:animate-out data-[state=closed]:slide-out-to-right data-[state=closed]:duration-150
            data-[state=open]:animate-in data-[state=open]:slide-in-from-right data-[state=open]:duration-200`,
           className,

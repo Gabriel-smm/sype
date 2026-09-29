@@ -1,8 +1,9 @@
-import { ArrowUpRight, Plus } from 'lucide-react'
+import { ArrowUpRight, CalendarClock, Plus, Rocket } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { Link } from 'react-router'
 
-import { PageHeader, SectionHeading } from '@/components/layout/page-header'
+import { Reveal } from '@/components/effects/reveal'
+import { IconTile, PageHeader, SectionTitle } from '@/components/layout/page-header'
 import { SlotButtons } from '@/components/schedule/slot-buttons'
 import { DueChip } from '@/components/tasks/due-chip'
 import { FitFixes } from '@/components/tasks/fit-fixes'
@@ -48,19 +49,26 @@ export function TodayPage({
   const hasTasks = tasks.some((task) => task.status === 'pending')
   const open = (slot: ScheduleSlot) => slot.task_id != null && onOpenTask(slot.task_id)
 
+  const [title, accent] = minutesLeft > 0
+    ? [`${hoursLabel(minutesLeft)} of work`, 'left today']
+    : hasTasks ? ['Nothing else', 'scheduled today'] : ['A clear', 'slate']
+
   return (
-    <div className="space-y-10">
+    <div className="space-y-16">
       <PageHeader
-        kicker={now.toLocaleDateString([], { weekday: 'long', day: 'numeric', month: 'long' })}
-        title={minutesLeft > 0
-          ? `${hoursLabel(minutesLeft)} of work left today`
-          : hasTasks ? 'Nothing else scheduled today' : 'A clear slate'}
+        badge={now.toLocaleDateString([], { weekday: 'long', day: 'numeric', month: 'long' })}
+        title={title}
+        accent={accent}
       />
 
-      <FitFixes items={schedule.unschedulable} busy={busy} defaultOpen {...fixes} />
+      {schedule.unschedulable.length > 0 && (
+        <Reveal delay={0.6}>
+          <FitFixes items={schedule.unschedulable} busy={busy} defaultOpen {...fixes} />
+        </Reveal>
+      )}
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1.55fr)_minmax(0,1fr)]">
-        <div className="min-w-0 space-y-10">
+        <div className="min-w-0 space-y-16">
           {!hasTasks ? (
             <button
               type="button"
@@ -78,21 +86,23 @@ export function TodayPage({
               </span>
             </button>
           ) : (
-            <FocusCard
-              slot={focus}
-              now={now}
-              running={Boolean(agenda.current)}
-              upcoming={agenda.upcoming}
-              busy={busy}
-              onComplete={onComplete}
-              onSkip={onSkip}
-              onOpen={open}
-            />
+            <Reveal delay={0.6}>
+              <FocusCard
+                slot={focus}
+                now={now}
+                running={Boolean(agenda.current)}
+                upcoming={agenda.upcoming}
+                busy={busy}
+                onComplete={onComplete}
+                onSkip={onSkip}
+                onOpen={open}
+              />
+            </Reveal>
           )}
 
           {agenda.earlier.length > 0 && (
             <section>
-              <SectionHeading>Did you get to these?</SectionHeading>
+              <SectionTitle>Did you get to these?</SectionTitle>
               <SlotList>
                 {agenda.earlier.map((slot) => (
                   <SlotRow key={slot.id} slot={slot} onOpen={open}>
@@ -105,7 +115,7 @@ export function TodayPage({
 
           {rest.length > 0 && (
             <section>
-              <SectionHeading>Later today</SectionHeading>
+              <SectionTitle aside={rest.length}>Later today</SectionTitle>
               <SlotList>
                 {rest.map((slot) => <SlotRow key={slot.id} slot={slot} onOpen={open} />)}
               </SlotList>
@@ -114,16 +124,21 @@ export function TodayPage({
         </div>
 
         <div className="min-w-0 space-y-6">
-          {setupNeeded(settings) && <SetupCard />}
+          {setupNeeded(settings) && <Reveal delay={0.6}><SetupCard /></Reveal>}
 
-          <GlassCard className="p-0">
-            <div className="px-6 pt-5 pb-2">
-              <SectionHeading aside={soon.length > 0 ? soon.length : undefined}>Due in the next three days</SectionHeading>
+          <Reveal delay={0.7}>
+          <GlassCard hoverEffect className="p-0">
+            <div className="px-8 pt-8 pb-4">
+              <IconTile><CalendarClock /></IconTile>
+              <h2 className="mt-6 flex items-baseline gap-3 text-2xl font-semibold">
+                Due in the next three days
+                {soon.length > 0 && <span className="ml-auto text-sm font-normal text-white/40 tnum">{soon.length}</span>}
+              </h2>
             </div>
             {soon.length === 0 ? (
-              <p className="px-6 pb-6 text-sm text-faint">Nothing due soon.</p>
+              <p className="px-8 pb-8 text-white/60">Nothing due soon.</p>
             ) : (
-              <ul className="px-2 pb-2">
+              <ul className="relative px-4 pb-4">
                 {soon.map((task) => {
                   const steps = task.subtasks ?? []
                   const left = steps.filter((s) => s.status === 'pending').length
@@ -153,6 +168,7 @@ export function TodayPage({
               </ul>
             )}
           </GlassCard>
+          </Reveal>
         </div>
       </div>
     </div>
@@ -166,9 +182,10 @@ function SetupCard() {
     ['routines', 'What repeats', 'Gym, laundry. Optional.'],
   ]
   return (
-    <GlassCard className="border-accent-ink/25">
-      <h2 className="text-lg font-semibold tracking-tight">Tell the scheduler about your week</h2>
-      <p className="mt-1 text-sm text-muted-foreground">Two minutes of setup, and the plan stops guessing.</p>
+    <GlassCard hoverEffect className="border-blue-400/25">
+      <IconTile><Rocket /></IconTile>
+      <h2 className="mt-6 text-2xl font-semibold">Tell the scheduler about your week</h2>
+      <p className="mt-2 leading-relaxed text-white/60">Two minutes of setup, and the plan stops guessing.</p>
       <ol className="mt-4 space-y-1">
         {steps.map(([id, label, blurb], index) => (
           <li key={id}>
@@ -208,8 +225,8 @@ interface FocusCardProps {
 function FocusCard({ slot, now, running, upcoming, busy, onComplete, onSkip, onOpen }: FocusCardProps) {
   if (!slot) {
     return (
-      <GlassCard className="p-8">
-        <h2 className="text-2xl font-semibold tracking-tight">You are done for today</h2>
+      <GlassCard className="p-10">
+        <h2 className="text-4xl font-bold tracking-tight">You are done <span className="text-gradient">for today</span></h2>
         <p className="mt-2 text-muted-foreground">
           {upcoming
             ? `Next up: ${upcoming.title}, ${new Date(upcoming.start_time).toLocaleDateString([], { weekday: 'long' })} at ${formatClock(new Date(upcoming.start_time))}.`
@@ -230,9 +247,9 @@ function FocusCard({ slot, now, running, upcoming, busy, onComplete, onSkip, onO
   return (
     <div className="relative">
       <div aria-hidden="true"
-           className="pointer-events-none absolute -inset-6 -z-10 animate-blob rounded-full bg-blue-600/25 blur-[90px]
+           className="pointer-events-none absolute -inset-6 -z-10 animate-blob rounded-full bg-blue-600/30 blur-[100px]
                       motion-reduce:animate-none" />
-      <GlassCard className="bg-white/[0.05] p-7 md:p-9">
+      <GlassCard className="bg-white/[0.05] p-8 md:p-10">
         <p className="flex items-center gap-2 text-sm text-accent-ink">
           {running && (
             <span className="relative flex size-2">
@@ -244,7 +261,7 @@ function FocusCard({ slot, now, running, upcoming, busy, onComplete, onSkip, onO
         </p>
 
         <button type="button" onClick={() => onOpen(slot)} className="mt-3 block text-left">
-          <h2 className="text-3xl leading-tight font-semibold tracking-tight text-balance md:text-4xl">{slot.title}</h2>
+          <h2 className="text-4xl leading-tight font-bold tracking-tight text-balance md:text-5xl">{slot.title}</h2>
           <span className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[15px] text-muted-foreground">
             <span className="flex items-center gap-1.5">
               <span className="size-2 rounded-full" style={{ background: color }} />

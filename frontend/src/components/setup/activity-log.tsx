@@ -1,6 +1,5 @@
 import { useState } from 'react'
 
-import { Button } from '@/components/ui/button'
 import type { ActivityEvent } from '@/types/api'
 
 const EVENT_COLORS: Record<string, string> = {
@@ -52,9 +51,11 @@ export function ActivityLog({ events }: { events: ActivityEvent[] }) {
         })}
       </ul>
       {events.length > 6 && (
-        <Button variant="link" size="sm" className="mt-3" onClick={() => setOpen(!open)}>
+        <button type="button" onClick={() => setOpen(!open)}
+                className="group mt-5 flex items-center gap-2 text-sm font-medium text-white/40 transition-colors hover:text-white">
           {open ? 'Show fewer' : `Show all ${events.length}`}
-        </Button>
+          <span className="h-px w-4 bg-current transition-all group-hover:w-8" />
+        </button>
       )}
     </div>
   )

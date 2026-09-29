@@ -2,9 +2,10 @@ import type { ComponentProps } from 'react'
 
 import { cn } from '@/lib/utils'
 
-const fieldClasses = `w-full min-w-0 rounded-full border border-input bg-white/[0.05] px-4 text-sm text-foreground
-  transition-[border-color,background-color] duration-150 outline-none placeholder:text-faint
-  hover:border-white/20 focus-visible:border-accent-ink/60 focus-visible:bg-white/[0.08] focus-visible:outline-none
+// Sype's field: frosted white, a blue edge on focus.
+const fieldClasses = `w-full min-w-0 rounded-full border border-white/20 bg-white/10 px-4 text-sm text-white
+  backdrop-blur-md transition-all outline-none placeholder:text-white/40
+  focus-visible:border-blue-400/50 focus-visible:bg-white/15 focus-visible:outline-none
   disabled:opacity-50 [color-scheme:dark]`
 
 function Input({ className, type = 'text', ...props }: ComponentProps<'input'>) {

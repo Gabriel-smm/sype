@@ -1,4 +1,6 @@
-import { MessageCircle, Plus } from 'lucide-react'
+import { Menu, MessageCircle, Plus, X } from 'lucide-react'
+import { AnimatePresence, motion, useMotionValueEvent, useScroll } from 'motion/react'
+import { useState } from 'react'
 import { NavLink } from 'react-router'
 
 import { Kbd } from '@/components/ui/badge'
@@ -8,10 +10,10 @@ import { cn } from '@/lib/utils'
 
 import { NAV_ITEMS } from './nav-items'
 
-export function Logo() {
+export function Logo({ onClick }: { onClick?: () => void }) {
   return (
-    <NavLink to="/" className="rounded-full px-1 text-lg font-bold tracking-tight">
-      Sype<span className="text-accent-ink">.</span>
+    <NavLink to="/" onClick={onClick} className="relative z-50 rounded-full text-2xl font-bold tracking-tighter">
+      Sype<span className="text-blue-400">.</span>
     </NavLink>
   )
 }
@@ -23,54 +25,107 @@ interface NavbarProps {
 }
 
 /**
- * The floating glass pill from Sype's landing page, carrying the app's pages.
- * Adding a task is the one action always in reach; chat opens beside any page.
+ * Sype's floating glass pill, carrying the app's pages. It slides in on load
+ * and tightens once the page scrolls; phones get Sype's full-screen menu.
  */
 export function Navbar({ pendingCount, onAdd, onChat }: NavbarProps) {
-  return (
-    <header className="pointer-events-none fixed inset-x-0 top-0 z-40 px-4 pt-4">
-      <nav
-        aria-label="Main"
-        className="glass pointer-events-auto mx-auto flex h-14 max-w-6xl items-center gap-2 rounded-full
-                   bg-black/50 pr-2 pl-5"
-      >
-        <Logo />
+  const [scrolled, setScrolled] = useState(false)
+  const [menuOpen, setMenuOpen] = useState(false)
+  const { scrollY } = useScroll()
+  useMotionValueEvent(scrollY, 'change', (latest) => setScrolled(latest > 50))
 
-        <ul className="ml-6 hidden items-center gap-1 md:flex">
+  return (
+    <motion.header
+      initial={{ y: -100 }}
+      animate={{ y: 0 }}
+      transition={{ duration: 0.5 }}
+      className={cn('fixed inset-x-0 top-0 z-50 px-4 transition-all duration-300 md:px-6', scrolled ? 'py-4' : 'py-6')}
+    >
+      <nav aria-label="Main" className="glass mx-auto flex max-w-7xl items-center justify-between rounded-full bg-black/40 py-3 pr-3 pl-6">
+        <Logo onClick={() => setMenuOpen(false)} />
+
+        <ul className="hidden items-center gap-8 md:flex">
           {NAV_ITEMS.map(({ to, label }) => (
             <li key={to}>
               <NavLink
                 to={to}
                 end={to === '/'}
                 className={({ isActive }) => cn(
-                  'inline-flex h-9 items-center gap-1.5 rounded-full px-4 text-sm transition-colors',
-                  isActive
-                    ? 'bg-white/10 text-foreground'
-                    : 'text-muted-foreground hover:text-foreground',
+                  'relative flex items-center gap-1.5 py-1 text-sm font-medium transition-colors',
+                  isActive ? 'text-white' : 'text-white/70 hover:text-white',
                 )}
               >
-                {label}
-                {to === '/tasks' && pendingCount > 0 && (
-                  <span className="text-xs text-faint tnum">{pendingCount}</span>
+                {({ isActive }) => (
+                  <>
+                    {label}
+                    {to === '/tasks' && pendingCount > 0 && <span className="text-xs text-white/40 tnum">{pendingCount}</span>}
+                    {isActive && (
+                      <motion.span layoutId="nav-active" className="absolute -bottom-1.5 left-1/2 size-1 -translate-x-1/2 rounded-full bg-blue-400" />
+                    )}
+                  </>
                 )}
               </NavLink>
             </li>
           ))}
         </ul>
 
-        <div className="ml-auto flex items-center gap-1.5">
+        <div className="flex items-center gap-2">
           <Tooltip content="Chat about your week">
-            <Button variant="ghost" size="icon" onClick={onChat} aria-label="Open chat">
+            <Button variant="ghost" size="icon-sm" onClick={onChat} aria-label="Open chat">
               <MessageCircle className="size-[18px]" />
             </Button>
           </Tooltip>
-          <Button onClick={onAdd} className="max-sm:size-10 max-sm:px-0" aria-keyshortcuts="n">
-            <Plus className="size-4" />
-            <span className="max-sm:sr-only">Add task</span>
-            <Kbd className="border-white/25 bg-white/15 text-white/80 max-md:hidden">N</Kbd>
+          <Button variant="inverse" onClick={onAdd} aria-keyshortcuts="n" className="max-md:hidden">
+            Add task
+            <Kbd className="border-black/15 bg-black/5 text-black/50">N</Kbd>
           </Button>
+          <Button variant="default" size="icon-sm" onClick={onAdd} aria-label="Add a task" className="md:hidden">
+            <Plus className="size-4" />
+          </Button>
+          <button
+            type="button"
+            className="relative z-50 grid size-9 place-items-center text-white md:hidden"
+            onClick={() => setMenuOpen(!menuOpen)}
+            aria-label={menuOpen ? 'Close menu' : 'Open menu'}
+            aria-expanded={menuOpen}
+          >
+            {menuOpen ? <X /> : <Menu />}
+          </button>
         </div>
       </nav>
-    </header>
+
+      <AnimatePresence>
+        {menuOpen && (
+          <motion.div
+            initial={{ opacity: 0, backdropFilter: 'blur(0px)' }}
+            animate={{ opacity: 1, backdropFilter: 'blur(20px)' }}
+            exit={{ opacity: 0, backdropFilter: 'blur(0px)' }}
+            className="fixed inset-0 -z-10 flex items-center justify-center bg-black/60 md:hidden"
+          >
+            <ul className="flex flex-col items-center gap-8">
+              {NAV_ITEMS.map(({ to, label }) => (
+                <li key={to}>
+                  <NavLink
+                    to={to}
+                    end={to === '/'}
+                    onClick={() => setMenuOpen(false)}
+                    className={({ isActive }) => cn('text-3xl font-light transition-colors hover:text-blue-400',
+                      isActive ? 'text-blue-400' : 'text-white')}
+                  >
+                    {label}
+                  </NavLink>
+                </li>
+              ))}
+              <li>
+                <Button variant="inverse" size="lg" className="mt-4"
+                        onClick={() => { setMenuOpen(false); onAdd() }}>
+                  Add task
+                </Button>
+              </li>
+            </ul>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.header>
   )
 }

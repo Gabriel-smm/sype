@@ -37,9 +37,9 @@ export function WeekPage({
 
   return (
     // The grid scrolls inside itself, so the page fills the viewport below the nav.
-    <div className="flex h-[calc(100dvh-13rem)] flex-col gap-4 md:h-[calc(100dvh-9.5rem)]">
+    <div className="flex h-[calc(100dvh-9.5rem)] flex-col gap-4 md:h-[calc(100dvh-11.5rem)]">
       <header className="flex flex-wrap items-center gap-3">
-        <h1 className="text-2xl font-semibold tracking-tight md:text-3xl">{formatWeekRange(date)}</h1>
+        <h1 className="text-3xl font-bold tracking-tight md:text-5xl">{formatWeekRange(date)}</h1>
 
         <div className="flex items-center gap-1">
           <Button variant="ghost" size="icon-sm" onClick={() => shiftWeek(-1)} aria-label="Previous week">

@@ -20,13 +20,13 @@ export function BlockList({ blocks, onDelete, withKind = false }: BlockListProps
     <ul className="mt-4 divide-y divide-white/[0.06] text-sm">
       {blocks.map((block) => (
         <li key={block.id} className="flex items-center gap-3 py-2.5">
-          <span className="w-28 shrink-0 truncate">
+          <span className="min-w-0 flex-1 truncate sm:w-28 sm:flex-none">
             {block.label || (withKind ? BLOCK_KIND_LABELS[block.kind ?? 'other'] : 'Focus time')}
           </span>
-          <span className="w-20 shrink-0 text-muted-foreground">
+          <span className="shrink-0 text-muted-foreground sm:w-20">
             {block.day_of_week === null ? 'Every day' : DAY_NAMES[block.day_of_week]}
           </span>
-          <span className="text-muted-foreground tnum">{block.start_time}–{block.end_time}</span>
+          <span className="shrink-0 text-muted-foreground tnum">{block.start_time}–{block.end_time}</span>
           {block.end_time <= block.start_time && <span className="text-xs text-faint">overnight</span>}
           <button
             type="button"

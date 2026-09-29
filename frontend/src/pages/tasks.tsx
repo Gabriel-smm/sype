@@ -1,7 +1,8 @@
 import { Repeat } from 'lucide-react'
 import { useState } from 'react'
 
-import { PageHeader, SectionHeading } from '@/components/layout/page-header'
+import { Reveal } from '@/components/effects/reveal'
+import { PageHeader, SectionTitle } from '@/components/layout/page-header'
 import { DueChip } from '@/components/tasks/due-chip'
 import { EffortBar } from '@/components/tasks/effort-bar'
 import { StressMeter } from '@/components/tasks/stress-meter'
@@ -63,17 +64,21 @@ export function TasksPage({ tasks, busy, actions, onOpenTask, onCapture }: Tasks
   }
 
   return (
-    <div className="max-w-3xl space-y-8">
+    <div className="max-w-4xl space-y-12">
       <PageHeader
-        title="Everything on your plate"
+        badge={`${pending.length} pending`}
+        title="Everything on"
+        accent="your plate"
         description="Tap a task to change it. The week rebuilds itself around every change."
       />
 
+      <Reveal delay={0.6}>
       <Tabs value={filter} onValueChange={(value) => setFilter(value as Filter)}>
         <TabsList aria-label="Show">
           {FILTERS.map(([key, label]) => <TabsTrigger key={key} value={key}>{label}</TabsTrigger>)}
         </TabsList>
       </Tabs>
+      </Reveal>
 
       {!pending.length && (
         filter === 'all' ? (
@@ -87,11 +92,12 @@ export function TasksPage({ tasks, busy, actions, onOpenTask, onCapture }: Tasks
         )
       )}
 
-      {grouped.map(([bucket, items]) => (
-        <section key={bucket}>
-          <SectionHeading aside={items.length}>
+      {grouped.map(([bucket, items], index) => (
+        <Reveal key={bucket} index={index}>
+        <section>
+          <SectionTitle aside={items.length}>
             <span className={bucket === 'overdue' ? 'text-destructive' : undefined}>{BUCKET_HEADINGS[bucket]}</span>
-          </SectionHeading>
+          </SectionTitle>
           <ul className="glass divide-y divide-white/[0.06] overflow-hidden rounded-3xl">
             {items.map((task) => (
               <TaskRow
@@ -105,6 +111,7 @@ export function TasksPage({ tasks, busy, actions, onOpenTask, onCapture }: Tasks
             ))}
           </ul>
         </section>
+        </Reveal>
       ))}
 
       {finished.length > 0 && (
@@ -147,7 +154,7 @@ function TaskRow({ task, leaving, busy, onOpen, onComplete }: TaskRowProps) {
   const remaining = subtasks.filter((subtask) => subtask.status === 'pending').length
 
   return (
-    <li className={cn('flex items-start gap-4 px-5 py-4 transition-opacity duration-300', leaving && 'opacity-40')}>
+    <li className={cn('flex items-start gap-4 px-6 py-5 transition-all duration-300 hover:bg-white/[0.04]', leaving && 'opacity-40')}>
       <button
         type="button"
         onClick={onComplete}
@@ -160,7 +167,7 @@ function TaskRow({ task, leaving, busy, onOpen, onComplete }: TaskRowProps) {
 
       <button type="button" onClick={onOpen} className="min-w-0 flex-1 text-left">
         <span className="flex flex-wrap items-center gap-2">
-          <span className={cn('text-base font-medium', leaving && 'line-through')}>{task.title}</span>
+          <span className={cn('text-lg font-semibold', leaving && 'line-through')}>{task.title}</span>
           {task.grade_weight > 0 && <Badge tint={color}>{task.grade_weight}% of grade</Badge>}
           {task.recurring_task_id != null && (
             <Repeat aria-label="Repeats weekly" className="size-3.5 shrink-0 text-faint" />

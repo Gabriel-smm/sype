@@ -1,13 +1,13 @@
 import { Toaster as Sonner, type ToasterProps } from 'sonner'
 
-/** Glass toasts, bottom centre, clear of the phone tab bar. */
+/** Glass toasts, bottom centre. */
 function Toaster(props: ToasterProps) {
   return (
     <Sonner
       theme="dark"
       position="bottom-center"
       offset={{ bottom: 24 }}
-      mobileOffset={{ bottom: 88 }}
+      mobileOffset={{ bottom: 16 }}
       toastOptions={{
         classNames: {
           toast:
