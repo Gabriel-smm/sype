@@ -1,0 +1,168 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+/* Black glass, one blue accent: the Sype look. White text is graded by
+   opacity (100 / 70 / 60 / 40) instead of by a ramp of greys, so every
+   surface stays neutral and the accent is the only colour that isn't
+   information. Task-type hues are information, never decoration. */
+@theme inline {
+  --font-sans: "Inter Variable", ui-sans-serif, system-ui, sans-serif;
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-faint: var(--faint);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-accent-ink: var(--accent-ink);
+  --color-destructive: var(--destructive);
+  --color-popover: var(--popover);
+
+  --color-type-essay: #9d8cff;
+  --color-type-exam: #ef8fd0;
+  --color-type-problem: #56d3b0;
+  --color-type-reading: #6cc3f2;
+  --color-type-admin: #9ea6b8;
+  --color-type-other: #c9b37a;
+  --color-type-routine: #f2a65a;
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+
+  --animate-blob: blob 7s infinite;
+
+  @keyframes blob {
+    0% { transform: translate(0, 0) scale(1); }
+    33% { transform: translate(30px, -50px) scale(1.1); }
+    66% { transform: translate(-20px, 20px) scale(0.9); }
+    100% { transform: translate(0, 0) scale(1); }
+  }
+}
+
+:root {
+  color-scheme: dark;
+  --radius: 0.75rem;
+
+  --background: oklch(0 0 0);
+  --foreground: oklch(1 0 0);
+  --muted-foreground: oklch(1 0 0 / 0.6);
+  --faint: oklch(1 0 0 / 0.4);
+  --border: oklch(1 0 0 / 0.1);
+  --input: oklch(1 0 0 / 0.14);
+  --popover: oklch(0.16 0 0 / 0.92);
+
+  /* Tailwind blue-500 / 600 / 400. */
+  --primary: oklch(0.623 0.214 259.815);
+  --primary-hover: oklch(0.546 0.245 262.881);
+  --primary-foreground: oklch(1 0 0);
+  --accent-ink: oklch(0.707 0.165 254.624);
+  --ring: oklch(0.707 0.165 254.624);
+
+  --destructive: oklch(0.704 0.191 22.216);
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  /* Glows and blobs bleed past the edges on purpose; never let them widen the
+     page, or phones zoom out and the nav slides off screen. */
+  html,
+  body {
+    overflow-x: clip;
+  }
+
+  html {
+    scrollbar-color: oklch(1 0 0 / 0.16) transparent;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased selection:bg-blue-500/30;
+    font-family: var(--font-sans);
+    font-feature-settings: "cv11", "ss01";
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]) {
+    cursor: pointer;
+  }
+
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: oklch(1 0 0 / 0.14);
+    border-radius: 99px;
+    border: 3px solid transparent;
+    background-clip: padding-box;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background-color: oklch(1 0 0 / 0.24);
+  }
+}
+
+@layer utilities {
+  /* Frosted panel: nav, cards, sheets. */
+  .glass {
+    @apply border border-white/10 bg-white/[0.04] shadow-[0_8px_32px_0_rgba(0,0,0,0.36)] backdrop-blur-xl;
+  }
+
+  .glass-hover {
+    @apply transition-all duration-300 hover:border-white/20 hover:bg-white/10;
+  }
+
+  /* Sype's heading gradient: white fading to half white. */
+  .text-gradient {
+    @apply bg-gradient-to-r from-white via-white/80 to-white/50 bg-clip-text text-transparent;
+  }
+
+  .animation-delay-2000 {
+    animation-delay: 2s;
+  }
+  .animation-delay-4000 {
+    animation-delay: 4s;
+  }
+
+  /* Times and durations sit in columns, so they need to line up. */
+  .tnum {
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Busy blocks (sleep, class, meals): striped reads as "not available"
+     without competing with the work blocks. */
+  .hatched {
+    background-image: repeating-linear-gradient(
+      -45deg,
+      oklch(1 0 0 / 0.07) 0 1px,
+      transparent 1px 7px
+    );
+  }
+}
+
+/* Reduced motion stills the blobs and reveals; app.tsx also skips the cursor trail. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
