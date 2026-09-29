@@ -12,12 +12,15 @@ sections. Don't duplicate that here; read it once per session if you need it.
 
 - Backend: `backend/` — FastAPI + SQLAlchemy + Pydantic, Python 3.12 (`.venv/`).
   Run: `cd backend && ../.venv/bin/python -m uvicorn app.main:app --reload --port 8000`.
-- Frontend: `frontend/` — React 19 + Vite + Tailwind 4.
+- Frontend: `frontend/` — React 19 + TypeScript + Vite + Tailwind 4, shadcn-style
+  `components/ui` (Radix), react-router, lucide, motion, sonner. `@/` = `frontend/src`.
   Run: `npm run dev --prefix frontend`.
 - Both at once: `./dev.sh` (`--seed` loads demo tasks; bootstraps deps on first run).
 - Tests: `cd backend && ../.venv/bin/python -m pytest -q` (116 tests);
   frontend `npm test --prefix frontend` (Vitest, `src/lib/` only).
-- Lint: `npm run lint --prefix frontend` (oxlint).
+- Lint: `npm run lint --prefix frontend` (oxlint). Types: `npm run typecheck --prefix frontend`.
+- API types in `frontend/src/types/api.ts` are hand-mirrored from `backend/app/schemas.py`;
+  change both together.
 - **Never read, search, or edit `.venv/`, `frontend/dist/`, or `node_modules/`**
   — vendored/build output, not project source (already gitignored).
 - `backend/task_scheduler.db` is a local SQLite file, not a source of truth —

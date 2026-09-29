@@ -1,7 +1,7 @@
 // Week arithmetic shared by the calendar grid and the parameter page's week strip.
 import { addDays, startOfWeek } from 'date-fns'
 
-import type { Block } from '../types/api'
+import type { Block } from '@/types/api'
 
 export const DAY_NAMES = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 export const MINUTES_IN_DAY = 1440

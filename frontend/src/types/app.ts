@@ -1,7 +1,7 @@
 // Contracts between the app shell and the pages it renders.
 import type {
   BlockInput, RecurringTaskInput, Task, TaskChanges, TaskInput, Weights,
-} from './api'
+} from '@/types/api'
 
 export type AddBlock = ((block: BlockInput) => Promise<unknown>) & { withKind?: boolean }
 
@@ -36,11 +36,5 @@ export interface Fixes {
   onFocusHours: () => void
 }
 
-export interface ToastState {
-  message: string
-  tone?: 'warn'
-  action?: { label: string; onClick: () => void }
-}
-
-export type PageKey = 'today' | 'calendar' | 'tasks' | 'setup'
-export type Navigate = (page: PageKey, section?: string | null) => void
+/** A route path, optionally with a section hash: `/setup#focus`. */
+export type Navigate = (to: string) => void

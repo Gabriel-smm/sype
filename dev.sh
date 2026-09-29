@@ -8,8 +8,8 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 
-# The Vite proxy (frontend/vite.config.js) expects the API on 8000.
-BACKEND_PORT="${BACKEND_PORT:-8000}"
+# The Vite proxy (frontend/vite.config.ts) reads the same variable.
+export BACKEND_PORT="${BACKEND_PORT:-8000}"
 
 seed=false
 for arg in "$@"; do

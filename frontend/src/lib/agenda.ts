@@ -1,7 +1,7 @@
 // What the Today page shows, derived from the schedule and the task list.
 // Pure functions so the boundaries (what counts as "now") are testable.
 
-import type { Schedule, ScheduleSlot, Settings, Task } from '../types/api'
+import type { Schedule, ScheduleSlot, Settings, Task } from '@/types/api'
 import { isSameDay } from './time'
 
 const byStart = (a: { start_time: string }, b: { start_time: string }) =>

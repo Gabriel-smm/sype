@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import type { FixedBlock, ProductiveWindow, Schedule, ScheduleSlot, Task, UnschedulableItem } from '../types/api'
+import type { FixedBlock, ProductiveWindow, Schedule, ScheduleSlot, Task, UnschedulableItem } from '@/types/api'
 import { dueSoon, placementSummary, setupNeeded, todayAgenda } from './agenda'
 
 // Wednesday 23 September 2026, 14:30 local.

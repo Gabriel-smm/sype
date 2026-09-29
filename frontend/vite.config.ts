@@ -12,7 +12,7 @@ export default defineConfig({
   server: {
     // Talk to FastAPI through the dev server so the app is same-origin.
     proxy: {
-      '/api': { target: 'http://127.0.0.1:8000', changeOrigin: true },
+      '/api': { target: `http://127.0.0.1:${process.env.BACKEND_PORT ?? 8000}`, changeOrigin: true },
     },
   },
 })
