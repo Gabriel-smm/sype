@@ -41,6 +41,10 @@ with another session) → implement with TDD → verify → PR via
 `/commit-push-pr`. Full loop and skill mapping:
 [task_ML Workflow Playbook](https://claude.ai/artifact/VX8Hai9W8M1utDESicCE74).
 
+**Branches:** `main` is production. Feature branches start from `dev` and PRs
+target `dev` (`gh pr create --base dev`). `main` only moves when `dev` is
+released into it.
+
 ## Conventions worth knowing
 
 - **Durations are minutes** everywhere in the API and database. The task form

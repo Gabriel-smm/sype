@@ -1,61 +1,69 @@
-import { Repeat } from 'lucide-react'
+import { Check, CheckSquare, ChevronDown, Plus, Repeat, Sparkles, Wrench, X } from 'lucide-react'
 import { useState } from 'react'
+import { Link, useNavigate, useSearchParams } from 'react-router'
 
-import { Reveal } from '@/components/effects/reveal'
-import { PageHeader, SectionTitle } from '@/components/layout/page-header'
-import { DueChip } from '@/components/tasks/due-chip'
-import { EffortBar } from '@/components/tasks/effort-bar'
-import { StressMeter } from '@/components/tasks/stress-meter'
-import { Tick } from '@/components/tasks/tick'
-import { Badge, Kbd } from '@/components/ui/badge'
+import { SectionLabel } from '@/components/layout/section-label'
+import { SubjectPill } from '@/components/tasks/subject-pill'
+import { Kbd } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { BUCKET_HEADINGS, dueBucket, typeColor, typeLabel, type DueBucket } from '@/lib/task-meta'
+import { Card, CardHeader } from '@/components/ui/card'
+import { dueLabel, typeLabel } from '@/lib/task-meta'
+import { hoursLabel } from '@/lib/time'
 import { cn } from '@/lib/utils'
-import type { Task } from '@/types/api'
+import type { Schedule, Task } from '@/types/api'
 import type { Actions } from '@/types/app'
 
-const ORDER: DueBucket[] = ['overdue', 'today', 'week', 'later']
+// Work with this little left to do is a quick win; the rest is maintenance.
+const QUICK_WIN_MINUTES = 60
+const FOCUS_TYPES = new Set(['essay_project', 'exam_study'])
 
-type Filter = 'all' | 'coursework' | 'routines'
+const remaining = (task: Task) => Math.max(task.estimated_duration - task.time_invested, 0)
+const byDue = (a: Task, b: Task) => new Date(a.due_date).getTime() - new Date(b.due_date).getTime()
 
-const FILTERS: [Filter, string, (task: Task) => boolean][] = [
-  ['all', 'All', () => true],
-  ['coursework', 'Coursework', (task) => task.recurring_task_id == null],
-  ['routines', 'Routines', (task) => task.recurring_task_id != null],
-]
+/** The scheduler's own ranking: a task's highest priority across its sessions and unplaced steps. */
+function priorities(schedule: Schedule): Map<number, number> {
+  const scores = new Map<number, number>()
+  for (const item of [...schedule.slots, ...schedule.unschedulable]) {
+    if (item.task_id == null) continue
+    scores.set(item.task_id, Math.max(scores.get(item.task_id) ?? 0, item.priority_score))
+  }
+  return scores
+}
 
 interface TasksPageProps {
   tasks: Task[]
+  schedule: Schedule
   busy: boolean
   actions: Actions
   onOpenTask: (taskId: number) => void
   onCapture: () => void
 }
 
-export function TasksPage({ tasks, busy, actions, onOpenTask, onCapture }: TasksPageProps) {
+/** Sype's triage: one high hurdle, the maintenance work, and the quick wins. */
+export function TasksPage({ tasks, schedule, busy, actions, onOpenTask, onCapture }: TasksPageProps) {
+  const [params] = useSearchParams()
+  const type = params.get('type')
   const [showDone, setShowDone] = useState(false)
-  const [filter, setFilter] = useState<Filter>('all')
-  const [leaving, setLeaving] = useState(() => new Set<number>())
+  const [ticked, setTicked] = useState(() => new Set<number>())
 
-  const keep = FILTERS.find(([key]) => key === filter)![2]
-  const pending = tasks.filter((task) => task.status === 'pending' && keep(task))
-  const finished = tasks.filter((task) => task.status !== 'pending' && keep(task))
+  const scores = priorities(schedule)
+  const inScope = (task: Task) => !type || task.task_type === type
+  const pending = tasks.filter((task) => task.status === 'pending' && inScope(task))
+  const finished = tasks.filter((task) => task.status !== 'pending' && inScope(task))
 
-  const grouped = ORDER.map((bucket): [DueBucket, Task[]] => [
-    bucket,
-    pending
-      .filter((task) => dueBucket(task.due_date) === bucket)
-      .sort((a, b) => new Date(a.due_date).getTime() - new Date(b.due_date).getTime()),
-  ]).filter(([, items]) => items.length)
+  const ranked = [...pending].sort((a, b) => (scores.get(b.id) ?? 0) - (scores.get(a.id) ?? 0) || byDue(a, b))
+  const hurdle = ranked[0] ?? null
+  const others = ranked.slice(1)
+  const maintenance = others.filter((task) => remaining(task) > QUICK_WIN_MINUTES).sort(byDue)
+  const quickWins = others.filter((task) => remaining(task) <= QUICK_WIN_MINUTES).sort(byDue)
 
-  // Let the check land before the row disappears.
-  async function settle(id: number, action: () => Promise<unknown>) {
-    setLeaving((current) => new Set(current).add(id))
+  // Let the tick land before the row leaves.
+  async function tick(id: number) {
+    setTicked((current) => new Set(current).add(id))
     try {
-      await action()
+      await actions.completeTask(id)
     } finally {
-      setLeaving((current) => {
+      setTicked((current) => {
         const next = new Set(current)
         next.delete(id)
         return next
@@ -64,128 +72,177 @@ export function TasksPage({ tasks, busy, actions, onOpenTask, onCapture }: Tasks
   }
 
   return (
-    <div className="max-w-4xl space-y-12">
-      <PageHeader
-        badge={`${pending.length} pending`}
-        title="Everything on"
-        accent="your plate"
-        description="Tap a task to change it. The week rebuilds itself around every change."
+    <Card className="h-full min-h-0 w-full pb-0">
+      <CardHeader
+        title="Tasks"
+        description={type ? `${typeLabel(type)}, ${pending.length} to do` : 'Manage your assignments'}
+        actions={
+          <>
+            {type && (
+              <Button asChild variant="ghost" size="sm">
+                <Link to="/tasks"><X className="size-3.5" />All subjects</Link>
+              </Button>
+            )}
+            <Button size="sm" onClick={onCapture}><Plus className="size-3.5" />New task</Button>
+          </>
+        }
       />
 
-      <Reveal delay={0.6}>
-      <Tabs value={filter} onValueChange={(value) => setFilter(value as Filter)}>
-        <TabsList aria-label="Show">
-          {FILTERS.map(([key, label]) => <TabsTrigger key={key} value={key}>{label}</TabsTrigger>)}
-        </TabsList>
-      </Tabs>
-      </Reveal>
+      <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 pb-4">
+        {!hurdle && (
+          type ? (
+            <p className="py-10 text-center text-sm text-white/50">Nothing to do in {typeLabel(type)} right now.</p>
+          ) : (
+            <button type="button" onClick={onCapture}
+                    className="w-full rounded-lg border-2 border-dashed border-sidebar-border px-6 py-10 text-center text-sm
+                               text-white/60 transition-colors hover:border-white/30 hover:bg-white/5">
+              Nothing on the list. Add a task, or press <Kbd>N</Kbd> anywhere, and the week builds around it.
+            </button>
+          )
+        )}
 
-      {!pending.length && (
-        filter === 'all' ? (
-          <button type="button" onClick={onCapture}
-                  className="w-full rounded-3xl border border-dashed border-white/15 px-6 py-12 text-center text-[15px]
-                             text-muted-foreground transition-colors hover:border-accent-ink/50">
-            Nothing on the list. Add a task, or press <Kbd>N</Kbd> anywhere, and the week builds around it.
-          </button>
-        ) : (
-          <p className="py-12 text-center text-[15px] text-faint">Nothing here right now.</p>
-        )
-      )}
+        {hurdle && <HighHurdle task={hurdle} busy={busy} actions={actions} onOpen={() => onOpenTask(hurdle.id)} />}
 
-      {grouped.map(([bucket, items], index) => (
-        <Reveal key={bucket} index={index}>
-        <section>
-          <SectionTitle aside={items.length}>
-            <span className={bucket === 'overdue' ? 'text-destructive' : undefined}>{BUCKET_HEADINGS[bucket]}</span>
-          </SectionTitle>
-          <ul className="glass divide-y divide-white/[0.06] overflow-hidden rounded-3xl">
-            {items.map((task) => (
-              <TaskRow
-                key={task.id}
-                task={task}
-                leaving={leaving.has(task.id)}
-                busy={busy}
-                onOpen={() => onOpenTask(task.id)}
-                onComplete={() => void settle(task.id, () => actions.completeTask(task.id))}
-              />
-            ))}
-          </ul>
-        </section>
-        </Reveal>
-      ))}
-
-      {finished.length > 0 && (
-        <section className="border-t border-white/[0.08] pt-5">
-          <Button variant="link" size="sm" onClick={() => setShowDone(!showDone)} aria-expanded={showDone}>
-            {showDone ? 'Hide' : 'Show'} {finished.length} finished
-          </Button>
-          {showDone && (
-            <ul className="mt-3 space-y-1">
-              {finished.map((task) => (
-                <li key={task.id}>
-                  <button type="button" onClick={() => onOpenTask(task.id)}
-                          className="flex w-full items-center gap-3 rounded-2xl px-3 py-2 text-left text-sm text-faint
-                                     transition-colors hover:bg-white/[0.03] hover:text-muted-foreground">
-                    <Tick done size={16} />
-                    <span className="line-through">{task.title}</span>
-                    <span className="ml-auto">{task.status === 'skipped' ? 'skipped' : 'done'}</span>
-                  </button>
-                </li>
+        {maintenance.length > 0 && (
+          <section className="space-y-1.5">
+            <SectionLabel icon={Wrench} aside={maintenance.length}>Maintenance &amp; Upkeep</SectionLabel>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+              {maintenance.map((task) => (
+                <button
+                  key={task.id}
+                  type="button"
+                  onClick={() => onOpenTask(task.id)}
+                  className="rounded-md border border-sidebar-border bg-sidebar/60 p-3 text-left transition-colors duration-200
+                             hover:border-white/20 hover:bg-white/10"
+                >
+                  <span className="flex items-center justify-between gap-2">
+                    <SubjectPill taskType={task.task_type} />
+                    {task.recurring_task_id != null && <Repeat aria-label="Repeats weekly" className="size-3 text-white/40" />}
+                  </span>
+                  <span className="mt-1.5 mb-1 block truncate text-[11px] font-medium text-white">{task.title}</span>
+                  <span className="block text-[9px] text-white/50">
+                    {dueLabel(task.due_date)}, {hoursLabel(remaining(task))} left
+                    {task.grade_weight > 0 ? `, ${task.grade_weight}% of grade` : ''}
+                  </span>
+                </button>
               ))}
+            </div>
+          </section>
+        )}
+
+        {quickWins.length > 0 && (
+          <section className="space-y-1.5">
+            <SectionLabel icon={CheckSquare} aside={quickWins.length}>Quick Wins</SectionLabel>
+            <ul className="flex flex-col gap-1">
+              {quickWins.map((task) => {
+                const done = ticked.has(task.id)
+                return (
+                  <li key={task.id}
+                      className={cn(`flex h-12 items-center gap-3 rounded-md border border-sidebar-border bg-sidebar/40 px-3
+                                     transition-colors duration-200 hover:border-white/20 hover:bg-white/10`, done && 'opacity-50')}>
+                    <button
+                      type="button"
+                      onClick={() => void tick(task.id)}
+                      disabled={busy || done}
+                      aria-label={`Mark ${task.title} done`}
+                      className={cn('flex size-3.5 shrink-0 items-center justify-center rounded border-2 transition-all duration-200',
+                        done ? 'border-green-500 bg-green-500' : 'border-white/30 hover:border-white/50')}
+                    >
+                      {done && <Check className="size-2.5 text-white" strokeWidth={3} />}
+                    </button>
+                    <button type="button" onClick={() => onOpenTask(task.id)}
+                            className={cn('min-w-0 flex-1 truncate text-left text-[11px] text-white', done && 'line-through')}>
+                      {task.title}
+                      <span className="text-white/40">, {dueLabel(task.due_date)}</span>
+                    </button>
+                    <SubjectPill taskType={task.task_type} />
+                  </li>
+                )
+              })}
             </ul>
-          )}
-        </section>
-      )}
-    </div>
+          </section>
+        )}
+
+        {finished.length > 0 && (
+          <section className="border-t border-sidebar-border pt-3">
+            <button type="button" onClick={() => setShowDone(!showDone)} aria-expanded={showDone}
+                    className="flex items-center gap-1.5 text-xs text-white/50 hover:text-white">
+              <ChevronDown className={cn('size-3.5 transition-transform', !showDone && '-rotate-90')} />
+              {finished.length} finished
+            </button>
+            {showDone && (
+              <ul className="mt-2 flex flex-col gap-1">
+                {finished.map((task) => (
+                  <li key={task.id}>
+                    <button type="button" onClick={() => onOpenTask(task.id)}
+                            className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-left text-[11px] text-white/40 hover:bg-white/5">
+                      <span className="flex size-3.5 items-center justify-center rounded border-2 border-green-500/60 bg-green-500/30">
+                        <Check className="size-2.5 text-white" strokeWidth={3} />
+                      </span>
+                      <span className="flex-1 truncate line-through">{task.title}</span>
+                      {task.status === 'skipped' ? 'skipped' : 'done'}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+        )}
+      </div>
+    </Card>
   )
 }
 
-interface TaskRowProps {
-  task: Task
-  leaving: boolean
-  busy: boolean
-  onOpen: () => void
-  onComplete: () => void
-}
-
-function TaskRow({ task, leaving, busy, onOpen, onComplete }: TaskRowProps) {
-  const color = typeColor(task.task_type)
-  const subtasks = task.subtasks ?? []
-  const remaining = subtasks.filter((subtask) => subtask.status === 'pending').length
+function HighHurdle({ task, busy, actions, onOpen }: { task: Task; busy: boolean; actions: Actions; onOpen: () => void }) {
+  const navigate = useNavigate()
+  const [open, setOpen] = useState(false)
+  const steps = task.subtasks ?? []
+  const insight = `~${hoursLabel(remaining(task))} • ${FOCUS_TYPES.has(task.task_type) ? 'Heavy Focus' : 'Light Focus'}`
+  const meta = [
+    task.grade_weight > 0 ? `Impact: ${task.grade_weight}% of Grade` : null,
+    `Due ${dueLabel(task.due_date)}`,
+  ].filter(Boolean).join(' • ')
 
   return (
-    <li className={cn('flex items-start gap-4 px-6 py-5 transition-all duration-300 hover:bg-white/[0.04]', leaving && 'opacity-40')}>
-      <button
-        type="button"
-        onClick={onComplete}
-        disabled={busy}
-        aria-label={`Mark ${task.title} done`}
-        className="mt-0.5 shrink-0 rounded-full"
-      >
-        <Tick done={leaving} color={color} />
-      </button>
-
-      <button type="button" onClick={onOpen} className="min-w-0 flex-1 text-left">
-        <span className="flex flex-wrap items-center gap-2">
-          <span className={cn('text-lg font-semibold', leaving && 'line-through')}>{task.title}</span>
-          {task.grade_weight > 0 && <Badge tint={color}>{task.grade_weight}% of grade</Badge>}
-          {task.recurring_task_id != null && (
-            <Repeat aria-label="Repeats weekly" className="size-3.5 shrink-0 text-faint" />
-          )}
+    <section
+      className="relative rounded-lg border border-orange-500/30 bg-sidebar/60 p-4 transition-all duration-300
+                 hover:border-orange-500/50 hover:bg-sidebar/80"
+      style={{ backgroundImage: 'radial-gradient(ellipse at center, transparent, rgba(249, 100, 68, 0.05), rgba(249, 115, 22, 0.05))' }}
+    >
+      <div className="mb-2 flex items-center justify-between gap-2">
+        <SubjectPill taskType={task.task_type} />
+        <span className="flex items-center gap-1 rounded-full bg-sidebar-accent px-2 py-1 text-[10px] text-white/70">
+          <Sparkles className="size-3 text-purple-400" />{insight}
         </span>
-
-        <span className="mt-2 flex flex-wrap items-center gap-x-3.5 gap-y-2">
-          <DueChip due={task.due_date} />
-          <EffortBar minutes={task.estimated_duration} invested={task.time_invested} color={color} />
-          <StressMeter value={task.stress_rating} />
-          <span className="text-xs text-faint">{typeLabel(task.task_type)}</span>
-          {subtasks.length > 0 && (
-            <span className="text-xs text-faint">
-              {remaining === 0 ? 'all steps done' : `${remaining} of ${subtasks.length} steps left`}
-            </span>
-          )}
-        </span>
+      </div>
+      <button type="button" onClick={onOpen} className="block text-left">
+        <h3 className="mb-1 text-base font-semibold text-white">{task.title}</h3>
+        <p className="mb-3 text-xs text-white/60">{meta}</p>
       </button>
-    </li>
+      <div className="flex gap-2">
+        <Button variant="success" size="sm" disabled={busy} onClick={() => void actions.completeTask(task.id)}>Mark done</Button>
+        <Button variant="secondary" size="sm" onClick={() => navigate('/calendar')}>Schedule</Button>
+      </div>
+
+      {open && steps.length > 0 && (
+        <ul className="mt-3 space-y-1 border-t border-sidebar-border pt-3">
+          {steps.map((step) => (
+            <li key={step.id} className="flex items-center gap-2 text-[11px]">
+              <span className={cn('capitalize', step.status !== 'pending' ? 'text-white/40 line-through' : 'text-white/80')}>
+                {step.phase || step.title}
+              </span>
+              <span className="ml-auto text-white/40 tnum">{step.status === 'pending' ? dueLabel(step.due_by) : step.status}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+      {steps.length > 0 && (
+        <button type="button" onClick={() => setOpen(!open)} aria-expanded={open} aria-label={open ? 'Hide steps' : 'Show steps'}
+                className="group absolute right-3 bottom-3 rounded-full p-1 hover:bg-white/10">
+          <ChevronDown className={cn('size-4 text-white/50 transition-transform group-hover:text-white group-hover:drop-shadow-[0_0_8px_rgba(255,255,255,0.8)]',
+            open && 'rotate-180')} />
+        </button>
+      )}
+    </section>
   )
 }
