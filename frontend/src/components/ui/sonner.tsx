@@ -11,9 +11,9 @@ function Toaster(props: ToasterProps) {
       toastOptions={{
         classNames: {
           toast:
-            '!rounded-2xl !border !border-white/10 !bg-neutral-900/90 !text-foreground !shadow-2xl !backdrop-blur-xl',
+            '!rounded-lg !border !border-sidebar-border !bg-sidebar !text-sidebar-foreground !shadow-2xl',
           description: '!text-muted-foreground',
-          actionButton: '!rounded-full !bg-primary !px-3 !text-primary-foreground',
+          actionButton: '!rounded-md !bg-sidebar-primary !px-3 !text-white',
           warning: '!text-type-routine',
         },
       }}

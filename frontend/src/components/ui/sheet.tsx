@@ -12,10 +12,12 @@ interface SheetContentProps extends Omit<ComponentProps<typeof SheetPrimitive.Co
   description?: ReactNode
   /** `bare` hands the whole body to the child (chat manages its own scrolling). */
   bare?: boolean
+  /** Keep the title for screen readers only, when the child draws its own header. */
+  hideHeader?: boolean
 }
 
 /** A right-hand glass panel. Radix supplies the focus trap, Esc and scroll lock. */
-function SheetContent({ className, title, description, bare = false, children, ...props }: SheetContentProps) {
+function SheetContent({ className, title, description, bare = false, hideHeader = false, children, ...props }: SheetContentProps) {
   return (
     <SheetPrimitive.Portal>
       <SheetPrimitive.Overlay
@@ -25,20 +27,26 @@ function SheetContent({ className, title, description, bare = false, children, .
       <SheetPrimitive.Content
         className={cn(
           `fixed inset-y-0 right-0 z-50 flex h-full w-full max-w-[min(94vw,440px)] flex-col
-           border-l border-white/10 bg-black/70 shadow-[0_8px_32px_0_rgba(0,0,0,0.36)] backdrop-blur-xl outline-none
+           appglass border-l border-sidebar-border bg-sidebar text-sidebar-foreground outline-none
            data-[state=closed]:animate-out data-[state=closed]:slide-out-to-right data-[state=closed]:duration-150
            data-[state=open]:animate-in data-[state=open]:slide-in-from-right data-[state=open]:duration-200`,
           className,
         )}
         {...props}
       >
-        <header className="flex items-start justify-between gap-3 px-6 pt-6 pb-4">
+        {hideHeader ? (
+          <>
+            <SheetPrimitive.Title className="sr-only">{title}</SheetPrimitive.Title>
+            <SheetPrimitive.Description className="sr-only">{description ?? 'Details'}</SheetPrimitive.Description>
+          </>
+        ) : (
+        <header className="flex items-start justify-between gap-3 px-5 pt-5 pb-4">
           <div className="min-w-0">
-            <SheetPrimitive.Title className="text-lg leading-snug font-semibold tracking-tight">
+            <SheetPrimitive.Title className="text-base leading-snug font-semibold">
               {title}
             </SheetPrimitive.Title>
             {description ? (
-              <SheetPrimitive.Description className="mt-1 text-sm text-muted-foreground">
+              <SheetPrimitive.Description className="mt-1 text-xs text-sidebar-foreground/60">
                 {description}
               </SheetPrimitive.Description>
             ) : (
@@ -53,9 +61,10 @@ function SheetContent({ className, title, description, bare = false, children, .
             <X className="size-4" />
           </SheetPrimitive.Close>
         </header>
+        )}
         {bare
           ? <div className="min-h-0 flex-1">{children}</div>
-          : <div className="min-h-0 flex-1 overflow-y-auto px-6 pb-6">{children}</div>}
+          : <div className="min-h-0 flex-1 overflow-y-auto px-5 pb-5">{children}</div>}
       </SheetPrimitive.Content>
     </SheetPrimitive.Portal>
   )

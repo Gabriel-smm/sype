@@ -1,19 +1,26 @@
-import { ArrowUp } from 'lucide-react'
+import { Send, X } from 'lucide-react'
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react'
+import Markdown from 'react-markdown'
 
+import { Button } from '@/components/ui/button'
+import { Card, CardHeader } from '@/components/ui/card'
 import type { Chat } from '@/hooks/use-chat'
 import { cn } from '@/lib/utils'
-import type { ChatProvider } from '@/types/api'
 
-const OPENERS = [
+export const COPILOT_INPUT_ID = 'copilot-input'
+
+const SUGGESTIONS = [
+  'What’s on my schedule today?',
+  'Show my upcoming deadlines',
   'Add my ethics paper, due Friday, worth 30%',
-  'What is my heaviest day this week?',
-  'Move tomorrow morning’s draft session to the evening',
-  'I have not started the stats problem set and it is due Monday',
+  'Help me plan my week',
 ]
 
-/** The conversation itself lives in useChat, so it survives closing the panel. */
-export function ChatPanel({ chat }: { chat: Chat }) {
+/**
+ * Sype's Co-Pilot panel. The conversation lives in useChat, above this
+ * component, so it survives page changes and the phone sheet closing.
+ */
+export function ChatPanel({ chat, className, onClose }: { chat: Chat; className?: string; onClose?: () => void }) {
   const { messages, streaming, provider, error, send } = chat
   const [input, setInput] = useState('')
   const bottom = useRef<HTMLDivElement>(null)
@@ -38,134 +45,94 @@ export function ChatPanel({ chat }: { chat: Chat }) {
     }
   }
 
-  const ready = Boolean(input.trim()) && !streaming
-
   return (
-    <div className="flex h-full flex-col">
-      <div className="flex-1 overflow-y-auto px-6 pb-6">
-        {messages.length === 0 ? (
-          <Opening provider={provider} onPick={(text) => void submit(text)} />
-        ) : (
-          <ul className="space-y-6">
-            {messages.map((message, index) => (
-              <li key={index} className={message.role === 'user' ? 'flex justify-end' : ''}>
-                {message.role === 'user' ? (
-                  <p className="max-w-[85%] rounded-3xl rounded-br-lg bg-blue-500 px-4 py-2.5 text-[15px] leading-relaxed whitespace-pre-wrap text-white">
-                    {message.content}
+    <Card className={cn('h-full w-full overflow-hidden', className)}>
+      <CardHeader
+        title="Co-Pilot"
+        description="Ask anything about your studies"
+        actions={onClose && (
+          <Button variant="ghost" size="icon-sm" onClick={onClose} aria-label="Close Co-Pilot"><X className="size-4" /></Button>
+        )}
+      />
+
+      <div className="relative min-h-0 flex-1">
+        <div className="absolute inset-0 overflow-y-auto">
+          {messages.length === 0 ? (
+            <div className="flex h-full flex-col items-center justify-center gap-8">
+              <span className="text-4xl font-semibold text-white/15">Sype<span className="text-blue-400/15">.</span></span>
+              <div className="flex w-full max-w-xs flex-col gap-2 px-4">
+                {SUGGESTIONS.map((suggestion) => (
+                  <button
+                    key={suggestion}
+                    type="button"
+                    onClick={() => void submit(suggestion)}
+                    className="rounded-md border-2 border-sidebar-border px-3 py-1.5 text-left text-sm text-sidebar-foreground/50
+                               hover:bg-sidebar-accent/30 hover:text-sidebar-foreground"
+                  >
+                    {suggestion}
+                  </button>
+                ))}
+                {provider && !provider.live && (
+                  <p className="mt-2 text-center text-xs text-sidebar-foreground/40">
+                    No model is connected, so replies are a placeholder. Set CHAT_PROVIDER on the backend.
                   </p>
-                ) : (
-                  <div className="text-[15px] leading-[1.65] text-foreground/90">
-                    {message.content
-                      ? message.content.split('\n\n').map((paragraph, key, all) => (
-                          <p key={key} className="mb-3 whitespace-pre-wrap last:mb-0">
-                            {paragraph}
-                            {streaming && index === messages.length - 1 && key === all.length - 1 && <Caret />}
-                          </p>
-                        ))
-                      : <Thinking />}
-                  </div>
                 )}
-              </li>
-            ))}
-          </ul>
-        )}
-
-        {error && (
-          <p role="alert" className="mt-6 rounded-2xl border border-destructive/30 bg-destructive/[0.08] px-4 py-3 text-sm text-destructive">
-            {error}
-          </p>
-        )}
-        <div ref={bottom} />
-      </div>
-
-      <div className="border-t border-white/[0.08] px-4 pt-3 pb-4">
-        <div className="flex items-end gap-2 rounded-3xl border border-white/20 bg-white/10 py-2 pr-2 pl-5
-                        backdrop-blur-md transition-all focus-within:border-blue-400/50 focus-within:bg-white/15">
-          <textarea
-            ref={composer}
-            rows={1}
-            value={input}
-            onChange={(event) => { setInput(event.target.value); grow(event.target) }}
-            onKeyDown={onKeyDown}
-            aria-label="Message"
-            placeholder="Ask about your week, or describe something new to do"
-            className="max-h-[200px] flex-1 resize-none bg-transparent py-1.5 text-[15px] outline-none placeholder:text-faint"
-          />
-          <button
-            type="button"
-            onClick={() => void submit(input)}
-            disabled={!ready}
-            aria-label="Send"
-            className={cn('grid size-9 shrink-0 place-items-center rounded-full transition-colors',
-              ready ? 'bg-blue-500 text-white hover:scale-105 hover:bg-blue-600' : 'bg-white/10 text-faint')}
-          >
-            <ArrowUp className="size-4" strokeWidth={2.2} />
-          </button>
+              </div>
+            </div>
+          ) : (
+            <ul className="flex flex-col gap-4 px-4 pb-2">
+              {messages.map((message, index) => {
+                const user = message.role === 'user'
+                const last = index === messages.length - 1
+                return (
+                  <li key={index} className={cn('flex gap-3', user ? 'justify-end' : 'justify-start')}>
+                    <div className={cn('max-w-lg rounded-lg px-4 py-2',
+                      user ? 'bg-blue-500 text-sidebar-primary-foreground' : 'bg-sidebar-accent/50 text-sidebar-accent-foreground')}>
+                      <div className="text-sm leading-relaxed [overflow-wrap:anywhere]">
+                        {message.content
+                          ? (user
+                              ? <p className="whitespace-pre-wrap">{message.content}</p>
+                              : <div className="space-y-2 [&_li]:ml-4 [&_ol]:list-decimal [&_strong]:font-semibold [&_ul]:list-disc">
+                                  <Markdown>{message.content}</Markdown>
+                                </div>)
+                          : streaming && last ? <span className="text-sidebar-foreground/60">Thinking...</span> : null}
+                      </div>
+                    </div>
+                  </li>
+                )
+              })}
+            </ul>
+          )}
+          <div ref={bottom} />
         </div>
-        {provider?.live && (
-          <p className="mt-2 text-center text-xs text-faint">
-            Chat can read and write your tasks. It never decides where they land on the calendar.
-          </p>
-        )}
       </div>
-    </div>
+
+      <div className="flex flex-shrink-0 items-stretch gap-2 px-4">
+        <textarea
+          ref={composer}
+          id={COPILOT_INPUT_ID}
+          rows={1}
+          value={input}
+          onChange={(event) => { setInput(event.target.value); grow(event.target) }}
+          onKeyDown={onKeyDown}
+          aria-label="Message the Co-Pilot"
+          placeholder="Ask me anything..."
+          className="max-h-[200px] min-h-[40px] flex-1 resize-none overflow-y-auto rounded-md border-2 border-sidebar-border
+                     bg-transparent px-3 py-2 text-sm text-sidebar-accent-foreground placeholder:text-sidebar-foreground/40
+                     focus:ring-2 focus:ring-sidebar-ring focus:outline-none"
+        />
+        <Button onClick={() => void submit(input)} disabled={!input.trim() || streaming} aria-label="Send"
+                className="h-auto">
+          <Send className="size-4" />
+        </Button>
+      </div>
+      {error && <p role="alert" className="-mt-4 px-4 text-sm text-red-500">{error}</p>}
+    </Card>
   )
 }
 
 function grow(element: HTMLTextAreaElement | null, reset = false) {
   if (!element) return
   element.style.height = 'auto'
-  if (!reset) element.style.height = `${Math.min(element.scrollHeight, 200)}px`
-}
-
-function Opening({ provider, onPick }: { provider: ChatProvider | null; onPick: (text: string) => void }) {
-  return (
-    <div className="pt-2">
-      <p className="max-w-[48ch] text-[15px] leading-relaxed text-muted-foreground">
-        Describe your work in your own words instead of filling in a form. Scheduling stays
-        deterministic either way: chat reads and writes tasks, it never chooses when they happen.
-      </p>
-
-      {provider && !provider.live && (
-        <p className="mt-4 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-muted-foreground">
-          No model is connected yet. Replies come from a placeholder that reads your message back,
-          so the page works end to end. Set <code className="text-accent-ink">CHAT_PROVIDER</code> on the
-          backend to change that.
-        </p>
-      )}
-
-      <ul className="mt-6 flex flex-col items-start gap-2">
-        {OPENERS.map((opener) => (
-          <li key={opener}>
-            <button
-              type="button"
-              onClick={() => onPick(opener)}
-              className="rounded-full border border-white/20 bg-white/10 px-5 py-2.5 text-left text-sm text-white/70
-                         backdrop-blur-md transition-all hover:border-blue-400/50 hover:bg-white/15 hover:text-white"
-            >
-              {opener}
-            </button>
-          </li>
-        ))}
-      </ul>
-    </div>
-  )
-}
-
-function Caret() {
-  return (
-    <span aria-hidden="true"
-          className="ml-0.5 inline-block h-[1em] w-[2px] translate-y-[2px] animate-pulse bg-accent-ink" />
-  )
-}
-
-function Thinking() {
-  return (
-    <span className="flex gap-1 py-1" aria-label="Thinking">
-      {[0, 1, 2].map((index) => (
-        <span key={index} className="size-1.5 animate-pulse rounded-full bg-muted-foreground"
-              style={{ animationDelay: `${index * 0.15}s` }} />
-      ))}
-    </span>
-  )
+  if (!reset) element.style.height = `${Math.min(Math.max(element.scrollHeight, 40), 200)}px`
 }

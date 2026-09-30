@@ -64,7 +64,7 @@ Interactive API docs: http://localhost:8000/docs
 
 ## The chat page
 
-Chat opens as a side panel from the navigation bar, beside whatever page is showing. **No model is connected**, and the app works without
+The Co-Pilot chat sits in a resizable panel beside every page (a sheet on phones). **No model is connected**, and the app works without
 one: `CHAT_PROVIDER` defaults to `echo`, which streams back a deterministic reply
 naming the fields it recognised. The page says so rather than pretending.
 
@@ -129,10 +129,10 @@ npm run typecheck --prefix frontend   # strict TypeScript; `build` runs it too
 | `backend/app/chat.py` | Chat providers. Pure functions; no model wired up. |
 | `backend/app/api/` | FastAPI routers, including `recurring.py` (routine-template CRUD). |
 | `backend/requirements.txt` | Pinned backend dependencies. |
-| `frontend/src/pages/` | The four routed screens: `/` today, `/week`, `/tasks`, `/setup`. Chat is a side panel. |
+| `frontend/src/pages/` | The four routed screens: `/` overview, `/calendar`, `/tasks` (triage), `/setup`. |
 | `frontend/src/components/ui/` | shadcn-style primitives (Radix + `cva`): button, input, sheet, dialog, tabs, slider, switch, tooltip, toasts. |
-| `frontend/src/components/{layout,tasks,schedule,setup,chat}/` | App pieces grouped by feature: the floating nav, capture dialog, week grid, and so on. |
-| `frontend/src/hooks/` | `use-app-data` (fetching, mutations, toasts) and `use-chat` (the conversation, kept across panel opens). |
+| `frontend/src/components/{layout,tasks,schedule,setup,chat}/` | App pieces grouped by feature: the sidebar and 70/30 shell (after sype-ai's `develop` app), capture dialog, week grid, and so on. |
+| `frontend/src/hooks/` | `use-app-data` (fetching, mutations, toasts) and `use-chat` (the conversation, kept across pages), `use-sidebar`, `use-mobile`. |
 | `frontend/src/lib/` | API client, week arithmetic, task vocabulary, the capture parser (`parse-capture.ts`) and Today's agenda (`agenda.ts`). Pure, Vitest-tested. |
 | `frontend/src/types/api.ts` | Hand-written mirrors of the backend's Pydantic schemas. Update them with `backend/app/schemas.py`. |
 | `frontend/src/index.css` | Design tokens: black glass, one blue accent, Inter. Dark only. |

@@ -1,17 +1,18 @@
-import { ArrowUpRight, CalendarClock, Plus, Rocket } from 'lucide-react'
+import { ArrowUpRight, CalendarClock, Clock, History, Plus, Rocket, Sparkles } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { Link } from 'react-router'
 
-import { Reveal } from '@/components/effects/reveal'
-import { IconTile, PageHeader, SectionTitle } from '@/components/layout/page-header'
+import { SectionLabel } from '@/components/layout/section-label'
 import { SlotButtons } from '@/components/schedule/slot-buttons'
 import { DueChip } from '@/components/tasks/due-chip'
 import { FitFixes } from '@/components/tasks/fit-fixes'
+import { SubjectPill } from '@/components/tasks/subject-pill'
 import { Kbd } from '@/components/ui/badge'
-import { GlassCard } from '@/components/ui/glass-card'
+import { Button } from '@/components/ui/button'
+import { Card, CardHeader } from '@/components/ui/card'
 import { useNow } from '@/hooks/use-now'
 import { dueSoon, setupNeeded, todayAgenda } from '@/lib/agenda'
-import { typeColor, typeLabel } from '@/lib/task-meta'
+import { typeColor } from '@/lib/task-meta'
 import { formatClock, hoursLabel } from '@/lib/time'
 import type { Schedule, ScheduleSlot, Settings, Task } from '@/types/api'
 import type { Fixes, SlotAction } from '@/types/app'
@@ -32,8 +33,8 @@ interface TodayPageProps {
 }
 
 /**
- * The home screen: what to do now, what is left today, what is closing in,
- * and what needs a decision. Everything else is one tap away.
+ * Overview: what to do now, what is left today, what is closing in, and what
+ * needs a decision, in one Sype card.
  */
 export function TodayPage({
   schedule, tasks, settings, busy, onComplete, onSkip, onOpenTask, onCapture, fixes,
@@ -48,166 +49,124 @@ export function TodayPage({
     .reduce((sum, slot) => sum + minutesBetween(slot.start_time, slot.end_time), 0)
   const hasTasks = tasks.some((task) => task.status === 'pending')
   const open = (slot: ScheduleSlot) => slot.task_id != null && onOpenTask(slot.task_id)
-
-  const [title, accent] = minutesLeft > 0
-    ? [`${hoursLabel(minutesLeft)} of work`, 'left today']
-    : hasTasks ? ['Nothing else', 'scheduled today'] : ['A clear', 'slate']
+  const date = now.toLocaleDateString([], { weekday: 'long', day: 'numeric', month: 'long' })
 
   return (
-    <div className="space-y-16">
-      <PageHeader
-        badge={now.toLocaleDateString([], { weekday: 'long', day: 'numeric', month: 'long' })}
-        title={title}
-        accent={accent}
+    <Card className="h-full min-h-0 w-full pb-0">
+      <CardHeader
+        title="Overview"
+        description={minutesLeft > 0 ? `${date}. ${hoursLabel(minutesLeft)} of work left today.` : date}
+        actions={<Button size="sm" onClick={onCapture}><Plus className="size-3.5" />New task</Button>}
       />
 
-      {schedule.unschedulable.length > 0 && (
-        <Reveal delay={0.6}>
-          <FitFixes items={schedule.unschedulable} busy={busy} defaultOpen {...fixes} />
-        </Reveal>
-      )}
+      <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-4 pb-4">
+        {setupNeeded(settings) && <SetupTile />}
+        <FitFixes items={schedule.unschedulable} busy={busy} defaultOpen {...fixes} />
 
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1.55fr)_minmax(0,1fr)]">
-        <div className="min-w-0 space-y-16">
-          {!hasTasks ? (
-            <button
-              type="button"
-              onClick={onCapture}
-              className="group w-full rounded-3xl border border-dashed border-white/15 px-8 py-14 text-center
-                         transition-colors hover:border-accent-ink/50 hover:bg-white/[0.02]"
-            >
-              <span className="mx-auto mb-5 grid size-12 place-items-center rounded-2xl bg-white/[0.06] text-accent-ink
-                               transition-colors group-hover:bg-primary group-hover:text-white">
-                <Plus className="size-5" />
-              </span>
-              <span className="block text-xl font-semibold tracking-tight">Add the first thing on your plate</span>
-              <span className="mt-2 block text-sm text-muted-foreground">
-                One line is enough: “bio reading tomorrow 1h”. Press <Kbd>N</Kbd> from anywhere.
-              </span>
-            </button>
+        {!hasTasks ? (
+          <button
+            type="button"
+            onClick={onCapture}
+            className="w-full rounded-lg border-2 border-dashed border-sidebar-border px-6 py-10 text-center transition-colors
+                       hover:border-white/30 hover:bg-white/5"
+          >
+            <span className="block font-semibold">Add the first thing on your plate</span>
+            <span className="mt-1 block text-xs text-sidebar-foreground/60">
+              One line is enough: “bio reading tomorrow 1h”. Press <Kbd>N</Kbd> from anywhere.
+            </span>
+          </button>
+        ) : (
+          <NowTile slot={focus} now={now} running={Boolean(agenda.current)} upcoming={agenda.upcoming}
+                   busy={busy} onComplete={onComplete} onSkip={onSkip} onOpen={open} />
+        )}
+
+        {agenda.earlier.length > 0 && (
+          <section className="space-y-1.5">
+            <SectionLabel icon={History} aside={agenda.earlier.length}>Did you get to these?</SectionLabel>
+            <SlotList>
+              {agenda.earlier.map((slot) => (
+                <SlotRow key={slot.id} slot={slot} onOpen={open}>
+                  <SlotButtons slot={slot} busy={busy} onComplete={onComplete} onSkip={onSkip} />
+                </SlotRow>
+              ))}
+            </SlotList>
+          </section>
+        )}
+
+        {rest.length > 0 && (
+          <section className="space-y-1.5">
+            <SectionLabel icon={Clock} aside={rest.length}>Later today</SectionLabel>
+            <SlotList>{rest.map((slot) => <SlotRow key={slot.id} slot={slot} onOpen={open} />)}</SlotList>
+          </section>
+        )}
+
+        <section className="space-y-1.5">
+          <SectionLabel icon={CalendarClock} aside={soon.length || undefined}>Due in the next three days</SectionLabel>
+          {soon.length === 0 ? (
+            <p className="text-[11px] text-white/50">Nothing due soon.</p>
           ) : (
-            <Reveal delay={0.6}>
-              <FocusCard
-                slot={focus}
-                now={now}
-                running={Boolean(agenda.current)}
-                upcoming={agenda.upcoming}
-                busy={busy}
-                onComplete={onComplete}
-                onSkip={onSkip}
-                onOpen={open}
-              />
-            </Reveal>
-          )}
-
-          {agenda.earlier.length > 0 && (
-            <section>
-              <SectionTitle>Did you get to these?</SectionTitle>
-              <SlotList>
-                {agenda.earlier.map((slot) => (
-                  <SlotRow key={slot.id} slot={slot} onOpen={open}>
-                    <SlotButtons slot={slot} busy={busy} onComplete={onComplete} onSkip={onSkip} small />
-                  </SlotRow>
-                ))}
-              </SlotList>
-            </section>
-          )}
-
-          {rest.length > 0 && (
-            <section>
-              <SectionTitle aside={rest.length}>Later today</SectionTitle>
-              <SlotList>
-                {rest.map((slot) => <SlotRow key={slot.id} slot={slot} onOpen={open} />)}
-              </SlotList>
-            </section>
-          )}
-        </div>
-
-        <div className="min-w-0 space-y-6">
-          {setupNeeded(settings) && <Reveal delay={0.6}><SetupCard /></Reveal>}
-
-          <Reveal delay={0.7}>
-          <GlassCard hoverEffect className="p-0">
-            <div className="px-8 pt-8 pb-4">
-              <IconTile><CalendarClock /></IconTile>
-              <h2 className="mt-6 flex items-baseline gap-3 text-2xl font-semibold">
-                Due in the next three days
-                {soon.length > 0 && <span className="ml-auto text-sm font-normal text-white/40 tnum">{soon.length}</span>}
-              </h2>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+              {soon.map((task) => {
+                const steps = task.subtasks ?? []
+                const left = steps.filter((s) => s.status === 'pending').length
+                return (
+                  <button
+                    key={task.id}
+                    type="button"
+                    onClick={() => onOpenTask(task.id)}
+                    className="rounded-md border border-sidebar-border bg-sidebar/60 p-3 text-left transition-colors duration-200
+                               hover:border-white/20 hover:bg-white/10"
+                  >
+                    <span className="flex items-center justify-between gap-2">
+                      <SubjectPill taskType={task.task_type} />
+                      {task.grade_weight > 0 && <span className="text-[10px] text-white/50 tnum">{task.grade_weight}%</span>}
+                    </span>
+                    <span className="mt-1.5 mb-1.5 block truncate text-[11px] font-medium text-white">{task.title}</span>
+                    <span className="flex flex-wrap items-center gap-2">
+                      <DueChip due={task.due_date} now={now} />
+                      {steps.length > 0 && (
+                        <span className="text-[9px] text-white/50">
+                          {left ? `${left} of ${steps.length} steps left` : 'all steps done'}
+                        </span>
+                      )}
+                    </span>
+                  </button>
+                )
+              })}
             </div>
-            {soon.length === 0 ? (
-              <p className="px-8 pb-8 text-white/60">Nothing due soon.</p>
-            ) : (
-              <ul className="relative px-4 pb-4">
-                {soon.map((task) => {
-                  const steps = task.subtasks ?? []
-                  const left = steps.filter((s) => s.status === 'pending').length
-                  return (
-                    <li key={task.id}>
-                      <button type="button" onClick={() => onOpenTask(task.id)}
-                              className="flex w-full flex-col gap-1.5 rounded-2xl px-4 py-3 text-left transition-colors hover:bg-white/[0.04]">
-                        <span className="flex w-full items-center gap-2.5">
-                          <span className="size-2 shrink-0 rounded-full" style={{ background: typeColor(task.task_type) }} />
-                          <span className="min-w-0 flex-1 truncate text-[15px]">{task.title}</span>
-                          {task.grade_weight > 0 && (
-                            <span className="text-xs text-faint tnum">{task.grade_weight}%</span>
-                          )}
-                        </span>
-                        <span className="flex flex-wrap items-center gap-2 pl-[18px]">
-                          <DueChip due={task.due_date} now={now} />
-                          {steps.length > 0 && (
-                            <span className="text-xs text-faint">
-                              {left ? `${left} of ${steps.length} steps left` : 'all steps done'}
-                            </span>
-                          )}
-                        </span>
-                      </button>
-                    </li>
-                  )
-                })}
-              </ul>
-            )}
-          </GlassCard>
-          </Reveal>
-        </div>
+          )}
+        </section>
       </div>
-    </div>
+    </Card>
   )
 }
 
-function SetupCard() {
-  const steps: [string, string, string][] = [
-    ['busy', 'When you are busy', 'Sleep, classes, meals, so work never lands on them.'],
-    ['focus', 'When you focus best', 'Essays and exam study only go here.'],
-    ['routines', 'What repeats', 'Gym, laundry. Optional.'],
+function SetupTile() {
+  const steps: [string, string][] = [
+    ['busy', 'When you are busy'],
+    ['focus', 'When you focus best'],
+    ['routines', 'What repeats'],
   ]
   return (
-    <GlassCard hoverEffect className="border-blue-400/25">
-      <IconTile><Rocket /></IconTile>
-      <h2 className="mt-6 text-2xl font-semibold">Tell the scheduler about your week</h2>
-      <p className="mt-2 leading-relaxed text-white/60">Two minutes of setup, and the plan stops guessing.</p>
-      <ol className="mt-4 space-y-1">
-        {steps.map(([id, label, blurb], index) => (
-          <li key={id}>
-            <Link to={`/setup#${id}`}
-                  className="group flex items-start gap-3 rounded-2xl px-3 py-2.5 transition-colors hover:bg-white/[0.05]">
-              <span className="grid size-6 shrink-0 place-items-center rounded-full bg-primary/20 text-xs text-accent-ink tnum">
-                {index + 1}
-              </span>
-              <span className="min-w-0 flex-1">
-                <span className="block text-sm">{label}</span>
-                <span className="block text-xs text-faint">{blurb}</span>
-              </span>
-              <ArrowUpRight className="size-4 shrink-0 text-faint transition-colors group-hover:text-foreground" />
-            </Link>
-          </li>
+    <section className="rounded-lg border border-blue-500/30 bg-sidebar/60 p-4">
+      <p className="flex items-center gap-1.5 text-xs font-semibold text-white">
+        <Rocket className="size-3.5 text-blue-400" />Tell the scheduler about your week
+      </p>
+      <p className="mt-1 text-xs text-white/60">Two minutes of setup, and the plan stops guessing.</p>
+      <div className="mt-3 flex flex-wrap gap-2">
+        {steps.map(([id, label]) => (
+          <Link key={id} to={`/setup#${id}`}
+                className="flex items-center gap-1 rounded-md border border-sidebar-border px-2.5 py-1 text-xs text-white/70
+                           transition-colors hover:border-white/40 hover:text-white">
+            {label}<ArrowUpRight className="size-3" />
+          </Link>
         ))}
-      </ol>
-    </GlassCard>
+      </div>
+    </section>
   )
 }
 
-interface FocusCardProps {
+interface NowTileProps {
   slot: ScheduleSlot | null
   now: Date
   running: boolean
@@ -218,108 +177,81 @@ interface FocusCardProps {
   onOpen: (slot: ScheduleSlot) => void
 }
 
-/**
- * The one loud thing in the app: the session to work on right now, with a
- * needle that fills as it runs, lit from behind by Sype's blue glow.
- */
-function FocusCard({ slot, now, running, upcoming, busy, onComplete, onSkip, onOpen }: FocusCardProps) {
+/** The session to work on now, in Sype's "High Hurdle" card, with a bar that fills as it runs. */
+function NowTile({ slot, now, running, upcoming, busy, onComplete, onSkip, onOpen }: NowTileProps) {
   if (!slot) {
     return (
-      <GlassCard className="p-10">
-        <h2 className="text-4xl font-bold tracking-tight">You are done <span className="text-gradient">for today</span></h2>
-        <p className="mt-2 text-muted-foreground">
+      <section className="rounded-lg border border-sidebar-border bg-sidebar/60 p-4">
+        <h3 className="text-base font-semibold text-white">You are done for today</h3>
+        <p className="mt-1 text-xs text-white/60">
           {upcoming
             ? `Next up: ${upcoming.title}, ${new Date(upcoming.start_time).toLocaleDateString([], { weekday: 'long' })} at ${formatClock(new Date(upcoming.start_time))}.`
             : 'Nothing else is on the calendar.'}
         </p>
-      </GlassCard>
+      </section>
     )
   }
 
-  const color = typeColor(slot.task_type)
   const start = new Date(slot.start_time)
   const end = new Date(slot.end_time)
   const total = end.getTime() - start.getTime()
   const elapsed = running ? Math.min(Math.max((now.getTime() - start.getTime()) / total, 0), 1) : 0
   const minutesLeft = Math.max(Math.round((end.getTime() - now.getTime()) / 60000), 0)
   const startsIn = Math.max(Math.round((start.getTime() - now.getTime()) / 60000), 0)
+  const color = typeColor(slot.task_type)
 
   return (
-    <div className="relative">
-      <div aria-hidden="true"
-           className="pointer-events-none absolute -inset-6 -z-10 animate-blob rounded-full bg-blue-600/30 blur-[100px]
-                      motion-reduce:animate-none" />
-      <GlassCard className="bg-white/[0.05] p-8 md:p-10">
-        <p className="flex items-center gap-2 text-sm text-accent-ink">
-          {running && (
-            <span className="relative flex size-2">
-              <span className="absolute inline-flex size-full animate-ping rounded-full bg-accent-ink opacity-60 motion-reduce:animate-none" />
-              <span className="relative inline-flex size-2 rounded-full bg-accent-ink" />
-            </span>
-          )}
-          {running ? 'Now' : `Up next, in ${hoursLabel(startsIn)}`}
+    <section
+      className="relative rounded-lg border border-blue-500/30 bg-sidebar/60 p-4 transition-all duration-300 hover:border-blue-500/50"
+      style={{ backgroundImage: 'radial-gradient(ellipse at center, transparent, rgba(59, 130, 246, 0.05), rgba(99, 102, 241, 0.06))' }}
+    >
+      <div className="mb-2 flex items-center justify-between gap-2">
+        <SubjectPill taskType={slot.task_type} />
+        <span className="flex items-center gap-1 rounded-full bg-sidebar-accent px-2 py-1 text-[10px] text-white/70">
+          <Sparkles className="size-3 text-purple-400" />
+          {running ? `Now, ${hoursLabel(minutesLeft)} left` : `Up next, in ${hoursLabel(startsIn)}`}
+        </span>
+      </div>
+      <button type="button" onClick={() => onOpen(slot)} className="block text-left">
+        <h3 className="mb-1 text-base font-semibold text-white">{slot.title}</h3>
+        <p className="mb-3 text-xs text-white/60">
+          {slot.parent_title ? `Part of ${slot.parent_title} • ` : ''}{formatClock(start)} – {formatClock(end)}
+          {slot.requires_focus ? ' • Needs focus' : ''}
         </p>
-
-        <button type="button" onClick={() => onOpen(slot)} className="mt-3 block text-left">
-          <h2 className="text-4xl leading-tight font-bold tracking-tight text-balance md:text-5xl">{slot.title}</h2>
-          <span className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[15px] text-muted-foreground">
-            <span className="flex items-center gap-1.5">
-              <span className="size-2 rounded-full" style={{ background: color }} />
-              {slot.parent_title ?? typeLabel(slot.task_type)}
-            </span>
-            {slot.requires_focus && <span className="text-faint">Needs focus</span>}
-          </span>
-        </button>
-
-        <div className="mt-8">
-          <div
-            className="relative h-1.5 rounded-full bg-white/10"
-            role="progressbar"
-            aria-label="Session progress"
-            aria-valuemin={0}
-            aria-valuemax={100}
-            aria-valuenow={Math.round(elapsed * 100)}
-          >
-            <div className="absolute inset-y-0 left-0 rounded-full bg-primary transition-[width] duration-700"
-                 style={{ width: `${elapsed * 100}%` }} />
-            {running && (
-              <div className="absolute top-1/2 size-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white
-                              bg-primary shadow-[0_0_16px_rgba(59,130,246,0.9)]"
-                   style={{ left: `${elapsed * 100}%` }} />
-            )}
-          </div>
-          <div className="mt-2.5 flex justify-between text-sm text-faint tnum">
-            <span>{formatClock(start)}</span>
-            {running && <span className="text-muted-foreground">{hoursLabel(minutesLeft)} left</span>}
-            <span>{formatClock(end)}</span>
-          </div>
-        </div>
-
-        <div className="mt-7">
-          <SlotButtons slot={slot} busy={busy} onComplete={onComplete} onSkip={onSkip} />
-        </div>
-      </GlassCard>
-    </div>
+      </button>
+      <div
+        className="mb-3 h-1 overflow-hidden rounded-full bg-white/10"
+        role="progressbar"
+        aria-label="Session progress"
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={Math.round(elapsed * 100)}
+      >
+        <div className="h-full rounded-full transition-[width] duration-700" style={{ width: `${elapsed * 100}%`, background: color }} />
+      </div>
+      <SlotButtons slot={slot} busy={busy} onComplete={onComplete} onSkip={onSkip} />
+    </section>
   )
 }
 
 function SlotList({ children }: { children: ReactNode }) {
-  return <ul className="glass divide-y divide-white/[0.06] overflow-hidden rounded-3xl">{children}</ul>
+  return <ul className="flex flex-col gap-1">{children}</ul>
 }
 
 function SlotRow({ slot, onOpen, children }: { slot: ScheduleSlot; onOpen: (slot: ScheduleSlot) => void; children?: ReactNode }) {
   const start = new Date(slot.start_time)
   const end = new Date(slot.end_time)
   return (
-    <li className="flex items-center gap-3 px-5 py-3">
-      <span className="shrink-0 text-[13px] whitespace-nowrap text-muted-foreground tnum sm:w-[136px]">
-        {formatClock(start)}<span className="max-sm:hidden">–{formatClock(end)}</span>
+    <li className="flex min-h-12 items-center gap-3 rounded-md border border-sidebar-border bg-sidebar/40 px-3 py-2 transition-colors
+                   duration-200 hover:border-white/20 hover:bg-white/10">
+      <span className="shrink-0 text-[11px] whitespace-nowrap text-white/50 tnum sm:w-[120px]">
+        {formatClock(start)}<span className="max-sm:hidden"> – {formatClock(end)}</span>
       </span>
-      <span className="size-2 shrink-0 rounded-full" style={{ background: typeColor(slot.task_type) }} />
-      <button type="button" onClick={() => onOpen(slot)} className="min-w-0 flex-1 truncate text-left text-[15px]">
+      <button type="button" onClick={() => onOpen(slot)} className="min-w-0 flex-1 truncate text-left text-[11px] text-white">
         {slot.title}
-        {slot.parent_title && <span className="text-faint">, {slot.parent_title}</span>}
+        {slot.parent_title && <span className="text-white/40">, {slot.parent_title}</span>}
       </button>
+      <SubjectPill taskType={slot.task_type} />
       {children}
     </li>
   )

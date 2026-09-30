@@ -22,6 +22,16 @@
   --color-destructive: var(--destructive);
   --color-popover: var(--popover);
 
+  /* Sype's app surfaces: a zinc sidebar palette shared by every card. */
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
   --color-type-essay: #9d8cff;
   --color-type-exam: #ef8fd0;
   --color-type-problem: #56d3b0;
@@ -65,6 +75,15 @@
   --ring: oklch(0.707 0.165 254.624);
 
   --destructive: oklch(0.704 0.191 22.216);
+
+  --sidebar: hsl(240 5.9% 10%);
+  --sidebar-foreground: hsl(240 4.8% 95.9%);
+  --sidebar-primary: hsl(224.3 76.3% 48%);
+  --sidebar-primary-foreground: hsl(0 0% 100%);
+  --sidebar-accent: hsl(240 3.7% 15.9%);
+  --sidebar-accent-foreground: hsl(240 4.8% 95.9%);
+  --sidebar-border: hsl(240 3.7% 15.9%);
+  --sidebar-ring: hsl(217.2 91.2% 59.8%);
 }
 
 @layer base {
@@ -80,7 +99,8 @@
   }
 
   html {
-    scrollbar-color: oklch(1 0 0 / 0.16) transparent;
+    scrollbar-width: thin;
+    scrollbar-color: #a9a9a9 transparent;
     -webkit-tap-highlight-color: transparent;
   }
 
@@ -101,20 +121,18 @@
   }
 
   ::-webkit-scrollbar {
-    width: 10px;
-    height: 10px;
+    width: 3px;
+    height: 3px;
   }
   ::-webkit-scrollbar-track {
     background: transparent;
   }
   ::-webkit-scrollbar-thumb {
-    background: oklch(1 0 0 / 0.14);
-    border-radius: 99px;
-    border: 3px solid transparent;
-    background-clip: padding-box;
+    background: #a9a9a9;
+    border-radius: 2px;
   }
   ::-webkit-scrollbar-thumb:hover {
-    background-color: oklch(1 0 0 / 0.24);
+    background: #808080;
   }
 }
 
@@ -124,20 +142,13 @@
     @apply border border-white/10 bg-white/[0.04] shadow-[0_8px_32px_0_rgba(0,0,0,0.36)] backdrop-blur-xl;
   }
 
-  .glass-hover {
-    @apply transition-all duration-300 hover:border-white/20 hover:bg-white/10;
-  }
-
-  /* Sype's heading gradient: white fading to half white. */
-  .text-gradient {
-    @apply bg-gradient-to-r from-white via-white/80 to-white/50 bg-clip-text text-transparent;
+  /* Sype's app panel: every card, the sidebar and the chat. */
+  .appglass {
+    @apply border border-white/10 bg-white/5 shadow-[0_8px_32px_0_rgba(0,0,0,0.36)] backdrop-blur-xl;
   }
 
   .animation-delay-2000 {
     animation-delay: 2s;
-  }
-  .animation-delay-4000 {
-    animation-delay: 4s;
   }
 
   /* Times and durations sit in columns, so they need to line up. */
@@ -156,7 +167,7 @@
   }
 }
 
-/* Reduced motion stills the blobs and reveals; app.tsx also skips the cursor trail. */
+/* Motion answers actions; reduced motion also stills the background blobs. */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
