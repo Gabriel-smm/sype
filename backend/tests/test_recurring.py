@@ -92,7 +92,8 @@ def test_deleting_a_template_leaves_materialized_tasks_as_standalone(client):
 
 
 def test_recurring_instances_flow_through_generate_schedule(client):
-    new_recurring_task(client, title="Gym session", estimated_duration=45)
+    # Every weekday, so a future occurrence always fits whatever time the suite runs.
+    new_recurring_task(client, title="Gym session", estimated_duration=45, weekdays=list(range(7)))
     schedule = client.post(f"/api/students/{STUDENT}/schedule/generate").json()
     matches = [s for s in schedule["slots"] if s["title"] == "Gym session"]
     assert matches
