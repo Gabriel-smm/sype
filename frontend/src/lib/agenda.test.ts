@@ -5,7 +5,6 @@ import {
   dayPlan, dueSoon, glanceHours, majorAssignments, placementSummary, setupNeeded, todayAgenda, topPriorities,
   weekSummary,
 } from './agenda'
-import { daysOfWeek } from './time'
 
 // Wednesday 23 September 2026, 14:30 local.
 const NOW = new Date(2026, 8, 23, 14, 30)
@@ -157,17 +156,22 @@ describe('dayPlan', () => {
 
 describe('weekSummary', () => {
   const slots = [
-    slot(1, '2026-09-21T09:00:00', '2026-09-21T11:00:00'),
-    slot(2, '2026-09-23T14:00:00', '2026-09-23T14:30:00'),
-    slot(3, '2026-09-28T09:00:00', '2026-09-28T10:00:00'),
+    slot(1, '2026-09-23T09:00:00', '2026-09-23T11:00:00'),
+    slot(2, '2026-09-25T14:00:00', '2026-09-25T14:30:00'),
+    slot(3, '2026-09-30T09:00:00', '2026-09-30T10:00:00'),
+    slot(4, '2026-09-22T09:00:00', '2026-09-22T10:00:00'),
   ]
-  const tasks = [{ id: 1, due_date: '2026-09-27T23:59:00', status: 'pending' }] as Task[]
+  const tasks = [{ id: 1, due_date: '2026-09-29T23:59:00', status: 'pending' }] as Task[]
 
-  it('gives seven days, Monday first, with minutes planned and work due', () => {
+  it('gives the seven days starting today, with minutes planned and work due', () => {
     const week = weekSummary(slots, tasks, NOW)
-    expect(week).toHaveLength(7)
+    expect(week.map((d) => d.day.getDate())).toEqual([23, 24, 25, 26, 27, 28, 29])
     expect(week.map((d) => d.minutes)).toEqual([120, 0, 30, 0, 0, 0, 0])
     expect(week[6].due.map((t) => t.id)).toEqual([1])
+  })
+
+  it('starts each day at midnight', () => {
+    expect(weekSummary([], [], NOW)[0].day).toEqual(new Date(2026, 8, 23))
   })
 })
 
@@ -199,7 +203,7 @@ describe('majorAssignments', () => {
 })
 
 describe('glanceHours', () => {
-  const days = daysOfWeek(NOW)
+  const days = weekSummary([], [], new Date(2026, 8, 21)).map((d) => d.day)
 
   it('shows 7 to 23 by default', () => {
     expect(glanceHours([], days)).toEqual({ start: 7, end: 23 })

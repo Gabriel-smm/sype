@@ -94,7 +94,7 @@ export function App() {
           <Routes>
             <Route index element={
               <TodayPage schedule={schedule} tasks={tasks} settings={settings} busy={busy}
-                         onComplete={data.onComplete} onSkip={data.onSkip} onOpenTask={setEditingId}
+                         onComplete={data.onComplete} onOpenTask={setEditingId}
                          onCapture={openCapture} fixes={data.fixes} />
             } />
             <Route path="calendar" element={

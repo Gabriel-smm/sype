@@ -2,7 +2,7 @@
 // Pure functions so the boundaries (what counts as "now") are testable.
 
 import type { Schedule, ScheduleSlot, Settings, Task } from '@/types/api'
-import { daysOfWeek, isSameDay } from './time'
+import { isSameDay } from './time'
 
 const byStart = (a: { start_time: string }, b: { start_time: string }) =>
   new Date(a.start_time).getTime() - new Date(b.start_time).getTime()
@@ -103,9 +103,15 @@ export function dayPlan(slots: ScheduleSlot[], tasks: Task[], day: Date): DayPla
   }
 }
 
-/** The week containing `date`, Monday first, as seven day plans. */
-export function weekSummary(slots: ScheduleSlot[], tasks: Task[], date: Date): (DayPlan & { day: Date })[] {
-  return daysOfWeek(date).map((day) => ({ day, ...dayPlan(slots, tasks, day) }))
+/**
+ * The seven days starting with `from`, as day plans. A rolling week rather
+ * than Monday to Sunday, so on a Sunday the glance still shows what is coming.
+ */
+export function weekSummary(slots: ScheduleSlot[], tasks: Task[], from: Date): (DayPlan & { day: Date })[] {
+  return Array.from({ length: 7 }, (_, offset) => {
+    const day = new Date(from.getFullYear(), from.getMonth(), from.getDate() + offset)
+    return { day, ...dayPlan(slots, tasks, day) }
+  })
 }
 
 /** The assignments that carry the most weight in the next `days`, with their step progress. */
