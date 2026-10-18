@@ -2,77 +2,77 @@
 
 ## What this is
 
-Student Task Scheduler: a deterministic FastAPI backend + React/Vite frontend.
-It's a personal tool, not a product — see README.md for the full architecture,
-the scheduling pipeline, chat-provider design, recurring-task materialization,
-and the "Conventions worth knowing" / "Decisions taken beyond the brief"
-sections. Don't duplicate that here; read it once per session if you need it.
+Sype, a student task scheduler: FastAPI backend + React/Vite frontend. Prioritisation,
+decomposition and placement are deterministic, unit-tested Python. No LLM decides the schedule.
+The full technical picture lives in [`docs/`](docs/); read `docs/architecture.md` once per
+session before non-trivial work instead of re-deriving it.
 
-## Environment
+## Stack & commands
 
-- Backend: `backend/` — FastAPI + SQLAlchemy + Pydantic, Python 3.12 (`.venv/`).
-  Run: `cd backend && ../.venv/bin/python -m uvicorn app.main:app --reload --port 8000`.
-- Frontend: `frontend/` — React 19 + TypeScript + Vite + Tailwind 4, shadcn-style
-  `components/ui` (Radix), react-router, lucide, motion, sonner. `@/` = `frontend/src`.
-  Run: `npm run dev --prefix frontend`.
-- Both at once: `./dev.sh` (`--seed` loads demo tasks; bootstraps deps on first run).
-- Tests: `cd backend && ../.venv/bin/python -m pytest -q` (116 tests);
-  frontend `npm test --prefix frontend` (Vitest, `src/lib/` only).
-- Lint: `npm run lint --prefix frontend` (oxlint). Types: `npm run typecheck --prefix frontend`.
-- API types in `frontend/src/types/api.ts` are hand-mirrored from `backend/app/schemas.py`;
-  change both together.
-- **Never read, search, or edit `.venv/`, `frontend/dist/`, or `node_modules/`**
-  — vendored/build output, not project source (already gitignored).
-- `backend/task_scheduler.db` is a local SQLite file, not a source of truth —
-  don't treat its contents as spec.
+- **Backend** `backend/`: FastAPI, SQLAlchemy, Pydantic, Python 3.12 in `.venv/`.
+  `cd backend && ../.venv/bin/python -m uvicorn app.main:app --reload --port 8000`
+- **Frontend** `frontend/`: React 19, TypeScript, Vite, Tailwind 4, shadcn-style `components/ui`
+  (Radix). `@/` = `frontend/src`. `npm run dev --prefix frontend`
+- **Both:** `./dev.sh` (`--seed` loads demo tasks; installs deps when they change).
+- **Standard checks** (all must pass before a PR):
+  - `cd backend && ../.venv/bin/python -m pytest -q`
+  - `npm run lint --prefix frontend` · `npm run typecheck --prefix frontend`
+  - `npm test --prefix frontend` · `npm run build --prefix frontend`
+- `frontend/src/types/api.ts` mirrors `backend/app/schemas.py` by hand. Change both together.
+- **Never read, search or edit** `.venv/`, `node_modules/`, `frontend/dist/`.
+  `backend/task_scheduler.db` is local data, not spec.
 
-## Project tracking
+## Must-know conventions
 
-Work is tracked on the **SypeAI** GitHub Project board. Before starting
-anything non-trivial: check `gh issue list` / the board for existing context,
-and open or reference an issue for the task. See the `board-update` skill
-(`.claude/skills/board-update/SKILL.md`) for how planning and reflect steps
-report back to it.
+- Durations are **minutes** in the API and DB (the form accepts hours).
+- Fixed blocks / productive windows recur weekly: `day_of_week` 0=Mon..6=Sun or `null` = daily;
+  `end_time <= start_time` means overnight.
+- Datetimes are **naive local time**. The schedule is **derived state** (regenerate = wipe + rebuild).
+- No auth: everything is student 1.
+- Phase precedence and overdue-ASAP go beyond the original brief. Read `docs/architecture.md`
+  before touching `scheduler.py` ordering.
 
-## Workflow
+## Documentation is mandatory
 
-Check board/issue → brainstorm → plan → (git worktree if working in parallel
-with another session) → implement with TDD → verify → PR via
-`/commit-push-pr`. Full loop and skill mapping:
-[task_ML Workflow Playbook](https://claude.ai/artifact/VX8Hai9W8M1utDESicCE74).
+Technical docs are a first-class deliverable here. **Every major change updates the matching doc
+in the same PR**, with the essential information only (what changed, how it works, any new
+command/env var/convention). A PR that changes behaviour without its doc update is not done.
 
-**Branches:** `main` is production. Feature branches start from `dev` and PRs
-target `dev` (`gh pr create --base dev`). `main` only moves when `dev` is
-released into it.
+| Area changed | Update |
+|---|---|
+| Install, run, env vars, checks | `docs/setup.md` |
+| Pipeline, data model, cross-cutting decisions | `docs/architecture.md` |
+| API routes, scoring/decompose/scheduler, chat, recurring | `docs/backend.md` |
+| Pages, components, hooks, design tokens | `docs/frontend.md` |
+| Anything ML | `docs/ml.md` |
+| User-facing features | `README.md` (public page: keep it polished, no internals) |
 
-## Conventions worth knowing
+## Git rules
 
-- **Durations are minutes** everywhere in the API and database. The task form
-  accepts hours and converts.
-- **Fixed blocks and productive windows recur weekly.** `day_of_week` is
-  `0`=Monday..`6`=Sunday, or `null` for every day. An `end_time` at or before
-  `start_time` means the block runs overnight (sleep). Because they recur, a
-  band that spills off Sunday night is drawn on Monday morning too.
-- **Datetimes are naive local time.** Fine for a single-timezone test group;
-  revisit before anyone travels.
-- **The schedule is derived state.** Regenerating wipes and rebuilds all slots.
-- **No auth.** Everything operates on student 1.
-- **Phase precedence is enforced** beyond the original brief — see README
-  "Decisions taken beyond the brief" before touching `scheduler.py` ordering.
+- **NEVER `git push`, `git pull`, or fetch-and-merge without the user's explicit authorization
+  in the current conversation.** Past approval does not carry over.
+- Commit regularly, in small logical commits with clear messages, as work progresses.
+- **One feature = one branch = one PR.** Open or reference a GitHub issue first.
+- Branch names: `<type>/<issue>-<short-slug>`, type ∈ `feat` `fix` `docs` `refactor` `test`
+  `chore` (e.g. `feat/42-overview-redesign`).
+- Branch from `dev`; PRs target `dev` (`gh pr create --base dev`). `main` is production and only
+  moves when `dev` is released into it.
+- Before opening a PR: run every standard check above (or dispatch the `test-runner` agent),
+  update docs, and fill in the PR template. CI must be green.
 
-## Model routing
+## Skills: check actively
 
-Subagents default to Sonnet (`CLAUDE_CODE_SUBAGENT_MODEL` in `.claude/settings.json`). Two agents
-are pinned:
+Before every change, scan the installed skills and invoke each one that applies (e.g.
+`superpowers:brainstorming` for new work, `test-driven-development`, `systematic-debugging`,
+`verification-before-completion` before claiming done, `code-review` before a PR).
 
-| Task | Agent | Model |
-|---|---|---|
-| Run tests / build, report failures | `test-runner` | haiku, low effort |
-| Change scoring, decomposition, placement or `pipeline.py` | `scheduler-architect` | opus, high effort |
-| Everything else (search, API routes, frontend, reviews) | built-in / general-purpose | sonnet (default) |
+**Frontend work: always invoke `frontend-design:frontend-design` first.** The UI must not look
+AI-generated. Build on the tokens in `frontend/src/index.css` and the primitives in
+`components/ui`. No purple/rainbow gradients, emoji-as-icons, generic hero copy, identical
+rounded cards everywhere, or decorative shadows and motion. See `docs/frontend.md`.
 
-- Don't pass a `model` override to the Agent tool when one of the agents above fits — a per-call
-  override beats the agent's pinned model.
-- Only override to a bigger model after a Sonnet attempt has actually failed, not in advance.
-- Main session: Sonnet is enough for routine UI/API work; switch with `/model` to Opus only for
-  scheduling-core design.
+## Agents
+
+`test-runner` (haiku) runs checks and reports failures. `scheduler-architect` (opus) handles
+changes to `scoring.py`, `decompose.py`, `scheduler.py`, `pipeline.py`. Everything else runs on
+the Sonnet default.
