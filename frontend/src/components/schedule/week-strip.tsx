@@ -79,7 +79,7 @@ export function WeekStrip({ blocks, tint, onAdd, onDelete, addLabel, busy }: Wee
   return (
     <div>
       <div className="flex gap-px overflow-hidden rounded-2xl border border-white/10 bg-white/[0.06]">
-        <div className="relative w-8 shrink-0 bg-black" style={{ height: STRIP_HEIGHT + 26 }}>
+        <div className="relative w-8 shrink-0 bg-background" style={{ height: STRIP_HEIGHT + 26 }}>
           <span className="sr-only">Time of day</span>
           {GUIDE_HOURS.slice(0, -1).map((hour) => (
             <span
@@ -94,7 +94,7 @@ export function WeekStrip({ blocks, tint, onAdd, onDelete, addLabel, busy }: Wee
         </div>
 
         {DAY_NAMES.map((name, dayIndex) => (
-          <div key={name} className="flex-1 bg-black">
+          <div key={name} className="flex-1 bg-background">
             <div className="py-1.5 text-center text-[11px] text-faint">{name}</div>
             <button
               type="button"

@@ -88,7 +88,7 @@ export function AppShell({ sidebar, chat, chatOpen, onChatOpenChange, chatAvaila
       {isMobile && chatAvailable && (
         <Sheet open={chatOpen} onOpenChange={onChatOpenChange}>
           <SheetContent title="Chat" bare hideHeader className="max-w-full border-0 bg-transparent p-2 shadow-none backdrop-blur-none">
-            <ChatPanel chat={chat} onClose={close} className="bg-black" />
+            <ChatPanel chat={chat} onClose={close} className="bg-background" />
           </SheetContent>
         </Sheet>
       )}

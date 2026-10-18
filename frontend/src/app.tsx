@@ -3,7 +3,6 @@ import { Navigate as Redirect, Route, Routes, useLocation, useNavigate } from 'r
 
 import { AppShell } from '@/components/layout/app-shell'
 import { AppSidebar } from '@/components/layout/app-sidebar'
-import { Background } from '@/components/layout/background'
 import { CaptureDialog } from '@/components/tasks/capture-dialog'
 import { TaskSheet } from '@/components/tasks/task-sheet'
 import { Button } from '@/components/ui/button'
@@ -94,7 +93,6 @@ export function App() {
   return (
     <TooltipProvider delayDuration={300}>
       <SidebarProvider defaultOpen>
-        <Background />
         <AppShell
           chat={chat}
           chatOpen={chatOpen}
@@ -156,7 +154,6 @@ export function App() {
 function Loading() {
   return (
     <div className="grid h-dvh place-items-center">
-      <Background />
       <p className="animate-pulse text-sm text-sidebar-foreground/60">Reading your week…</p>
     </div>
   )
@@ -165,7 +162,6 @@ function Loading() {
 function Offline({ message, onRetry }: { message: string; onRetry: () => void }) {
   return (
     <div className="grid h-dvh place-items-center px-4">
-      <Background />
       <Card className="max-w-md px-6 text-center">
         <p className="text-xl font-semibold">Sype<span className="text-blue-400">.</span></p>
         <div>

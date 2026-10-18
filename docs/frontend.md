@@ -12,7 +12,7 @@ proxies `/api` to the backend, so the app is same-origin.
 | `src/app.tsx` | Router and app-level state wiring. |
 | `src/pages/` | Routed screens: `/` Overview (`today.tsx`), `/calendar`, `/tasks` (triage), `/chat`, `/setup`. `/week` redirects to `/calendar`. |
 | `src/components/ui/` | Primitives (Radix + `cva`): button, input, card, badge, dialog, sheet, dropdown-menu, slider, switch, tooltip, avatar, sidebar, sonner. |
-| `src/components/layout/` | Sidebar, the shell with the optional chat side panel, background, section labels. |
+| `src/components/layout/` | Sidebar, the shell with the optional chat side panel, section labels. |
 | `src/components/{overview,tasks,schedule,setup,chat}/` | Feature pieces: Overview sections (priorities, tomorrow, week glance, assignments), capture dialog and task sheet, week grid and slot sheet, block/weights/recurring editors, chat conversation, thread list and side panel. |
 | `src/hooks/` | `use-app-data` (fetching, mutations, toasts), `use-chat` (saved chat threads, shared by the page and the panel), `use-sidebar`, `use-mobile`, `use-now`. |
 | `src/lib/` | API client, week arithmetic (`time.ts`), task vocabulary and colours (`task-meta.ts`), capture parser (`parse-capture.ts`), Overview data (`agenda.ts`), chat threads (`chat-threads.ts`). Pure logic. |
@@ -55,7 +55,8 @@ Defined in `src/index.css`, dark only:
 - **Task-type hues are information, never decoration** (`--color-type-*`, `lib/task-meta.ts`).
   On the Overview and in chat they shrink to a thin edge or a dot; text and fills stay neutral.
   Blue marks "now" and the primary action, red only overdue.
-- **Pages are transparent** over the dark background, edged by a faint `white/10` outline (`Card`).
+- **One flat dark navy background** (`--background`, `#0a0f1a`), no gradient or glow.
+- **Pages are transparent** over that background, edged by a faint `white/10` outline (`Card`).
   Only the sidebar and overlays (dialogs, sheets, menus, toasts) use the zinc glass surface.
 - **The sidebar** starts expanded with page names and collapses to an icon rail from its header
   button or `Ctrl+B` (remembered in `localStorage['sidebar_state']`).
