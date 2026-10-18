@@ -50,7 +50,7 @@ Shortcuts: `N` or `/` new task, `C` chat panel, `Ctrl+B` sidebar.
 
 Defined in `src/index.css`, dark only:
 
-- **Black glass, one blue accent.** Text is graded by white opacity (100 / 70 / 60 / 40), not by a
+- **Dark navy, one blue accent.** Text is graded by white opacity (100 / 70 / 60 / 40), not by a
   grey ramp, so the accent is the only colour that isn't information.
 - **Task-type hues are information, never decoration** (`--color-type-*`, `lib/task-meta.ts`).
   On the Overview and in chat they shrink to a thin edge or a dot; text and fills stay neutral.

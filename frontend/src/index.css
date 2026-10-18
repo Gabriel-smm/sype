@@ -1,7 +1,7 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
-/* Black glass, one blue accent: the Sype look. White text is graded by
+/* Dark navy, one blue accent: the Sype look. White text is graded by
    opacity (100 / 70 / 60 / 40) instead of by a ramp of greys, so every
    surface stays neutral and the accent is the only colour that isn't
    information. Task-type hues are information, never decoration. */
