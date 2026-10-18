@@ -11,6 +11,8 @@ and fits them into the free time around your classes and sleep.
 
 ## Features
 
+- **Your week at a glance.** The overview shows today's top three priorities, a short plan for
+  tomorrow, the shape of the week ahead and the assignments that carry the most weight.
 - **Priority you can inspect.** Every task gets a transparent, weighted score, and you can tune
   the weights and preview the effect before saving.
 - **Automatic breakdown.** Long essays become research → outline → draft → revise, in order.
@@ -35,8 +37,9 @@ Tasks + recurring routine
 Decompose  →  Score  →  Place into free time  →  Week calendar
 ```
 
-An optional chat assistant can help you capture tasks. It is off by default (an offline stub)
-and never touches placement.
+An optional chat assistant can help you capture tasks. It has its own page with saved
+conversations, and it can open beside any other page (press `C`). It is off by default (an
+offline stub) and never touches placement.
 
 ## Quick start
 
