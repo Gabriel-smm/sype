@@ -1,138 +1,45 @@
-import { Send, X } from 'lucide-react'
-import { useEffect, useRef, useState, type KeyboardEvent } from 'react'
-import Markdown from 'react-markdown'
+import { Maximize2, SquarePen, X } from 'lucide-react'
+import { Link } from 'react-router'
 
-import { Button } from '@/components/ui/button'
-import { Card, CardHeader } from '@/components/ui/card'
+import { ChatConversation } from '@/components/chat/chat-conversation'
+import { Tooltip } from '@/components/ui/tooltip'
 import type { Chat } from '@/hooks/use-chat'
+import { NEW_CHAT_TITLE } from '@/lib/chat-threads'
 import { cn } from '@/lib/utils'
 
 export const COPILOT_INPUT_ID = 'copilot-input'
 
-const SUGGESTIONS = [
-  'What’s on my schedule today?',
-  'Show my upcoming deadlines',
-  'Add my ethics paper, due Friday, worth 30%',
-  'Help me plan my week',
-]
+const iconButton = 'grid size-7 place-items-center rounded-md text-white/55 transition-colors hover:bg-white/10 hover:text-white'
 
 /**
- * Sype's Co-Pilot panel. The conversation lives in useChat, above this
- * component, so it survives page changes and the phone sheet closing.
+ * The chat beside any page. It shows the same thread as the Chat page, so a
+ * question asked here can be picked up there at full width.
  */
-export function ChatPanel({ chat, className, onClose }: { chat: Chat; className?: string; onClose?: () => void }) {
-  const { messages, streaming, provider, error, send } = chat
-  const [input, setInput] = useState('')
-  const bottom = useRef<HTMLDivElement>(null)
-  const composer = useRef<HTMLTextAreaElement>(null)
-
-  useEffect(() => {
-    bottom.current?.scrollIntoView({ behavior: 'smooth', block: 'end' })
-  }, [messages, streaming])
-
-  async function submit(text: string) {
-    if (!text.trim() || streaming) return
-    setInput('')
-    grow(composer.current, true)
-    await send(text)
-    composer.current?.focus()
-  }
-
-  function onKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
-    if (event.key === 'Enter' && !event.shiftKey) {
-      event.preventDefault()
-      void submit(input)
-    }
-  }
-
+export function ChatPanel({ chat, className, onClose }: { chat: Chat; className?: string; onClose: () => void }) {
   return (
-    <Card className={cn('h-full w-full overflow-hidden', className)}>
-      <CardHeader
-        title="Co-Pilot"
-        description="Ask anything about your studies"
-        actions={onClose && (
-          <Button variant="ghost" size="icon-sm" onClick={onClose} aria-label="Close Co-Pilot"><X className="size-4" /></Button>
-        )}
-      />
-
-      <div className="relative min-h-0 flex-1">
-        <div className="absolute inset-0 overflow-y-auto">
-          {messages.length === 0 ? (
-            <div className="flex h-full flex-col items-center justify-center gap-8">
-              <span className="text-4xl font-semibold text-white/15">Sype<span className="text-blue-400/15">.</span></span>
-              <div className="flex w-full max-w-xs flex-col gap-2 px-4">
-                {SUGGESTIONS.map((suggestion) => (
-                  <button
-                    key={suggestion}
-                    type="button"
-                    onClick={() => void submit(suggestion)}
-                    className="rounded-md border-2 border-sidebar-border px-3 py-1.5 text-left text-sm text-sidebar-foreground/50
-                               hover:bg-sidebar-accent/30 hover:text-sidebar-foreground"
-                  >
-                    {suggestion}
-                  </button>
-                ))}
-                {provider && !provider.live && (
-                  <p className="mt-2 text-center text-xs text-sidebar-foreground/40">
-                    No model is connected, so replies are a placeholder. Set CHAT_PROVIDER on the backend.
-                  </p>
-                )}
-              </div>
-            </div>
-          ) : (
-            <ul className="flex flex-col gap-4 px-4 pb-2">
-              {messages.map((message, index) => {
-                const user = message.role === 'user'
-                const last = index === messages.length - 1
-                return (
-                  <li key={index} className={cn('flex gap-3', user ? 'justify-end' : 'justify-start')}>
-                    <div className={cn('max-w-lg rounded-lg px-4 py-2',
-                      user ? 'bg-blue-500 text-sidebar-primary-foreground' : 'bg-sidebar-accent/50 text-sidebar-accent-foreground')}>
-                      <div className="text-sm leading-relaxed [overflow-wrap:anywhere]">
-                        {message.content
-                          ? (user
-                              ? <p className="whitespace-pre-wrap">{message.content}</p>
-                              : <div className="space-y-2 [&_li]:ml-4 [&_ol]:list-decimal [&_strong]:font-semibold [&_ul]:list-disc">
-                                  <Markdown>{message.content}</Markdown>
-                                </div>)
-                          : streaming && last ? <span className="text-sidebar-foreground/60">Thinking...</span> : null}
-                      </div>
-                    </div>
-                  </li>
-                )
-              })}
-            </ul>
-          )}
-          <div ref={bottom} />
-        </div>
+    <section aria-label="Chat" onKeyDown={(event) => { if (event.key === 'Escape' && !event.defaultPrevented) onClose() }}
+             className={cn('flex h-full w-full flex-col overflow-hidden rounded-xl border border-sidebar-border bg-sidebar', className)}>
+      <header className="flex flex-shrink-0 items-center gap-1 border-b border-white/[0.06] py-2 pr-2 pl-4">
+        <h2 className="min-w-0 flex-1 truncate text-[13px] font-semibold text-white">{chat.active?.title ?? NEW_CHAT_TITLE}</h2>
+        <Tooltip content="New chat">
+          <button type="button" onClick={chat.newChat} aria-label="New chat" className={iconButton}>
+            <SquarePen className="size-4" />
+          </button>
+        </Tooltip>
+        <Tooltip content="Open full page">
+          <Link to="/chat" onClick={onClose} aria-label="Open chat as a full page" className={iconButton}>
+            <Maximize2 className="size-4" />
+          </Link>
+        </Tooltip>
+        <Tooltip content="Close (C)">
+          <button type="button" onClick={onClose} aria-label="Close chat" className={iconButton}>
+            <X className="size-4" />
+          </button>
+        </Tooltip>
+      </header>
+      <div className="min-h-0 flex-1">
+        <ChatConversation chat={chat} variant="panel" inputId={COPILOT_INPUT_ID} autoFocus />
       </div>
-
-      <div className="flex flex-shrink-0 items-stretch gap-2 px-4">
-        <textarea
-          ref={composer}
-          id={COPILOT_INPUT_ID}
-          rows={1}
-          value={input}
-          onChange={(event) => { setInput(event.target.value); grow(event.target) }}
-          onKeyDown={onKeyDown}
-          aria-label="Message the Co-Pilot"
-          placeholder="Ask me anything..."
-          className="max-h-[200px] min-h-[40px] flex-1 resize-none overflow-y-auto rounded-md border-2 border-sidebar-border
-                     bg-transparent px-3 py-2 text-sm text-sidebar-accent-foreground placeholder:text-sidebar-foreground/40
-                     focus:ring-2 focus:ring-sidebar-ring focus:outline-none"
-        />
-        <Button onClick={() => void submit(input)} disabled={!input.trim() || streaming} aria-label="Send"
-                className="h-auto">
-          <Send className="size-4" />
-        </Button>
-      </div>
-      {error && <p role="alert" className="-mt-4 px-4 text-sm text-red-500">{error}</p>}
-    </Card>
+    </section>
   )
-}
-
-function grow(element: HTMLTextAreaElement | null, reset = false) {
-  if (!element) return
-  element.style.height = 'auto'
-  if (!reset) element.style.height = `${Math.min(Math.max(element.scrollHeight, 40), 200)}px`
 }

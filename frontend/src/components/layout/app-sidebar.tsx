@@ -1,6 +1,6 @@
 import {
-  CalendarDays, ChevronDown, ChevronsUpDown, ClipboardList, Keyboard, LayoutGrid, Plus, RotateCw,
-  Settings2, Sparkles, type LucideIcon,
+  CalendarDays, ChevronDown, ChevronsUpDown, ClipboardList, Keyboard, LayoutGrid, MessageSquare, Plus, RotateCw,
+  Settings2, type LucideIcon,
 } from 'lucide-react'
 import { Collapsible } from 'radix-ui'
 import { NavLink, useLocation, useSearchParams } from 'react-router'
@@ -29,6 +29,7 @@ const NAV: NavItem[] = [
   { to: '/', title: 'Overview', icon: LayoutGrid },
   { to: '/calendar', title: 'Calendar', icon: CalendarDays },
   { to: '/tasks', title: 'Tasks', icon: ClipboardList },
+  { to: '/chat', title: 'Chat', icon: MessageSquare },
   { to: '/setup', title: 'Setup', icon: Settings2 },
 ]
 
@@ -37,16 +38,15 @@ interface AppSidebarProps {
   taskTypes: string[]
   pendingByType: Record<string, number>
   onAddTask: () => void
-  onCopilot: () => void
   onRebuild: () => void
 }
 
-export function AppSidebar({ studentName, taskTypes, pendingByType, onAddTask, onCopilot, onRebuild }: AppSidebarProps) {
+export function AppSidebar({ studentName, taskTypes, pendingByType, onAddTask, onRebuild }: AppSidebarProps) {
   return (
     <Sidebar>
       <NavHeader />
       <SidebarContent>
-        <NavMain onAddTask={onAddTask} onCopilot={onCopilot} />
+        <NavMain onAddTask={onAddTask} />
         <NavSubjects taskTypes={taskTypes} pendingByType={pendingByType} />
       </SidebarContent>
       <SidebarFooter>
@@ -68,7 +68,7 @@ function NavHeader() {
   )
 }
 
-function NavMain({ onAddTask, onCopilot }: { onAddTask: () => void; onCopilot: () => void }) {
+function NavMain({ onAddTask }: { onAddTask: () => void }) {
   const { pathname } = useLocation()
   const { setOpenMobile } = useSidebar()
   const isActive = (to: string) => (to === '/' ? pathname === '/' : pathname.startsWith(to))
@@ -82,13 +82,6 @@ function NavMain({ onAddTask, onCopilot }: { onAddTask: () => void; onCopilot: (
                                className="text-white/80">
               <Plus />
               <span>New task</span>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-          <SidebarMenuItem>
-            <SidebarMenuButton tooltip="Co-pilot" onClick={() => { setOpenMobile(false); onCopilot() }}
-                               className="text-white/80">
-              <Sparkles />
-              <span>Co-pilot</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
           {NAV.map(({ to, title, icon: Icon }) => (
@@ -189,7 +182,7 @@ function NavFooter({ name, onAddTask, onRebuild }: { name: string; onAddTask: ()
             <DropdownMenuItem onSelect={onRebuild}><RotateCw />Rebuild schedule</DropdownMenuItem>
             <DropdownMenuItem asChild><NavLink to="/setup"><Settings2 />Setup</NavLink></DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem disabled><Keyboard />N new task, Ctrl+B sidebar</DropdownMenuItem>
+            <DropdownMenuItem disabled><Keyboard />N new task, C chat, Ctrl+B sidebar</DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </SidebarMenuItem>

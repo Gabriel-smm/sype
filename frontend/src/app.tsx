@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Navigate as Redirect, Route, Routes, useNavigate } from 'react-router'
+import { Navigate as Redirect, Route, Routes, useLocation, useNavigate } from 'react-router'
 
-import { COPILOT_INPUT_ID } from '@/components/chat/chat-panel'
 import { AppShell } from '@/components/layout/app-shell'
 import { AppSidebar } from '@/components/layout/app-sidebar'
 import { Background } from '@/components/layout/background'
@@ -16,6 +15,7 @@ import { useAppData } from '@/hooks/use-app-data'
 import { useChat } from '@/hooks/use-chat'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { CalendarPage } from '@/pages/calendar'
+import { ChatPage } from '@/pages/chat'
 import { SetupPage } from '@/pages/setup'
 import { TasksPage } from '@/pages/tasks'
 import { TodayPage } from '@/pages/today'
@@ -25,30 +25,59 @@ function isTyping(target: HTMLElement) {
   return target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName)
 }
 
+// The side panel's open/closed state outlives a refresh. Closed unless chosen.
+const CHAT_PANEL_KEY = 'sype.chatPanel'
+
+function readPanelOpen() {
+  try {
+    return localStorage.getItem(CHAT_PANEL_KEY) === 'open'
+  } catch {
+    return false
+  }
+}
+
 export function App() {
   const routerNavigate = useNavigate()
   const navigate = useCallback((to: string) => { void routerNavigate(to) }, [routerNavigate])
   const isMobile = useIsMobile()
+  const { pathname } = useLocation()
   const [capturing, setCapturing] = useState(false)
   const [chatSheetOpen, setChatSheetOpen] = useState(false)
+  const [chatPanelOpen, setChatPanelOpen] = useState(readPanelOpen)
   const [editingId, setEditingId] = useState<number | null>(null)
 
   const data = useAppData({ openTask: setEditingId, navigate })
   const chat = useChat()
   const { meta, settings, tasks, schedule, events, busy, error, actions } = data
 
-  // `n` or `/` from anywhere opens capture.
+  useEffect(() => {
+    try {
+      localStorage.setItem(CHAT_PANEL_KEY, chatPanelOpen ? 'open' : 'closed')
+    } catch {
+      // Storage unavailable: the panel simply starts closed next time.
+    }
+  }, [chatPanelOpen])
+
+  // The Chat page is the chat, so the side panel has nothing to add there.
+  const chatAvailable = pathname !== '/chat'
+  const chatOpen = isMobile ? chatSheetOpen : chatPanelOpen
+  const setChatOpen = isMobile ? setChatSheetOpen : setChatPanelOpen
+
+  // From anywhere: `n` or `/` opens capture, `c` opens or closes the chat beside the page.
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       if (event.metaKey || event.ctrlKey || event.altKey || isTyping(event.target as HTMLElement)) return
       if (event.key === 'n' || event.key === '/') {
         event.preventDefault()
         setCapturing(true)
+      } else if (event.key === 'c' && chatAvailable) {
+        event.preventDefault()
+        setChatOpen((open) => !open)
       }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [])
+  }, [chatAvailable, setChatOpen])
 
   const pendingByType = useMemo(() => {
     const counts: Record<string, number> = {}
@@ -61,11 +90,6 @@ export function App() {
 
   const editingTask = tasks.find((task) => task.id === editingId) ?? null
   const openCapture = () => setCapturing(true)
-  // The Co-Pilot is always on screen on desktop; the nav item just puts the cursor in it.
-  const openCopilot = () => {
-    if (isMobile) setChatSheetOpen(true)
-    else document.getElementById(COPILOT_INPUT_ID)?.focus()
-  }
 
   return (
     <TooltipProvider delayDuration={300}>
@@ -73,15 +97,15 @@ export function App() {
         <Background />
         <AppShell
           chat={chat}
-          chatSheetOpen={chatSheetOpen}
-          onChatSheetChange={setChatSheetOpen}
+          chatOpen={chatOpen}
+          onChatOpenChange={setChatOpen}
+          chatAvailable={chatAvailable}
           sidebar={
             <AppSidebar
               studentName={settings.student.name}
               taskTypes={meta.task_types}
               pendingByType={pendingByType}
               onAddTask={openCapture}
-              onCopilot={openCopilot}
               onRebuild={() => void data.regenerate()}
             />
           }
@@ -109,6 +133,7 @@ export function App() {
               <TasksPage tasks={tasks} schedule={schedule} busy={busy} actions={actions}
                          onOpenTask={setEditingId} onCapture={openCapture} />
             } />
+            <Route path="chat" element={<ChatPage chat={chat} />} />
             <Route path="setup" element={
               <SetupPage settings={settings} events={events} taskTypes={meta.task_types} busy={busy} actions={actions} />
             } />
