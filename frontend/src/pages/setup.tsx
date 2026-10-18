@@ -94,7 +94,7 @@ function Section({ id, icon: Icon, title, blurb, children }: {
   children: ReactNode
 }) {
   return (
-    <section id={id} className="scroll-mt-4 rounded-lg border border-sidebar-border bg-sidebar/60 p-4">
+    <section id={id} className="scroll-mt-4 rounded-lg border border-sidebar-border p-4">
       <div className="mb-4 flex items-start gap-2.5">
         <Icon className="mt-0.5 size-4 shrink-0 text-blue-400" />
         <div>

@@ -14,7 +14,7 @@ export function ChatPage({ chat }: { chat: Chat }) {
   const [listOpen, setListOpen] = useState(false)
 
   return (
-    <div className="flex h-full min-h-0 w-full overflow-hidden rounded-xl border border-sidebar-border bg-sidebar">
+    <div className="flex h-full min-h-0 w-full overflow-hidden rounded-xl border border-white/10">
       {!isMobile && (
         <aside className="w-60 shrink-0 border-r border-white/[0.06]">
           <ThreadList chat={chat} />

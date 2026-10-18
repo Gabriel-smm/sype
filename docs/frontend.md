@@ -55,7 +55,11 @@ Defined in `src/index.css`, dark only:
 - **Task-type hues are information, never decoration** (`--color-type-*`, `lib/task-meta.ts`).
   On the Overview and in chat they shrink to a thin edge or a dot; text and fills stay neutral.
   Blue marks "now" and the primary action, red only overdue.
-- Inter Variable, `--radius` 0.75rem, zinc sidebar surfaces shared by cards.
+- **Pages are transparent** over the dark background, edged by a faint `white/10` outline (`Card`).
+  Only the sidebar and overlays (dialogs, sheets, menus, toasts) use the zinc glass surface.
+- **The sidebar** starts expanded with page names and collapses to an icon rail from its header
+  button or `Ctrl+B` (remembered in `localStorage['sidebar_state']`).
+- Inter Variable, `--radius` 0.75rem.
 
 ## UI guidelines
 

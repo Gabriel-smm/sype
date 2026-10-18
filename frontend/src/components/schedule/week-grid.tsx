@@ -144,7 +144,7 @@ export function WeekGrid({
   return (
     <div ref={scroller} className="min-h-0 flex-1 overflow-auto">
       <div ref={body} className="min-w-[760px]">
-        <div className="sticky top-0 z-50 flex border-b border-sidebar-border bg-sidebar">
+        <div className="sticky top-0 z-50 flex border-b border-white/10 bg-black/70 backdrop-blur-md">
           <div className="shrink-0 border-r border-white/10" style={{ width: GUTTER }} />
           {days.map((day) => {
             const today = isSameDay(day, now)

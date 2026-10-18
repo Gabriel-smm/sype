@@ -112,7 +112,7 @@ export function TasksPage({ tasks, schedule, busy, actions, onOpenTask, onCaptur
                   key={task.id}
                   type="button"
                   onClick={() => onOpenTask(task.id)}
-                  className="rounded-md border border-sidebar-border bg-sidebar/60 p-3 text-left transition-colors duration-200
+                  className="rounded-md border border-sidebar-border p-3 text-left transition-colors duration-200
                              hover:border-white/20 hover:bg-white/10"
                 >
                   <span className="flex items-center justify-between gap-2">
@@ -138,7 +138,7 @@ export function TasksPage({ tasks, schedule, busy, actions, onOpenTask, onCaptur
                 const done = ticked.has(task.id)
                 return (
                   <li key={task.id}
-                      className={cn(`flex h-12 items-center gap-3 rounded-md border border-sidebar-border bg-sidebar/40 px-3
+                      className={cn(`flex h-12 items-center gap-3 rounded-md border border-sidebar-border px-3
                                      transition-colors duration-200 hover:border-white/20 hover:bg-white/10`, done && 'opacity-50')}>
                     <button
                       type="button"
@@ -205,8 +205,8 @@ function HighHurdle({ task, busy, actions, onOpen }: { task: Task; busy: boolean
 
   return (
     <section
-      className="relative rounded-lg border border-orange-500/30 bg-sidebar/60 p-4 transition-all duration-300
-                 hover:border-orange-500/50 hover:bg-sidebar/80"
+      className="relative rounded-lg border border-orange-500/30 p-4 transition-all duration-300
+                 hover:border-orange-500/50 hover:bg-white/[0.04]"
       style={{ backgroundImage: 'radial-gradient(ellipse at center, transparent, rgba(249, 100, 68, 0.05), rgba(249, 115, 22, 0.05))' }}
     >
       <div className="mb-2 flex items-center justify-between gap-2">

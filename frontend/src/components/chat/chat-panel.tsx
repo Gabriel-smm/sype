@@ -18,7 +18,7 @@ const iconButton = 'grid size-7 place-items-center rounded-md text-white/55 tran
 export function ChatPanel({ chat, className, onClose }: { chat: Chat; className?: string; onClose: () => void }) {
   return (
     <section aria-label="Chat" onKeyDown={(event) => { if (event.key === 'Escape' && !event.defaultPrevented) onClose() }}
-             className={cn('flex h-full w-full flex-col overflow-hidden rounded-xl border border-sidebar-border bg-sidebar', className)}>
+             className={cn('flex h-full w-full flex-col overflow-hidden rounded-xl border border-white/10', className)}>
       <header className="flex flex-shrink-0 items-center gap-1 border-b border-white/[0.06] py-2 pr-2 pl-4">
         <h2 className="min-w-0 flex-1 truncate text-[13px] font-semibold text-white">{chat.active?.title ?? NEW_CHAT_TITLE}</h2>
         <Tooltip content="New chat">

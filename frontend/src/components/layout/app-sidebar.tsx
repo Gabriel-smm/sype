@@ -1,11 +1,13 @@
 import {
-  CalendarDays, ChevronDown, ChevronsUpDown, ClipboardList, Keyboard, LayoutGrid, MessageSquare, Plus, RotateCw,
+  CalendarDays, ChevronDown, ChevronsUpDown, ClipboardList, Keyboard, LayoutGrid, MessageSquare, PanelLeftClose, PanelLeftOpen, Plus,
+  RotateCw,
   Settings2, type LucideIcon,
 } from 'lucide-react'
 import { Collapsible } from 'radix-ui'
 import { NavLink, useLocation, useSearchParams } from 'react-router'
 
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { Tooltip } from '@/components/ui/tooltip'
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator,
   DropdownMenuTrigger,
@@ -56,14 +58,24 @@ export function AppSidebar({ studentName, taskTypes, pendingByType, onAddTask, o
   )
 }
 
+/** The wordmark and the collapse control. Collapsed, the rail keeps only the expand button. */
 function NavHeader() {
-  const { state, isMobile } = useSidebar()
+  const { state, isMobile, toggleSidebar } = useSidebar()
   const collapsed = state === 'collapsed' && !isMobile
+  const toggle = (
+    <Tooltip content={collapsed ? 'Expand (Ctrl+B)' : 'Collapse (Ctrl+B)'} side="right">
+      <button type="button" onClick={toggleSidebar} aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+              className="grid size-8 shrink-0 place-items-center rounded-md text-white/55 transition-colors hover:bg-sidebar-accent hover:text-white">
+        {collapsed ? <PanelLeftOpen className="size-4" /> : <PanelLeftClose className="size-4" />}
+      </button>
+    </Tooltip>
+  )
   return (
-    <SidebarHeader className="mx-2 mt-4">
-      <NavLink to="/" className="text-xl font-semibold">
-        {collapsed ? 'S' : 'Sype'}<span className="text-blue-400">.</span>
-      </NavLink>
+    <SidebarHeader className={cn('mt-3 flex-row items-center', collapsed ? 'justify-center' : 'mx-2 justify-between')}>
+      {!collapsed && (
+        <NavLink to="/" className="text-xl font-semibold">Sype<span className="text-blue-400">.</span></NavLink>
+      )}
+      {!isMobile && toggle}
     </SidebarHeader>
   )
 }

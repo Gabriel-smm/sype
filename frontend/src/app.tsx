@@ -93,7 +93,7 @@ export function App() {
 
   return (
     <TooltipProvider delayDuration={300}>
-      <SidebarProvider defaultOpen={false}>
+      <SidebarProvider defaultOpen>
         <Background />
         <AppShell
           chat={chat}

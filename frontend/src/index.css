@@ -142,7 +142,7 @@
     @apply border border-white/10 bg-white/[0.04] shadow-[0_8px_32px_0_rgba(0,0,0,0.36)] backdrop-blur-xl;
   }
 
-  /* Sype's app panel: every card, the sidebar and the chat. */
+  /* Sype's zinc glass: the sidebar only. Pages are transparent over the background. */
   .appglass {
     @apply border border-white/10 bg-white/5 shadow-[0_8px_32px_0_rgba(0,0,0,0.36)] backdrop-blur-xl;
   }

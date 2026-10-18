@@ -30,7 +30,7 @@ export function FitFixes({ items, busy, onPushDeadline, onEdit, onFocusHours, de
   }
 
   return (
-    <section className="rounded-lg border border-orange-500/30 bg-sidebar/60">
+    <section className="rounded-lg border border-orange-500/30">
       <button
         type="button"
         onClick={() => setOpen(!open)}
@@ -47,7 +47,7 @@ export function FitFixes({ items, busy, onPushDeadline, onEdit, onFocusHours, de
       {open && (
         <ul className="space-y-2 px-3 pb-3">
           {groups.map((group) => (
-            <li key={`${group.taskId}-${group.items[0].subtask_id}`} className="rounded-md border border-sidebar-border bg-sidebar/40 p-3">
+            <li key={`${group.taskId}-${group.items[0].subtask_id}`} className="rounded-md border border-sidebar-border p-3">
               {group.items.map((item) => (
                 <p key={`${item.task_id}-${item.subtask_id}`} className="text-[11px] text-white/60">
                   <span className="font-medium text-white">{item.title}</span> needs {hoursLabel(item.estimated_duration)}. {item.reason}
