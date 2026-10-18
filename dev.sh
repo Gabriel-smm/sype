@@ -4,7 +4,8 @@
 #   ./dev.sh          start both dev servers
 #   ./dev.sh --seed   load the demo tasks first (backend/seed_demo.py)
 #
-# On first run it creates .venv and installs frontend/node_modules.
+# It creates .venv on first run, and reinstalls backend or frontend
+# dependencies whenever requirements.txt or package-lock.json changes.
 set -euo pipefail
 cd "$(dirname "$0")"
 
@@ -15,20 +16,31 @@ seed=false
 for arg in "$@"; do
   case "$arg" in
     --seed) seed=true ;;
-    -h|--help) sed -n '2,7p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    -h|--help) sed -n '2,8p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
     *) echo "unknown option: $arg" >&2; exit 2 ;;
   esac
 done
 
+# Each install leaves a stamp. A dependency file newer than its stamp (a pull,
+# or a switch to a branch that adds packages) triggers a reinstall.
+backend_stamp=.venv/.installed
+frontend_stamp=frontend/node_modules/.installed
+
 if [[ ! -x .venv/bin/python ]]; then
-  echo "==> creating .venv and installing backend requirements"
+  echo "==> creating .venv"
   python3 -m venv .venv
+fi
+if [[ ! -f $backend_stamp || backend/requirements.txt -nt $backend_stamp ]]; then
+  echo "==> installing backend requirements"
   .venv/bin/pip install -r backend/requirements.txt
+  touch "$backend_stamp"
 fi
 
-if [[ ! -d frontend/node_modules ]]; then
+if [[ ! -f $frontend_stamp || frontend/package.json -nt $frontend_stamp \
+      || frontend/package-lock.json -nt $frontend_stamp ]]; then
   echo "==> installing frontend dependencies"
   npm install --prefix frontend
+  touch "$frontend_stamp"
 fi
 
 if $seed; then

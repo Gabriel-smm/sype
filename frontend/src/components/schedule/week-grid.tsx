@@ -2,7 +2,7 @@ import { Repeat } from 'lucide-react'
 import { useLayoutEffect, useRef, useState, type CSSProperties, type PointerEvent } from 'react'
 
 import { useNow } from '@/hooks/use-now'
-import { ALARM, typeColor } from '@/lib/task-meta'
+import { ALARM, typeColor, typeLabel } from '@/lib/task-meta'
 import {
   MINUTES_IN_DAY,
   daysOfWeek,
@@ -21,10 +21,13 @@ const HOUR_HEIGHT = 48
 const DAY_HEIGHT = HOUR_HEIGHT * 24
 const SNAP_MINUTES = 15
 const DRAG_THRESHOLD = 4
-const GUTTER = 56
+const GUTTER = 64
+
+// Sype prints event times as zero-padded 24-hour clocks.
+const hhmm = (value: string) => new Date(value).toTimeString().slice(0, 5)
 
 const top = (minute: number) => (minute / MINUTES_IN_DAY) * DAY_HEIGHT
-const height = (minutes: number) => Math.max((minutes / MINUTES_IN_DAY) * DAY_HEIGHT, 16)
+const height = (minutes: number) => Math.max((minutes / MINUTES_IN_DAY) * DAY_HEIGHT, 24)
 
 type Entry = Placed<{ slot: ScheduleSlot; startMinute: number; endMinute: number }>
 
@@ -61,7 +64,7 @@ export function WeekGrid({
 
   // Open on the working day rather than at midnight.
   useLayoutEffect(() => {
-    if (scroller.current) scroller.current.scrollTop = 7 * HOUR_HEIGHT
+    if (scroller.current) scroller.current.scrollTop = 6 * HOUR_HEIGHT
   }, [])
 
   const busy = expandRecurring(fixedBlocks, weekStart, 'fixed')
@@ -139,35 +142,33 @@ export function WeekGrid({
   }
 
   return (
-    <div ref={scroller} className="glass min-h-0 flex-1 overflow-auto rounded-3xl bg-white/[0.02]">
+    <div ref={scroller} className="min-h-0 flex-1 overflow-auto">
       <div ref={body} className="min-w-[760px]">
-        <div className="sticky top-0 z-50 flex border-b border-white/[0.08] bg-[#070707]">
-          <div className="shrink-0" style={{ width: GUTTER }} />
+        <div className="sticky top-0 z-50 flex border-b border-sidebar-border bg-sidebar">
+          <div className="shrink-0 border-r border-white/10" style={{ width: GUTTER }} />
           {days.map((day) => {
             const today = isSameDay(day, now)
             return (
-              <div key={day.toISOString()} className="flex flex-1 items-baseline justify-center gap-1.5 py-3">
-                <span className={cn('text-xs', today ? 'text-accent-ink' : 'text-faint')}>
+              <div key={day.toISOString()}
+                   className={cn('flex-1 border-r border-white/10 py-2 text-center last:border-r-0', today && 'bg-blue-500/10')}>
+                <div className="text-xs text-sidebar-foreground/60">
                   {day.toLocaleDateString([], { weekday: 'short' })}
-                </span>
-                <span
-                  className={cn('grid size-7 place-items-center rounded-full text-sm tnum',
-                    today ? 'bg-primary font-semibold text-white' : 'text-muted-foreground')}
-                >
+                </div>
+                <div className={cn('text-lg font-semibold tnum', today ? 'text-blue-400' : 'text-sidebar-foreground/80')}>
                   {day.getDate()}
-                </span>
+                </div>
               </div>
             )
           })}
         </div>
 
         <div className="flex">
-          <div className="relative shrink-0" style={{ width: GUTTER, height: DAY_HEIGHT }}>
-            {Array.from({ length: 23 }, (_, index) => index + 1).map((hour) => (
+          <div className="relative shrink-0 border-r border-white/10" style={{ width: GUTTER, height: DAY_HEIGHT }}>
+            {Array.from({ length: 24 }, (_, hour) => hour).map((hour) => (
               <span
                 key={hour}
-                className="absolute right-2.5 -translate-y-1/2 text-[11px] text-faint tnum"
-                style={{ top: hour * HOUR_HEIGHT }}
+                className="absolute inset-x-0 flex items-center justify-center text-xs font-medium text-sidebar-foreground/60 tnum"
+                style={{ top: hour * HOUR_HEIGHT, height: HOUR_HEIGHT }}
               >
                 {new Date(2000, 0, 1, hour).toLocaleTimeString([], { hour: 'numeric' })}
               </span>
@@ -177,7 +178,7 @@ export function WeekGrid({
           {days.map((day, dayOffset) => (
             <div
               key={day.toISOString()}
-              className={cn('relative flex-1 border-l border-white/[0.06]', isSameDay(day, now) && 'bg-white/[0.015]')}
+              className={cn('relative flex-1 border-r border-white/10 last:border-r-0', isSameDay(day, now) && 'bg-blue-500/5')}
               style={{ height: DAY_HEIGHT }}
             >
               {focus
@@ -186,7 +187,7 @@ export function WeekGrid({
                   <div
                     key={span.id}
                     title={`${span.label}: you focus well here`}
-                    className="absolute inset-x-0 bg-blue-500/[0.08]"
+                    className="absolute inset-x-0 bg-blue-500/[0.07]"
                     style={{ top: top(span.startMinute), height: height(span.endMinute - span.startMinute) }}
                   />
                 ))}
@@ -194,8 +195,8 @@ export function WeekGrid({
               {Array.from({ length: 24 }, (_, index) => index).map((index) => (
                 <div
                   key={index}
-                  className="pointer-events-none absolute inset-x-0 border-t border-white/[0.05]"
-                  style={{ top: index * HOUR_HEIGHT }}
+                  className="absolute inset-x-0 border-b border-white/10 transition-colors duration-200 hover:bg-white/5"
+                  style={{ top: index * HOUR_HEIGHT, height: HOUR_HEIGHT }}
                 />
               ))}
 
@@ -205,7 +206,7 @@ export function WeekGrid({
                   <div
                     key={span.id}
                     title={`${span.label}: the scheduler stays out of this`}
-                    className="hatched absolute inset-x-0 z-10 overflow-hidden px-2 pt-1 text-[11px] text-faint"
+                    className="hatched pointer-events-none absolute inset-x-0 z-10 overflow-hidden px-2 pt-1 text-[11px] text-sidebar-foreground/40"
                     style={{ top: top(span.startMinute), height: height(span.endMinute - span.startMinute) }}
                   >
                     {span.endMinute - span.startMinute > 45 && span.label}
@@ -230,8 +231,8 @@ export function WeekGrid({
                   className="pointer-events-none absolute inset-x-0 z-40"
                   style={{ top: top(minutesSinceMidnight(now)) }}
                 >
-                  <div className="h-0.5 bg-accent-ink shadow-[0_0_12px_rgba(96,165,250,0.8)]" />
-                  <div className="absolute -top-[4px] -left-[5px] size-2.5 rounded-full bg-accent-ink" />
+                  <div className="h-0.5 bg-red-500" />
+                  <div className="absolute -top-1 -left-1 size-2 rounded-full bg-red-500" />
                   <span className="sr-only">Now: {formatClock(now)}</span>
                 </div>
               )}
@@ -281,36 +282,37 @@ function EventBlock({ entry, selected, drag, onSelect, onPointerDown, onPointerM
         slot.recurring ? 'Repeats weekly' : null,
       ].filter(Boolean).join('\n')}
       className={cn(
-        `absolute z-20 cursor-grab touch-none overflow-hidden rounded-xl border px-2 py-1 text-xs
-         leading-tight select-none`,
-        dragging ? 'cursor-grabbing shadow-2xl' : 'transition-[filter] hover:brightness-125',
+        `absolute z-20 cursor-grab touch-none overflow-hidden rounded-md border-l-4 select-none`,
+        dragging ? 'cursor-grabbing shadow-2xl' : 'transition-all duration-200 hover:shadow-lg hover:brightness-110',
         selected && 'ring-2',
       )}
       style={{
         top: top(startMinute) + (drag ? (drag.offsetMinutes / MINUTES_IN_DAY) * DAY_HEIGHT : 0),
         height: height(minutes),
-        left: `calc(${(column / columns) * 100}% + 3px)`,
-        width: `calc(${100 / columns}% - 5px)`,
+        left: `calc(${(column / columns) * 100}% + 4px)`,
+        width: `calc(${100 / columns}% - 8px)`,
         transform: drag ? `translateX(${drag.offsetDays * 100}%)` : undefined,
-        background: `color-mix(in oklab, ${color} 22%, #050505)`,
-        borderColor: `color-mix(in oklab, ${color} 40%, transparent)`,
-        color: `color-mix(in oklab, ${color} 45%, white)`,
+        background: `color-mix(in oklab, ${color} 30%, transparent)`,
+        borderLeftColor: color,
         '--tw-ring-color': color,
       } as CSSProperties}
     >
-      <div className="flex items-center gap-1 font-medium">
-        {slot.requires_focus && (
-          <span aria-label="Needs focus" className="size-1.5 shrink-0 rounded-full" style={{ background: color }} />
-        )}
-        {slot.recurring && <Repeat aria-label="Repeats weekly" className="size-2.5 shrink-0" style={{ color }} />}
-        <span className="truncate">{slot.title}</span>
-      </div>
-      {minutes >= 50 && (
-        <div className="mt-0.5 flex items-baseline gap-1.5 truncate text-[11px]">
-          <span className="opacity-70 tnum">{formatClock(new Date(slot.start_time))}</span>
-          {slot.parent_title && <span className="truncate opacity-50">{slot.parent_title}</span>}
+      <div className="flex h-full flex-col justify-between p-2 text-xs">
+        <div className="min-w-0">
+          <p className="flex items-center gap-1 truncate font-semibold text-white">
+            {slot.recurring && <Repeat aria-label="Repeats weekly" className="size-2.5 shrink-0" />}
+            <span className="truncate">{slot.title}</span>
+          </p>
+          {minutes >= 45 && (
+            <p className="truncate text-xs text-white/70">
+              {slot.parent_title ?? typeLabel(slot.task_type)}{slot.requires_focus ? ', needs focus' : ''}
+            </p>
+          )}
         </div>
-      )}
+        {minutes >= 60 && (
+          <p className="text-xs font-medium text-white/60 tnum">{hhmm(slot.start_time)} - {hhmm(slot.end_time)}</p>
+        )}
+      </div>
     </div>
   )
 }
