@@ -24,7 +24,7 @@ interface AppShellProps {
 
 /**
  * Sype's app layout. The page always takes the full width; the chat slides
- * over it as a drawer, opened from "Ask Sype" in the corner or with `C`.
+ * over it as a drawer, opened from "Ask Sype" in the corner or with Ctrl+C.
  * Phones get a slim top bar instead, and the drawer fills the screen.
  */
 export function AppShell({ sidebar, chat, chatOpen, onChatOpenChange, chatAvailable, banner, flush = false, children }: AppShellProps) {
@@ -69,7 +69,7 @@ export function AppShell({ sidebar, chat, chatOpen, onChatOpenChange, chatAvaila
           >
             <MessageSquare className="size-4" />
             Ask Sype
-            <kbd className="grid size-5 place-items-center rounded-full bg-white/[0.08] font-sans text-[11px] text-white/50">C</kbd>
+            <kbd className="grid h-5 place-items-center rounded-full bg-white/[0.08] px-1.5 font-sans text-[11px] text-white/50">Ctrl C</kbd>
           </button>
         )}
       </SidebarInset>

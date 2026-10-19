@@ -12,15 +12,12 @@ import { Toaster } from '@/components/ui/sonner'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { useAppData } from '@/hooks/use-app-data'
 import { useChat } from '@/hooks/use-chat'
+import { shouldToggleChat } from '@/lib/shortcuts'
+import { isTyping } from '@/lib/utils'
 import { CalendarPage } from '@/pages/calendar'
 import { ChatPage } from '@/pages/chat'
 import { SetupPage } from '@/pages/setup'
 import { TasksPage } from '@/pages/tasks'
-
-// Keys typed into a field are text, not shortcuts.
-function isTyping(target: HTMLElement) {
-  return target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName)
-}
 
 export function App() {
   const { pathname } = useLocation()
@@ -42,21 +39,28 @@ export function App() {
   // The Chat page is the chat, so the drawer has nothing to add there.
   const chatAvailable = pathname !== '/chat'
 
-  // From anywhere: `n` or `/` opens capture, `c` opens or closes the chat drawer.
+  // The Calendar page owns `/` (search) and `c` (create) itself.
+  const onCalendar = pathname === '/'
+
+  // From anywhere: `n` opens capture (and `/` too, off the calendar);
+  // Ctrl+C with nothing selected opens or closes the chat drawer.
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
-      if (event.metaKey || event.ctrlKey || event.altKey || isTyping(event.target as HTMLElement)) return
-      if (event.key === 'n' || event.key === '/') {
-        event.preventDefault()
-        setCapturing(true)
-      } else if (event.key === 'c' && chatAvailable) {
+      const typing = isTyping(event.target)
+      if (chatAvailable && shouldToggleChat(event, typing, window.getSelection()?.toString() ?? '')) {
         event.preventDefault()
         setChatOpen((open) => !open)
+        return
+      }
+      if (event.metaKey || event.ctrlKey || event.altKey || typing) return
+      if (event.key === 'n' || (event.key === '/' && !onCalendar)) {
+        event.preventDefault()
+        setCapturing(true)
       }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [chatAvailable])
+  }, [chatAvailable, onCalendar])
 
   if (error && !settings) return <Offline message={error} onRetry={() => void data.refresh()} />
   if (!settings || !meta) return <Loading />

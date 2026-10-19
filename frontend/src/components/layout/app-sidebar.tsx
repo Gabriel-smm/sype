@@ -240,7 +240,7 @@ function NavFooter({ name, onAddTask, onRebuild }: { name: string; onAddTask: ()
             <DropdownMenuItem onSelect={onRebuild}><RotateCw />Rebuild schedule</DropdownMenuItem>
             <DropdownMenuItem asChild><NavLink to="/setup"><Settings2 />Setup</NavLink></DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem disabled><Keyboard />N new task, C chat, Ctrl+B sidebar</DropdownMenuItem>
+            <DropdownMenuItem disabled><Keyboard />N new task, Ctrl+C chat, Ctrl+B sidebar</DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </SidebarMenuItem>
