@@ -305,6 +305,21 @@ def test_smuggled_lines_too_many_lines_and_old_series_are_422(client):
                         ).status_code == 422
 
 
+def test_timezone_aware_dates_and_too_many_values_are_422(client):
+    def post(lines):
+        return client.post(EVENTS, json={"title": "X", "start": "2026-03-02T09:00",
+                                          "end": "2026-03-02T10:00", "recurrence": lines})
+
+    for lines in (["RRULE:FREQ=DAILY", "EXDATE:20260303T090000Z"],
+                  ["RRULE:FREQ=DAILY", "RDATE:20260310T090000Z"]):
+        assert post(lines).status_code == 422, lines
+    days = ",".join((datetime(2026, 3, 3, 9) + timedelta(days=i)).strftime("%Y%m%dT%H%M%S")
+                    for i in range(1001))
+    t0 = perf_counter()
+    assert post(["RRULE:FREQ=DAILY", f"EXDATE:{days}"]).status_code == 422
+    assert perf_counter() - t0 < 2
+
+
 def test_never_matching_recurrence_is_a_fast_422(client):
     t0 = perf_counter()
     response = client.post(EVENTS, json={

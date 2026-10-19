@@ -299,3 +299,35 @@ def test_recurring_series_must_start_in_1970_or_later():
     old = EventSpec(1, datetime(1900, 1, 1, 9), datetime(1900, 1, 1, 10), (weekly_rule(None),))
     with pytest.raises(RecurrenceError, match="1970"):
         expand(old, [], MON, MON + timedelta(days=1))
+
+
+@pytest.mark.parametrize("lines", [
+    ["RRULE:FREQ=DAILY", "EXDATE:20260303T090000Z"],
+    ["RRULE:FREQ=DAILY", "RDATE:20260310T090000Z"],
+    ["RDATE:20260310T090000Z"],
+    ["RRULE:FREQ=DAILY", "EXDATE:20260303T090000+0100"],
+])
+def test_timezone_aware_dates_are_rejected(lines):
+    with pytest.raises(RecurrenceError):
+        _finishes_within(5, lambda: validate_recurrence(lines, MON.replace(hour=9)))
+
+
+def test_at_most_1000_exdate_and_rdate_values_in_total():
+    days = [(MON + timedelta(days=i)).strftime("%Y%m%dT090000") for i in range(1, 1002)]
+    validate_recurrence(
+        [weekly_rule(None), "EXDATE:" + ",".join(days[:600]), "RDATE:" + ",".join(days[600:1000])],
+        MON.replace(hour=9),
+    )  # exactly 1000 values
+    t0 = time.perf_counter()
+    with pytest.raises(RecurrenceError, match="1000"):
+        validate_recurrence([weekly_rule(None), "EXDATE:" + ",".join(days)], MON.replace(hour=9))
+    with pytest.raises(RecurrenceError, match="1000"):
+        validate_recurrence(
+            [weekly_rule(None), "EXDATE:" + ",".join(days[:600]), "RDATE:" + ",".join(days[600:])],
+            MON.replace(hour=9),
+        )
+    many = EventSpec(1, MON.replace(hour=9), MON.replace(hour=10),
+                     (weekly_rule(None), "EXDATE:" + ",".join(days * 50)))
+    with pytest.raises(RecurrenceError, match="1000"):
+        expand(many, [], MON, MON + timedelta(days=1))
+    assert time.perf_counter() - t0 < 1

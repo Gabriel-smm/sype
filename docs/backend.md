@@ -72,17 +72,19 @@ item that can't be placed is returned as unschedulable with a diagnosed reason.
 
 - `GET …/calendar-events` returns **occurrences** in a range, including ones that straddle its
   edges. Series are expanded in `recurrence.py`; a malformed `recurrence` is a 422.
-- **Recurrence rules** (`validate_recurrence`, run on create/PATCH): at most 100 items, each one
+- **Recurrence rules** (`validate_recurrence`, run on create/PATCH): at most 100 items and at most
+  1000 EXDATE + RDATE values in total (comma-separated values count individually), each item one
   `RRULE:`, `EXDATE:` or `RDATE:` line with no whitespace or control characters (rrulestr would
   re-split them into extra, unchecked lines); a recurring event starts in 1970 or later; `FREQ`
   daily or coarser, with no `BYHOUR`/`BYMINUTE`/`BYSECOND` (nothing repeats within a day) and no
   `BYEASTER`; `INTERVAL` ≥ 1 (dateutil loops forever on 0). Each RRULE must have an instance within
   5 years of `start`, so never-matching rules (Feb 30) are rejected. The probe runs on the rule
   moved by whole 400-year Gregorian cycles to near year 9999, because dateutil scans to 9999 for a
-  rule with no match, even past `UNTIL`/`COUNT`; worst case ~0.25 s. `expand` repeats only the cheap
-  static checks and turns iteration errors into `RecurrenceError`. A stored series that fails is
-  skipped with a warning in `calendar_service.load_occurrences`, so one bad row can't break the
-  calendar or scheduling.
+  rule with no match, even past `UNTIL`/`COUNT`; worst case ~0.25 s. Finally the whole set is
+  iterated once (bounded by then), which rejects timezone-aware (`Z`/offset) EXDATE/RDATE values:
+  all datetimes are naive local time. `expand` repeats only the cheap static checks and turns
+  iteration errors into `RecurrenceError`. A stored series that fails is skipped with a warning in
+  `calendar_service.load_occurrences`, so one bad row can't break the calendar or scheduling.
 - **DELETE is a soft delete** (`status=cancelled`); `/restore` reverses it. Hidden calendars
   (`visible=false`) still block scheduling; Free events don't.
 - **Colour rule** (`effective_color`): category colour, else the event's `color_key`, else the

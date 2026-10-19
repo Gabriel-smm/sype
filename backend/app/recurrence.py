@@ -17,7 +17,8 @@ _INTRA_DAY_PARTS = frozenset({"BYHOUR", "BYMINUTE", "BYSECOND"})
 _BYDAY = ("MO", "TU", "WE", "TH", "FR", "SA", "SU")
 _PROBE_SPAN = timedelta(days=5 * 365 + 2)  # 5 years, leap days included
 _PROBE_LAST_YEAR = 9993  # leaves the probe span below dateutil's MAXYEAR (9999)
-MAX_LINES = 100  # bounds EXDATE/RDATE lists
+MAX_LINES = 100  # bounds the number of items (RRULE lines count too)
+MAX_DATE_VALUES = 1000  # bounds EXDATE + RDATE values in total, comma-separated ones included
 MIN_SERIES_YEAR = 1970  # bounds how far expansion has to walk from DTSTART
 
 
@@ -106,6 +107,13 @@ def _ruleset(lines: Sequence[str], start: datetime) -> rruleset:
         raise RecurrenceError(f"A recurring event must start in {MIN_SERIES_YEAR} or later")
     for line in lines:
         _check_line(line)
+    date_values = sum(
+        len(line.split(":", 1)[1].split(","))
+        for line in lines
+        if line.upper().startswith(("EXDATE:", "RDATE:"))
+    )
+    if date_values > MAX_DATE_VALUES:
+        raise RecurrenceError(f"At most {MAX_DATE_VALUES} EXDATE/RDATE values are allowed")
     text = "DTSTART:" + start.strftime("%Y%m%dT%H%M%S") + "\n" + "\n".join(lines)
     try:
         rset = rrulestr(text, forceset=True)
@@ -165,10 +173,16 @@ def validate_recurrence(lines: Sequence[str], start: datetime) -> None:
     """
     if not lines:
         return
-    _ruleset(lines, start)
+    rset = _ruleset(lines, start)
     for line in lines:
         if line.upper().startswith("RRULE:"):
             _probe_first_occurrence(line, start)
+    # Bounded now that every RRULE has an early instance; surfaces errors that
+    # only appear on iteration, such as a timezone-aware EXDATE/RDATE value.
+    try:
+        rset.after(start, inc=True)
+    except (ValueError, TypeError, KeyError, OverflowError) as exc:
+        raise RecurrenceError(str(exc)) from exc
 
 
 def _overlaps(start: datetime, end: datetime, window_start: datetime, window_end: datetime) -> bool:
