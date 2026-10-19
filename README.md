@@ -38,7 +38,7 @@ Decompose  →  Score  →  Place into free time  →  Week calendar
 ```
 
 An optional chat assistant can help you capture tasks. It has its own page with saved
-conversations, and it can open beside any other page (press `C`). It is off by default (an
+conversations, and it slides over any other page from **Ask Sype** (or press `C`). It is off by default (an
 offline stub) and never touches placement.
 
 ## Quick start

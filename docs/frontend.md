@@ -12,9 +12,9 @@ proxies `/api` to the backend, so the app is same-origin.
 | `src/app.tsx` | Router and app-level state wiring. |
 | `src/pages/` | Routed screens: `/` Overview (`today.tsx`), `/calendar`, `/tasks` (triage), `/chat`, `/setup`. `/week` redirects to `/calendar`. |
 | `src/components/ui/` | Primitives (Radix + `cva`): button, input, card, badge, dialog, sheet, dropdown-menu, slider, switch, tooltip, avatar, sidebar, sonner. |
-| `src/components/layout/` | Sidebar, the shell with the optional chat side panel, section labels. |
-| `src/components/{overview,tasks,schedule,setup,chat}/` | Feature pieces: Overview sections (priorities, tomorrow, week glance, assignments), capture dialog and task sheet, week grid and slot sheet, block/weights/recurring editors, chat conversation, thread list and side panel. |
-| `src/hooks/` | `use-app-data` (fetching, mutations, toasts), `use-chat` (saved chat threads, shared by the page and the panel), `use-sidebar`, `use-mobile`, `use-now`. |
+| `src/components/layout/` | Sidebar, the shell with the chat drawer, section labels. |
+| `src/components/{overview,tasks,schedule,setup,chat}/` | Feature pieces: Overview sections (priorities, tomorrow, week glance, assignments), capture dialog and task sheet, week grid and slot sheet, block/weights/recurring editors, chat conversation, thread list and drawer panel. |
+| `src/hooks/` | `use-app-data` (fetching, mutations, toasts), `use-chat` (saved chat threads, shared by the page and the drawer), `use-sidebar`, `use-mobile`, `use-now`. |
 | `src/lib/` | API client, week arithmetic (`time.ts`), task vocabulary and colours (`task-meta.ts`), capture parser (`parse-capture.ts`), Overview data (`agenda.ts`), chat threads (`chat-threads.ts`). Pure logic. |
 | `src/types/api.ts` | Hand-written mirror of `backend/app/schemas.py`. **Change both together.** |
 | `src/index.css` | Design tokens. |
@@ -36,15 +36,16 @@ proxies `/api` to the backend, so the app is same-origin.
 
 - **`/chat`** is the full page: saved chats on the left (`chat/thread-list.tsx`, a sheet on
   phones), the conversation in a centred column (`chat/chat-conversation.tsx`).
-- **Side panel** (`chat/chat-panel.tsx`): on every other page, the chat opens beside the page from
-  a slim rail on the right, or with `C`. It is **closed by default**, resizable (70/30) and
-  remembered in `localStorage['sype.chatPanel']`. Phones open it as a sheet. It is hidden on `/chat`.
+- **Drawer** (`chat/chat-panel.tsx` in a `Sheet`): on every other page, the chat slides over the
+  page from the right (440px, light scrim), opened from the **Ask Sype** button in the bottom-right
+  corner or with `C`. The page never resizes. It starts closed, closes on navigation and is not
+  remembered across reloads. Phones open it full width from the top bar. It is hidden on `/chat`.
 - **Threads** live in the browser only (`localStorage['sype.chat.v1']`, parsed defensively by
   `lib/chat-threads.ts`). The backend is stateless: each message sends the thread's full history.
   A reply keeps streaming into its own thread if you switch away. Empty chats are not saved.
 - It streams the backend's SSE events and says plainly when no model is connected.
 
-Shortcuts: `N` or `/` new task, `C` chat panel, `Ctrl+B` sidebar.
+Shortcuts: `N` or `/` new task, `C` chat drawer, `Ctrl+B` sidebar.
 
 ## Design system
 
