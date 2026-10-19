@@ -1,8 +1,10 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
 
 import { api } from '@/lib/api'
-import { applyOptimisticMove, removeOccurrence, withoutCalendar } from '@/lib/calendar-state'
+import {
+  applyOptimisticMove, insertOccurrences, removeEvent, withoutCalendar,
+} from '@/lib/calendar-state'
 import { toApiDateTime } from '@/lib/time'
 import { errorMessage } from '@/lib/utils'
 import type {
@@ -10,10 +12,14 @@ import type {
   Occurrence,
 } from '@/types/api'
 
+const fail = (e: unknown) => { toast.error(errorMessage(e)) }
+
 /**
  * Calendar data for a visible range: occurrences (hidden calendars filtered out),
  * calendars and categories, plus mutations. Moves and deletes are optimistic and
- * roll back with an error toast when the request fails.
+ * roll back with an error toast when the request fails. Create/update/category
+ * mutations resolve to true on success so dialogs can stay open on failure.
+ * `refreshKey` must be a primitive or otherwise stable value (it is an effect dependency).
  */
 export function useCalendar(range: { start: Date; end: Date }, refreshKey: unknown) {
   const [all, setAll] = useState<Occurrence[]>([])
@@ -22,6 +28,12 @@ export function useCalendar(range: { start: Date; end: Date }, refreshKey: unkno
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [reloads, setReloads] = useState(0)
+  // Bumped by every optimistic mutation; a fetch started under an older value is discarded.
+  const generation = useRef(0)
+  const allRef = useRef<Occurrence[]>([])
+  const calendarsRef = useRef<Calendar[]>([])
+  useEffect(() => { allRef.current = all }, [all])
+  useEffect(() => { calendarsRef.current = calendars }, [calendars])
 
   const from = toApiDateTime(range.start)
   const to = toApiDateTime(range.end)
@@ -31,14 +43,16 @@ export function useCalendar(range: { start: Date; end: Date }, refreshKey: unkno
   if (rangeKey !== `${from}|${to}`) {
     setRangeKey(`${from}|${to}`)
     setAll([])
+    setError(null)
     setLoading(true)
   }
 
   useEffect(() => {
     let current = true
+    const started = generation.current
     api.calendarEvents(from, to)
       .then((result) => {
-        if (!current) return
+        if (!current || started !== generation.current) return
         setAll(result)
         setError(null)
         setLoading(false)
@@ -73,77 +87,91 @@ export function useCalendar(range: { start: Date; end: Date }, refreshKey: unkno
     return withoutCalendar(all, hidden)
   }, [all, calendars])
 
-  const fail = (e: unknown) => { toast.error(errorMessage(e)) }
+  // Every mutation: bump the generation (discarding fetches that started earlier),
+  // then reconcile with the server once the request settles.
+  const settle = useCallback(() => refetch(), [refetch])
 
-  const createEvent = useCallback(async (input: CalendarEventInput) => {
+  const createEvent = useCallback(async (input: CalendarEventInput): Promise<boolean> => {
     try {
       await api.createCalendarEvent(input)
       toast('Event created')
       refetch()
-    } catch (e) { fail(e) }
+      return true
+    } catch (e) { fail(e); return false }
   }, [refetch])
 
-  const updateEvent = useCallback(async (eventId: number, changes: CalendarEventChanges) => {
+  const updateEvent = useCallback(async (eventId: number, changes: CalendarEventChanges): Promise<boolean> => {
     try {
       await api.updateCalendarEvent(eventId, changes)
       toast('Event updated')
       refetch()
-    } catch (e) { fail(e) }
+      return true
+    } catch (e) { fail(e); return false }
   }, [refetch])
 
-  const moveEvent = useCallback(async (o: Occurrence, start: Date, end: Date) => {
+  const moveEvent = useCallback(async (o: Occurrence, start: Date, end: Date): Promise<void> => {
     if (o.recurring) {
       toast("Repeating events can't be moved one at a time yet")
       return
     }
     const prevStart = new Date(o.start)
     const prevEnd = new Date(o.end)
+    generation.current += 1
     setAll((list) => applyOptimisticMove(list, o.id, start, end))
     try {
       await api.updateCalendarEvent(o.event_id, { start: toApiDateTime(start), end: toApiDateTime(end) })
     } catch (e) {
+      generation.current += 1
       setAll((list) => applyOptimisticMove(list, o.id, prevStart, prevEnd))
       fail(e)
+      settle()
       return
     }
+    settle()
     toast('Event moved', {
       action: {
         label: 'Undo',
         onClick: () => {
+          generation.current += 1
           setAll((list) => applyOptimisticMove(list, o.id, prevStart, prevEnd))
           api.updateCalendarEvent(o.event_id, { start: o.start, end: o.end })
             .catch((e: unknown) => {
+              generation.current += 1
               setAll((list) => applyOptimisticMove(list, o.id, start, end))
               fail(e)
             })
+            .finally(settle)
         },
       },
     })
-  }, [])
+  }, [settle])
 
-  const deleteEvent = useCallback(async (o: Occurrence) => {
-    const snapshot = all
-    setAll((list) => removeOccurrence(list, o.id))
+  const deleteEvent = useCallback(async (o: Occurrence): Promise<void> => {
+    // Deleting removes the whole series, so every occurrence of the event goes.
+    const removed = allRef.current.filter((x) => x.event_id === o.event_id)
+    generation.current += 1
+    setAll((list) => removeEvent(list, o.event_id))
     try {
       await api.deleteCalendarEvent(o.event_id)
     } catch (e) {
-      setAll(snapshot)
+      generation.current += 1
+      setAll((list) => insertOccurrences(list, removed))
       fail(e)
+      settle()
       return
     }
+    settle()
     toast('Event deleted', {
       action: {
         label: 'Undo',
         onClick: () => {
-          api.restoreCalendarEvent(o.event_id)
-            .then(refetch)
-            .catch(fail)
+          api.restoreCalendarEvent(o.event_id).catch(fail).finally(settle)
         },
       },
     })
-  }, [all, refetch])
+  }, [settle])
 
-  const duplicateEvent = useCallback(async (eventId: number) => {
+  const duplicateEvent = useCallback(async (eventId: number): Promise<boolean> => {
     try {
       const e = await api.getCalendarEvent(eventId)
       await api.createCalendarEvent({
@@ -154,27 +182,29 @@ export function useCalendar(range: { start: Date; end: Date }, refreshKey: unkno
       })
       toast('Event created')
       refetch()
-    } catch (e) { fail(e) }
+      return true
+    } catch (e) { fail(e); return false }
   }, [refetch])
 
-  const setCalendarVisible = useCallback(async (id: number, visible: boolean) => {
+  const setCalendarVisible = useCallback(async (id: number, visible: boolean): Promise<void> => {
+    const previous = calendarsRef.current.find((c) => c.id === id)?.visible ?? !visible
     setCalendars((list) => list.map((c) => (c.id === id ? { ...c, visible } : c)))
     try {
       await api.updateCalendar(id, { visible })
     } catch (e) {
-      setCalendars((list) => list.map((c) => (c.id === id ? { ...c, visible: !visible } : c)))
+      setCalendars((list) => list.map((c) => (c.id === id ? { ...c, visible: previous } : c)))
       fail(e)
     }
   }, [])
 
-  const createCategory = useCallback(async (input: CategoryInput) => {
-    try { await api.createCategory(input); await loadCategories() } catch (e) { fail(e) }
+  const createCategory = useCallback(async (input: CategoryInput): Promise<boolean> => {
+    try { await api.createCategory(input); await loadCategories(); return true } catch (e) { fail(e); return false }
   }, [loadCategories])
-  const updateCategory = useCallback(async (id: number, changes: CategoryChanges) => {
-    try { await api.updateCategory(id, changes); await loadCategories(); refetch() } catch (e) { fail(e) }
+  const updateCategory = useCallback(async (id: number, changes: CategoryChanges): Promise<boolean> => {
+    try { await api.updateCategory(id, changes); await loadCategories(); refetch(); return true } catch (e) { fail(e); return false }
   }, [loadCategories, refetch])
-  const deleteCategory = useCallback(async (id: number, reassignTo?: number) => {
-    try { await api.deleteCategory(id, reassignTo); await loadCategories(); refetch() } catch (e) { fail(e) }
+  const deleteCategory = useCallback(async (id: number, reassignTo?: number): Promise<boolean> => {
+    try { await api.deleteCategory(id, reassignTo); await loadCategories(); refetch(); return true } catch (e) { fail(e); return false }
   }, [loadCategories, refetch])
 
   return {

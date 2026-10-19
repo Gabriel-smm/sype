@@ -19,3 +19,15 @@ export function withoutCalendar(list: Occurrence[], hiddenIds: Set<number> | num
 export function removeOccurrence(list: Occurrence[], occurrenceId: string): Occurrence[] {
   return list.filter((o) => o.id !== occurrenceId)
 }
+
+/** Every occurrence of one event (deleting a repeating event removes the whole series). */
+export function removeEvent(list: Occurrence[], eventId: number): Occurrence[] {
+  return list.filter((o) => o.event_id !== eventId)
+}
+
+/** Puts removed occurrences back, keeping the list ordered by start. */
+export function insertOccurrences(list: Occurrence[], removed: Occurrence[]): Occurrence[] {
+  const have = new Set(list.map((o) => o.id))
+  const merged = [...list, ...removed.filter((o) => !have.has(o.id))]
+  return merged.sort((a, b) => (a.start < b.start ? -1 : a.start > b.start ? 1 : 0))
+}

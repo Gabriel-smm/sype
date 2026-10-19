@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import type { Occurrence } from '@/types/api'
-import { applyOptimisticMove, removeOccurrence, withoutCalendar } from './calendar-state'
+import { applyOptimisticMove, insertOccurrences, removeEvent, removeOccurrence, withoutCalendar } from './calendar-state'
 
 const occ = (id: string, calendar_id = 1, start = '2026-09-16T09:00:00', end = '2026-09-16T10:00:00') =>
   ({
@@ -49,5 +49,25 @@ describe('removeOccurrence', () => {
     const list = [occ('a'), occ('b')]
     expect(removeOccurrence(list, 'a').map((o) => o.id)).toEqual(['b'])
     expect(list).toHaveLength(2)
+  })
+})
+
+describe('removeEvent', () => {
+  it('removes every occurrence of the event', () => {
+    const a1 = { ...occ('a1'), event_id: 5 }
+    const a2 = { ...occ('a2'), event_id: 5 }
+    const b = occ('b')
+    expect(removeEvent([a1, b, a2], 5).map((o) => o.id)).toEqual(['b'])
+  })
+})
+
+describe('insertOccurrences', () => {
+  it('re-inserts keeping start order and is the inverse of removeEvent', () => {
+    const a = { ...occ('a', 1, '2026-09-16T08:00:00', '2026-09-16T09:00:00'), event_id: 5 }
+    const b = occ('b', 1, '2026-09-16T10:00:00', '2026-09-16T11:00:00')
+    const c = { ...occ('c', 1, '2026-09-17T08:00:00', '2026-09-17T09:00:00'), event_id: 5 }
+    const list = [a, b, c]
+    const removed = list.filter((o) => o.event_id === 5)
+    expect(insertOccurrences(removeEvent(list, 5), removed)).toEqual(list)
   })
 })
