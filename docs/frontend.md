@@ -21,8 +21,11 @@ proxies `/api` to the backend, so the app is same-origin.
 
 ## Chat
 
-- **`/chat`** is the full page: saved chats on the left (`chat/thread-list.tsx`, a sheet on
-  phones), the conversation in a centred column (`chat/chat-conversation.tsx`).
+- **`/chat`** is the full page: the conversation in a centred column (`chat/chat-conversation.tsx`).
+- **Past chats** are in the app sidebar's collapsible **Chats** section, at the bottom of the nav
+  (`NavChats` in `layout/app-sidebar.tsx`, listing `chat/thread-list.tsx`). It opens on `/chat` and
+  closes on every other page, resetting on each navigation (it can be toggled by hand in between).
+  `+` starts a new chat; picking a chat opens it on `/chat`. Hidden on the icon rail.
 - **Drawer** (`chat/chat-panel.tsx` in a `Sheet`): on every other page, the chat slides over the
   page from the right as a full-height panel flush with the edge (440px, light scrim, no outline), opened from the **Ask Sype** button in the bottom-right
   corner or with `C`. The page never resizes. It starts closed, closes on navigation and is not
@@ -30,6 +33,8 @@ proxies `/api` to the backend, so the app is same-origin.
 - **Threads** live in the browser only (`localStorage['sype.chat.v1']`, parsed defensively by
   `lib/chat-threads.ts`). The backend is stateless: each message sends the thread's full history.
   A reply keeps streaming into its own thread if you switch away. Empty chats are not saved.
+  A first run (no stored key) starts with example chats (`placeholderThreads`); once saved they are
+  ordinary chats, and deleting them does not bring them back.
 - It streams the backend's SSE events and says plainly when no model is connected.
 
 Shortcuts: `N` or `/` new task, `C` chat drawer, `Ctrl+B` sidebar.
@@ -45,8 +50,10 @@ Defined in `src/index.css`, dark only:
   Blue marks "now" and the primary action, red only overdue.
 - **One flat dark navy background** (`--background`, `#0a0f1a`), no gradient or glow.
 - **Pages are transparent** over that background, edged by a faint `white/10` outline (`Card`).
-  Only the sidebar and overlays (dialogs, sheets, menus, toasts) use the zinc glass surface.
-- **The sidebar** holds New task, the pages and the account menu. It starts expanded with page names and collapses to an icon rail from its header
+  Overlays (dialogs, sheets, menus, toasts) use the zinc glass surface.
+- **The sidebar** is flush with the window edge: full height, no rounding, a faint `white/5` tint
+  and one straight `white/10` line between it and the page. It holds New task, the pages, the
+  Chats history and the account menu. It starts expanded with page names and collapses to an icon rail from its header
   button or `Ctrl+B` (remembered in `localStorage['sidebar_state']`).
 - Inter Variable, `--radius` 0.75rem.
 
