@@ -3,12 +3,11 @@ import { useState } from 'react'
 
 import { SlotSheet } from '@/components/schedule/slot-sheet'
 import { WeekGrid } from '@/components/schedule/week-grid'
-import { FitFixes } from '@/components/tasks/fit-fixes'
 import { Card } from '@/components/ui/card'
 import { Tooltip } from '@/components/ui/tooltip'
 import { weekStartOf } from '@/lib/time'
 import type { Schedule, ScheduleSlot, Settings } from '@/types/api'
-import type { Fixes, SlotAction } from '@/types/app'
+import type { SlotAction } from '@/types/app'
 
 interface CalendarPageProps {
   schedule: Schedule
@@ -19,12 +18,11 @@ interface CalendarPageProps {
   onComplete: SlotAction
   onSkip: SlotAction
   onOpenTask: (taskId: number) => void
-  fixes: Fixes
 }
 
 /** Sype's weekly calendar card: month title, week arrows, Today, and the grid. */
 export function CalendarPage({
-  schedule, settings, busy, onRegenerate, onMoveSlot, onComplete, onSkip, onOpenTask, fixes,
+  schedule, settings, busy, onRegenerate, onMoveSlot, onComplete, onSkip, onOpenTask,
 }: CalendarPageProps) {
   const [date, setDate] = useState(() => new Date())
   const [selected, setSelected] = useState<ScheduleSlot | null>(null)
@@ -66,12 +64,6 @@ export function CalendarPage({
           </div>
         </div>
       </div>
-
-      {schedule.unschedulable.length > 0 && (
-        <div className="-mt-3 flex-shrink-0 px-4">
-          <FitFixes items={schedule.unschedulable} busy={busy} {...fixes} />
-        </div>
-      )}
 
       <div className="relative -mt-2 flex min-h-0 flex-1 flex-col">
         <WeekGrid

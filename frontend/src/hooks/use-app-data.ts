@@ -8,7 +8,7 @@ import { errorMessage } from '@/lib/utils'
 import type {
   ActivityEvent, Meta, Schedule, ScheduleSlot, Settings, Task, TaskChanges,
 } from '@/types/api'
-import type { Actions, Fixes, Navigate, SlotAction } from '@/types/app'
+import type { Actions, SlotAction } from '@/types/app'
 
 function announcePlacement(title: string, summary: PlacementSummary, onEdit: () => void) {
   const action = { label: 'Edit', onClick: onEdit }
@@ -29,14 +29,13 @@ function announcePlacement(title: string, summary: PlacementSummary, onEdit: () 
 
 interface Options {
   openTask: (id: number) => void
-  navigate: Navigate
 }
 
 /**
  * Everything the pages read from the backend, and every change they can make.
  * Each mutation reloads the lot, so no page ever shows stale state.
  */
-export function useAppData({ openTask, navigate }: Options) {
+export function useAppData({ openTask }: Options) {
   const [meta, setMeta] = useState<Meta | null>(null)
   const [settings, setSettings] = useState<Settings | null>(null)
   const [tasks, setTasks] = useState<Task[]>([])
@@ -141,26 +140,13 @@ export function useAppData({ openTask, navigate }: Options) {
   const onSkip: SlotAction = (id, isSubtask) =>
     isSubtask ? actions.skipSubtask(id) : actions.skipTask(id)
 
-  const fixes: Fixes = {
-    onPushDeadline: async (taskId, days) => {
-      const task = tasks.find((t) => t.id === taskId)
-      if (!task) return
-      const due = new Date(task.due_date)
-      due.setDate(due.getDate() + days)
-      await actions.updateTask(taskId, { due_date: toApiDateTime(due) })
-      toast(`“${task.title}” is now due ${due.toLocaleDateString([], { weekday: 'short', day: 'numeric', month: 'short' })}`)
-    },
-    onEdit: openTask,
-    onFocusHours: () => navigate('/setup#focus'),
-  }
-
   const regenerate = () => run(async () => setSchedule(await api.generateSchedule()))
   const moveSlot = (slot: ScheduleSlot, start: Date, end: Date) =>
     run(() => api.moveSlot(slot.id, toApiDateTime(start), toApiDateTime(end)))
 
   return {
     meta, settings, tasks, schedule, events, busy, error,
-    refresh, actions, onComplete, onSkip, fixes, regenerate, moveSlot,
+    refresh, actions, onComplete, onSkip, regenerate, moveSlot,
   }
 }
 

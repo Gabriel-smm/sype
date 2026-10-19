@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useState } from 'react'
-import { Navigate as Redirect, Route, Routes, useLocation, useNavigate } from 'react-router'
+import { useEffect, useState } from 'react'
+import { Navigate as Redirect, Route, Routes, useLocation } from 'react-router'
 
 import { AppShell } from '@/components/layout/app-shell'
 import { AppSidebar } from '@/components/layout/app-sidebar'
@@ -23,15 +23,13 @@ function isTyping(target: HTMLElement) {
 }
 
 export function App() {
-  const routerNavigate = useNavigate()
-  const navigate = useCallback((to: string) => { void routerNavigate(to) }, [routerNavigate])
   const { pathname } = useLocation()
   const [capturing, setCapturing] = useState(false)
   const [chatOpen, setChatOpen] = useState(false)
   const [chatPath, setChatPath] = useState(pathname)
   const [editingId, setEditingId] = useState<number | null>(null)
 
-  const data = useAppData({ openTask: setEditingId, navigate })
+  const data = useAppData({ openTask: setEditingId })
   const chat = useChat()
   const { meta, settings, tasks, schedule, events, busy, error, actions } = data
 
@@ -92,8 +90,7 @@ export function App() {
               <CalendarPage schedule={schedule} settings={settings} busy={busy}
                             onRegenerate={() => void data.regenerate()}
                             onMoveSlot={(slot, start, end) => void data.moveSlot(slot, start, end)}
-                            onComplete={data.onComplete} onSkip={data.onSkip} onOpenTask={setEditingId}
-                            fixes={data.fixes} />
+                            onComplete={data.onComplete} onSkip={data.onSkip} onOpenTask={setEditingId} />
             } />
             <Route path="calendar" element={<Redirect to="/" replace />} />
             <Route path="week" element={<Redirect to="/" replace />} />

@@ -28,13 +28,3 @@ export interface Actions {
 
 /** Done / Skip on a scheduled session; a session is a step when it has a subtask. */
 export type SlotAction = (id: number, isSubtask: boolean) => Promise<unknown>
-
-/** One-tap fixes for work that did not fit, shared by Today and Week. */
-export interface Fixes {
-  onPushDeadline: (taskId: number, days: number) => void
-  onEdit: (taskId: number) => void
-  onFocusHours: () => void
-}
-
-/** A route path, optionally with a section hash: `/setup#focus`. */
-export type Navigate = (to: string) => void
