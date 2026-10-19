@@ -9,7 +9,8 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 
-from dateutil.rrule import rrule, rruleset, rrulestr
+from dateutil.parser import parse as parse_datetime
+from dateutil.rrule import rrule, rrulestr
 
 _ALLOWED_PREFIXES = ("RRULE:", "EXDATE:", "RDATE:")
 _SUB_DAILY = ("SECONDLY", "MINUTELY", "HOURLY")
@@ -96,10 +97,34 @@ def _check_line(line: str) -> None:
             raise RecurrenceError(f"INTERVAL must be at least 1: {line!r}")
 
 
-def _ruleset(lines: Sequence[str], start: datetime) -> rruleset:
+@dataclass(frozen=True)
+class _Parsed:
+    rules: tuple[rrule, ...]
+    rdates: tuple[datetime, ...]
+    exdates: frozenset[datetime]
+
+
+def _parse_dates(line: str) -> list[datetime]:
+    """The naive datetimes of an `EXDATE:` / `RDATE:` line (comma-separated values)."""
+    values = []
+    for value in line.split(":", 1)[1].split(","):
+        try:
+            parsed = parse_datetime(value)
+        except (ValueError, OverflowError) as exc:
+            raise RecurrenceError(f"Invalid date {value!r} in {line!r}") from exc
+        if parsed.tzinfo is not None:
+            # Every Sype datetime is naive local time; mixing them breaks comparisons.
+            raise RecurrenceError(f"Dates must be naive local time, not {value!r}")
+        values.append(parsed)
+    return values
+
+
+def _parse(lines: Sequence[str], start: datetime) -> _Parsed:
     """Parse recurrence lines against a naive DTSTART; raises RecurrenceError.
 
-    Parsing is cheap; nothing here iterates the rules.
+    Rules, RDATEs and EXDATEs are kept apart so nothing ever iterates a whole
+    rruleset: when EXDATEs remove every remaining instance, rruleset iteration
+    runs on to year 9999. Parsing is cheap; nothing here iterates the rules.
     """
     if len(lines) > MAX_LINES:
         raise RecurrenceError(f"At most {MAX_LINES} recurrence lines are allowed")
@@ -114,14 +139,30 @@ def _ruleset(lines: Sequence[str], start: datetime) -> rruleset:
     )
     if date_values > MAX_DATE_VALUES:
         raise RecurrenceError(f"At most {MAX_DATE_VALUES} EXDATE/RDATE values are allowed")
-    text = "DTSTART:" + start.strftime("%Y%m%dT%H%M%S") + "\n" + "\n".join(lines)
+    rules: list[rrule] = []
+    rdates: list[datetime] = []
+    exdates: set[datetime] = set()
+    for line in lines:
+        upper = line.upper()
+        if upper.startswith("RRULE:"):
+            rules.append(_parse_rule(line, start))
+        elif upper.startswith("RDATE:"):
+            rdates.extend(_parse_dates(line))
+        else:
+            exdates.update(_parse_dates(line))
+    if not rules:
+        rdates.append(start)  # no rule: the first instance is DTSTART itself
+    return _Parsed(tuple(rules), tuple(rdates), frozenset(exdates))
+
+
+def _parse_rule(line: str, start: datetime) -> rrule:
     try:
-        rset = rrulestr(text, forceset=True)
-    except (ValueError, TypeError, KeyError) as exc:
+        rule = rrulestr(line, dtstart=start)
+    except (ValueError, TypeError, KeyError, OverflowError) as exc:
         raise RecurrenceError(str(exc)) from exc
-    if not any(line.upper().startswith("RRULE:") for line in lines):
-        rset.rdate(start)  # no rule: the first instance is DTSTART itself
-    return rset
+    if not isinstance(rule, rrule):
+        raise RecurrenceError(f"One recurrence line must hold one rule: {line!r}")
+    return rule
 
 
 def _gregorian_twin(dt: datetime) -> datetime:
@@ -141,10 +182,8 @@ def _probe_first_occurrence(line: str, start: datetime) -> None:
     dateutil keeps scanning to year 9999 when a rule never matches (Feb 30), even
     past UNTIL or COUNT, so the probe runs on the rule's 400-year twin instead.
     """
+    rule = _parse_rule(line, start)
     try:
-        rule = rrulestr(line, dtstart=start)
-        if not isinstance(rule, rrule):
-            raise RecurrenceError(f"One recurrence line must hold one rule: {line!r}")
         twin_start = _gregorian_twin(start)
         until = rule._until  # noqa: SLF001 - dateutil has no public accessor
         twin_until = None
@@ -173,16 +212,10 @@ def validate_recurrence(lines: Sequence[str], start: datetime) -> None:
     """
     if not lines:
         return
-    rset = _ruleset(lines, start)
+    _parse(lines, start)  # static checks, and naive EXDATE/RDATE values only
     for line in lines:
         if line.upper().startswith("RRULE:"):
             _probe_first_occurrence(line, start)
-    # Bounded now that every RRULE has an early instance; surfaces errors that
-    # only appear on iteration, such as a timezone-aware EXDATE/RDATE value.
-    try:
-        rset.after(start, inc=True)
-    except (ValueError, TypeError, KeyError, OverflowError) as exc:
-        raise RecurrenceError(str(exc)) from exc
 
 
 def _overlaps(start: datetime, end: datetime, window_start: datetime, window_end: datetime) -> bool:
@@ -208,13 +241,17 @@ def expand(
 
     by_original = {ex.original_start: ex for ex in exceptions}
     # Static checks only: the first-occurrence probe ran when the event was written.
-    rset = _ruleset(event.recurrence, event.start)
+    parsed = _parse(event.recurrence, event.start)
+    lo = window_start - duration  # look back for instances that run into the window
+    starts: set[datetime] = {d for d in parsed.rdates if lo <= d <= window_end}
     try:
-        starts = rset.between(window_start - duration, window_end, inc=True)
+        for rule in parsed.rules:
+            # Bounded: a validated rule stops at its first candidate past the window.
+            starts.update(rule.between(lo, window_end, inc=True))
     except (ValueError, TypeError, KeyError, OverflowError) as exc:
         raise RecurrenceError(str(exc)) from exc
     out: list[Occurrence] = []
-    for start in starts:
+    for start in sorted(starts - parsed.exdates):
         end = start + duration
         if start in by_original or not _overlaps(start, end, window_start, window_end):
             continue  # replaced or cancelled by an exception, or outside the window

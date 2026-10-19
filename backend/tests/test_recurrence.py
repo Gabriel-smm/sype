@@ -274,12 +274,12 @@ def test_probe_rejects_an_item_that_parses_to_several_rules():
 
 
 def test_expand_turns_iteration_errors_into_recurrence_errors(monkeypatch):
-    from dateutil.rrule import rruleset
+    from dateutil.rrule import rrule
 
     def boom(*args, **kwargs):
         raise ValueError("year 10000 is out of range")
 
-    monkeypatch.setattr(rruleset, "between", boom)
+    monkeypatch.setattr(rrule, "between", boom)
     with pytest.raises(RecurrenceError):
         expand(_daily_series(), [], MON, MON + timedelta(days=1))
 
@@ -331,3 +331,49 @@ def test_at_most_1000_exdate_and_rdate_values_in_total():
     with pytest.raises(RecurrenceError, match="1000"):
         expand(many, [], MON, MON + timedelta(days=1))
     assert time.perf_counter() - t0 < 1
+
+
+def _leap_monday_series(skip=()):
+    """Feb 29 on a Monday from 2016, with an EXDATE for every match up to 9999 except `skip`."""
+    matches = [datetime(y, 2, 29, 9) for y in range(2016, 10000)
+               if y % 4 == 0 and (y % 100 or y % 400 == 0) and datetime(y, 2, 29).weekday() == 0]
+    exdates = [d for d in matches if d not in skip]
+    lines = ("RRULE:FREQ=DAILY;BYMONTH=2;BYMONTHDAY=29;BYDAY=MO",
+             "EXDATE:" + ",".join(d.strftime("%Y%m%dT%H%M%S") for d in exdates))
+    return EventSpec(1, datetime(2016, 2, 29, 9), datetime(2016, 2, 29, 10), lines), matches
+
+
+def test_exdates_excluding_every_instance_keep_validate_and_expand_bounded():
+    ev, matches = _leap_monday_series()
+    assert len(matches) < 1000
+    t0 = time.perf_counter()
+    _finishes_within(3, lambda: validate_recurrence(list(ev.recurrence), ev.start))
+    assert _finishes_within(3, lambda: expand(ev, [], MON, MON + timedelta(days=120))) == []
+    assert _finishes_within(3, lambda: expand(
+        ev, [], datetime(2044, 2, 1), datetime(2044, 3, 1))) == []
+    assert time.perf_counter() - t0 < 1.5
+
+
+def test_expand_keeps_an_instance_whose_exdate_is_missing():
+    ev, _ = _leap_monday_series(skip=(datetime(2044, 2, 29, 9),))
+    occ = _finishes_within(3, lambda: expand(ev, [], datetime(2044, 2, 1), datetime(2044, 3, 1)))
+    assert [o.start for o in occ] == [datetime(2044, 2, 29, 9)]
+
+
+def test_rdates_join_rule_instances_without_duplicates():
+    lines = (weekly_rule(None), "RDATE:20260302T090000,20260302T200000",
+             "EXDATE:20260303T090000")
+    ev = EventSpec(1, MON.replace(hour=9), MON.replace(hour=10), lines)
+    occ = expand(ev, [], MON, MON + timedelta(days=2))
+    assert [o.start for o in occ] == [MON.replace(hour=9), MON.replace(hour=20)]
+    rdate_only = EventSpec(1, MON.replace(hour=9), MON.replace(hour=10),
+                           ("RDATE:20260304T090000",))
+    assert [o.start for o in expand(rdate_only, [], MON, MON + timedelta(days=7))] == [
+        MON.replace(hour=9), datetime(2026, 3, 4, 9)]
+
+
+def test_rdate_before_the_window_still_covers_its_overnight_tail():
+    ev = EventSpec(1, MON.replace(hour=23), MON + timedelta(days=1, hours=7),
+                   ("RDATE:20260305T230000",))
+    occ = expand(ev, [], datetime(2026, 3, 6, 6), datetime(2026, 3, 6, 12))
+    assert [o.start for o in occ] == [datetime(2026, 3, 5, 23)]

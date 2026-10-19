@@ -80,10 +80,12 @@ item that can't be placed is returned as unschedulable with a diagnosed reason.
   `BYEASTER`; `INTERVAL` ≥ 1 (dateutil loops forever on 0). Each RRULE must have an instance within
   5 years of `start`, so never-matching rules (Feb 30) are rejected. The probe runs on the rule
   moved by whole 400-year Gregorian cycles to near year 9999, because dateutil scans to 9999 for a
-  rule with no match, even past `UNTIL`/`COUNT`; worst case ~0.25 s. Finally the whole set is
-  iterated once (bounded by then), which rejects timezone-aware (`Z`/offset) EXDATE/RDATE values:
-  all datetimes are naive local time. `expand` repeats only the cheap static checks and turns
-  iteration errors into `RecurrenceError`. A stored series that fails is skipped with a warning in
+  rule with no match, even past `UNTIL`/`COUNT`; worst case ~0.25 s. EXDATE/RDATE values must be
+  naive local time (no `Z`/offset). `expand` never iterates a whole `rruleset` (when EXDATEs remove
+  every remaining instance that runs on to 9999): it takes each RRULE's instances in the window with
+  `rrule.between` (which stops at the first candidate past it), adds RDATEs in range and drops
+  EXDATE values. It repeats only the cheap static checks and turns iteration errors into
+  `RecurrenceError`. A stored series that fails is skipped with a warning in
   `calendar_service.load_occurrences`, so one bad row can't break the calendar or scheduling.
 - **DELETE is a soft delete** (`status=cancelled`); `/restore` reverses it. Hidden calendars
   (`visible=false`) still block scheduling; Free events don't.
