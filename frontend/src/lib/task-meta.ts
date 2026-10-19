@@ -32,13 +32,6 @@ export function typeLabel(taskType: string): string {
   return TYPE_LABELS[taskType] ?? taskType
 }
 
-export const BLOCK_KIND_LABELS: Record<string, string> = {
-  sleep: 'Sleep',
-  lunch: 'Meals',
-  class: 'Class',
-  other: 'Other',
-}
-
 // How close a deadline is, as a 0-1 ramp. Drives how deeply a due chip fills:
 // the nearer the deadline, the more of it is coloured in.
 export function urgency(dueDate: string, now = new Date()): number {

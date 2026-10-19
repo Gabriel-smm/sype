@@ -95,12 +95,6 @@ export function useAppData({ openTask }: Options) {
       await api.generateSchedule()
     })
 
-    const addFixedBlock = Object.assign(
-      (block: Parameters<typeof api.addFixedBlock>[0]) => run(() => api.addFixedBlock(block)),
-      // The block editors need to know whether to offer a "kind" field.
-      { withKind: true },
-    )
-
     return {
       createTask: (task) => run(async () => {
         const created = await api.createTask(task)
@@ -125,8 +119,6 @@ export function useAppData({ openTask }: Options) {
       completeSubtask: (id) => run(() => api.completeSubtask(id)),
       skipSubtask: (id) => run(() => api.skipSubtask(id)),
       saveWeights: (weights) => run(() => api.saveWeights(weights)),
-      addFixedBlock,
-      deleteFixedBlock: (id) => run(() => api.deleteFixedBlock(id)),
       addProductiveWindow: (window) => run(() => api.addProductiveWindow(window)),
       deleteProductiveWindow: (id) => run(() => api.deleteProductiveWindow(id)),
       createRecurringTask: (task) => run(() => api.createRecurringTask(task)),

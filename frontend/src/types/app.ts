@@ -3,7 +3,7 @@ import type {
   BlockInput, RecurringTaskInput, Task, TaskChanges, TaskInput, Weights,
 } from '@/types/api'
 
-export type AddBlock = ((block: BlockInput) => Promise<unknown>) & { withKind?: boolean }
+export type AddBlock = (block: BlockInput) => Promise<unknown>
 
 export interface Actions {
   createTask: (task: TaskInput) => Promise<Task>
@@ -14,8 +14,6 @@ export interface Actions {
   completeSubtask: (id: number) => Promise<unknown>
   skipSubtask: (id: number) => Promise<unknown>
   saveWeights: (weights: Weights) => Promise<unknown>
-  addFixedBlock: AddBlock
-  deleteFixedBlock: (id: number) => Promise<unknown>
   addProductiveWindow: AddBlock
   deleteProductiveWindow: (id: number) => Promise<unknown>
   createRecurringTask: (task: RecurringTaskInput) => Promise<unknown>

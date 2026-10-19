@@ -10,10 +10,10 @@ proxies `/api` to the backend, so the app is same-origin.
 | Path | Role |
 |---|---|
 | `src/app.tsx` | Router and app-level state wiring. |
-| `src/pages/` | Routed screens: `/` Calendar (`calendar.tsx`, where the app opens), `/tasks` (triage), `/chat`, `/setup`. `/calendar` and `/week` redirect to `/`. |
+| `src/pages/` | Routed screens: `/` Calendar (`calendar.tsx`, where the app opens; busy blocks are drawn read-only, and work that did not fit is not shown here), `/tasks` (triage), `/chat`, `/setup` (focus hours, routines, ranking, activity; busy time will come from a connected calendar, so it has no editor). `/calendar` and `/week` redirect to `/`. |
 | `src/components/ui/` | Primitives (Radix + `cva`): button, input, card, badge, dialog, sheet, dropdown-menu, slider, switch, tooltip, avatar, sidebar, sonner. |
 | `src/components/layout/` | Sidebar, the shell with the chat drawer, section labels. |
-| `src/components/{tasks,schedule,setup,chat}/` | Feature pieces: capture dialog and task sheet, week grid and slot sheet, block/weights/recurring editors, chat conversation, thread list and drawer panel. |
+| `src/components/{tasks,schedule,setup,chat}/` | Feature pieces: capture dialog and task sheet, week grid and slot sheet, focus-hours/weights/recurring editors, chat conversation, thread list and drawer panel. |
 | `src/hooks/` | `use-app-data` (fetching, mutations, toasts), `use-chat` (saved chat threads, shared by the page and the drawer), `use-sidebar`, `use-mobile`, `use-now`. |
 | `src/lib/` | API client, week arithmetic (`time.ts`), task vocabulary and colours (`task-meta.ts`), capture parser (`parse-capture.ts`), where a new task landed (`agenda.ts`), chat threads (`chat-threads.ts`). Pure logic. |
 | `src/types/api.ts` | Hand-written mirror of `backend/app/schemas.py`. **Change both together.** |

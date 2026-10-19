@@ -15,12 +15,10 @@ and fits them into the free time around your classes and sleep.
   the weights and preview the effect before saving.
 - **Automatic breakdown.** Long essays become research → outline → draft → revise, in order.
   Exams become spaced study sessions 10, 6, 3 and 1 days out.
-- **Fits your actual week.** Fixed blocks (classes, meals, sleep) are respected, and focus-heavy
-  work goes into the hours you say you're sharpest.
+- **Fits your actual week.** Busy time (classes, meals, sleep) is respected, and focus-heavy
+  work goes into the hours you say you're sharpest. Connecting your own calendar is coming next.
 - **Routine included.** Recurring tasks roll forward every week and share the calendar with
   deadline work.
-- **Honest about limits.** Work that can't fit before its deadline is flagged with a reason, not
-  silently dropped.
 - **Quick capture.** Type `HIST essay fri 5pm 4h 20%` and it's parsed into a task, with every
   guess shown back so you can correct it.
 

@@ -1,4 +1,4 @@
-import { History, Moon, Repeat, SlidersHorizontal, Target, type LucideIcon } from 'lucide-react'
+import { History, Repeat, SlidersHorizontal, Target, type LucideIcon } from 'lucide-react'
 import { useEffect, useRef, type ReactNode } from 'react'
 import { useLocation } from 'react-router'
 
@@ -11,9 +11,8 @@ import { Card, CardHeader } from '@/components/ui/card'
 import type { ActivityEvent, Settings } from '@/types/api'
 import type { Actions } from '@/types/app'
 
-// The first three are what a new student has to fill in; they come first.
+// The first two are what a new student has to fill in; they come first.
 const SECTIONS: [string, string][] = [
-  ['busy', 'Busy'],
   ['focus', 'Focus'],
   ['routines', 'Routines'],
   ['ranking', 'Ranking'],
@@ -39,7 +38,7 @@ export function SetupPage({ settings, events, taskTypes, busy, actions }: SetupP
 
   return (
     <Card className="h-full min-h-0 w-full pb-0">
-      <CardHeader title="Setup" description="Everything the scheduler knows about your week. Start with busy and focus hours." />
+      <CardHeader title="Setup" description="Everything the scheduler knows about your week. Start with your focus hours." />
 
       <nav aria-label="Sections on this page" className="-mt-2 flex flex-shrink-0 gap-1 overflow-x-auto px-4">
         {SECTIONS.map(([key, label]) => (
@@ -52,13 +51,6 @@ export function SetupPage({ settings, events, taskTypes, busy, actions }: SetupP
       </nav>
 
       <div ref={scroller} className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 pb-4">
-        <Section id="busy" icon={Moon} title="When you are busy"
-                 blurb="Sleep, meals and classes. The scheduler never puts work inside these.">
-          <WeekStrip blocks={settings.fixed_blocks} tint="#9ea6b8" addLabel="a busy stretch" busy={busy}
-                     onAdd={actions.addFixedBlock} onDelete={(id) => void actions.deleteFixedBlock(id)} />
-          <BlockList blocks={settings.fixed_blocks} onDelete={(id) => void actions.deleteFixedBlock(id)} withKind />
-        </Section>
-
         <Section id="focus" icon={Target} title="When you focus best"
                  blurb="Work that needs concentration, like essay drafting and exam study, only goes inside these hours.">
           <WeekStrip blocks={settings.productive_hours} tint="#60a5fa" addLabel="a stretch where you focus well"

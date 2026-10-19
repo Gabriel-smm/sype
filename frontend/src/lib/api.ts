@@ -1,7 +1,7 @@
 // Thin wrapper over the FastAPI backend. Every call is scoped to one student;
 // this MVP has no auth, so the id is fixed.
 import type {
-  ActivityEvent, BlockInput, ChatMessage, ChatProvider, FixedBlock, Meta, ProductiveWindow,
+  ActivityEvent, BlockInput, ChatMessage, ChatProvider, Meta, ProductiveWindow,
   RecurringTask, RecurringTaskInput, Schedule, Settings, Task, TaskChanges, TaskInput, Weights,
   WeightsPreview,
 } from '@/types/api'
@@ -47,9 +47,6 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ ...weights, limit }),
     }),
-  addFixedBlock: (block: BlockInput) =>
-    request<FixedBlock>(`${base}/fixed-blocks`, { method: 'POST', body: JSON.stringify(block) }),
-  deleteFixedBlock: (id: number) => request(`${base}/fixed-blocks/${id}`, { method: 'DELETE' }),
   addProductiveWindow: (window: BlockInput) =>
     request<ProductiveWindow>(`${base}/productive-hours`, { method: 'POST', body: JSON.stringify(window) }),
   deleteProductiveWindow: (id: number) =>
