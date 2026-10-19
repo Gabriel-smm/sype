@@ -17,6 +17,8 @@ interface AppShellProps {
   /** False on the Chat page itself, which is the chat. */
   chatAvailable: boolean
   banner?: ReactNode
+  /** The page sits edge to edge, without the gutter (the Chat page). */
+  flush?: boolean
   children: ReactNode
 }
 
@@ -25,7 +27,7 @@ interface AppShellProps {
  * over it as a drawer, opened from "Ask Sype" in the corner or with `C`.
  * Phones get a slim top bar instead, and the drawer fills the screen.
  */
-export function AppShell({ sidebar, chat, chatOpen, onChatOpenChange, chatAvailable, banner, children }: AppShellProps) {
+export function AppShell({ sidebar, chat, chatOpen, onChatOpenChange, chatAvailable, banner, flush = false, children }: AppShellProps) {
   const isMobile = useIsMobile()
   const close = () => onChatOpenChange(false)
 
@@ -52,7 +54,9 @@ export function AppShell({ sidebar, chat, chatOpen, onChatOpenChange, chatAvaila
         {banner}
 
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-          <div className={cn('flex h-full min-h-0 w-full min-w-0 flex-col', isMobile ? 'px-2 pb-2' : 'p-2')}>{children}</div>
+          <div className={cn('flex h-full min-h-0 w-full min-w-0 flex-col', !flush && (isMobile ? 'px-2 pb-2' : 'p-2'))}>
+            {children}
+          </div>
         </div>
 
         {!isMobile && chatAvailable && !chatOpen && (

@@ -72,6 +72,7 @@ export function App() {
           chatOpen={chatOpen}
           onChatOpenChange={setChatOpen}
           chatAvailable={chatAvailable}
+          flush={!chatAvailable}
           sidebar={
             <AppSidebar
               studentName={settings.student.name}

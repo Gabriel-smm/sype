@@ -30,7 +30,7 @@ export function ChatConversation({ chat, variant, inputId, autoFocus = false }: 
   const bottom = useRef<HTMLDivElement>(null)
   const composer = useRef<HTMLTextAreaElement>(null)
   const page = variant === 'page'
-  const column = page ? 'mx-auto w-full max-w-[44rem] px-5' : 'px-4'
+  const column = page ? 'mx-auto w-full max-w-[48rem] px-6' : 'px-4'
 
   useEffect(() => {
     bottom.current?.scrollIntoView({ behavior: 'smooth', block: 'end' })
@@ -85,21 +85,22 @@ export function ChatConversation({ chat, variant, inputId, autoFocus = false }: 
               </ul>
             </div>
           ) : (
-            <ul className={cn(column, 'flex flex-col gap-5 py-5')}>
+            <ul className={cn(column, 'flex flex-col', page ? 'gap-8 pt-8 pb-10' : 'gap-5 py-5')}>
               {messages.map((message, index) => {
                 const user = message.role === 'user'
                 const last = index === messages.length - 1
                 return (
                   <li key={index} className={cn('flex', user ? 'justify-end' : 'justify-start')}>
                     {user ? (
-                      <p className="max-w-[85%] rounded-2xl bg-white/[0.08] px-4 py-2 text-[15px] leading-relaxed whitespace-pre-wrap
-                                    text-white [overflow-wrap:anywhere]">
+                      <p className={cn('rounded-2xl bg-white/[0.08] whitespace-pre-wrap text-white [overflow-wrap:anywhere]',
+                        page ? 'max-w-[80%] px-4 py-2.5 text-[16px] leading-[1.6]' : 'max-w-[85%] px-4 py-2 text-[15px] leading-relaxed')}>
                         {message.content}
                       </p>
                     ) : message.content ? (
-                      <div className="w-full space-y-3 text-[15px] leading-relaxed text-white/85 [overflow-wrap:anywhere]
+                      <div className={cn(`w-full space-y-4 text-white/85 [overflow-wrap:anywhere]
                                       [&_a]:underline [&_code]:rounded [&_code]:bg-white/10 [&_code]:px-1 [&_li]:ml-5
-                                      [&_ol]:list-decimal [&_strong]:font-semibold [&_strong]:text-white [&_ul]:list-disc">
+                                      [&_ol]:list-decimal [&_strong]:font-semibold [&_strong]:text-white [&_ul]:list-disc`,
+                        page ? 'text-[16px] leading-[1.7]' : 'text-[15px] leading-relaxed')}>
                         <Markdown>{message.content}</Markdown>
                       </div>
                     ) : streaming && last ? (
@@ -114,10 +115,10 @@ export function ChatConversation({ chat, variant, inputId, autoFocus = false }: 
         </div>
       </div>
 
-      <div className={cn(column, 'flex-shrink-0 pb-4')}>
+      <div className={cn(column, 'flex-shrink-0', page ? 'pb-3' : 'pb-4')}>
         {error && <p role="alert" className="mb-2 text-[13px] text-destructive">{error}</p>}
-        <div className="flex items-end gap-2 rounded-2xl border border-white/10 bg-white/[0.03] p-1.5 pl-3.5
-                        focus-within:border-white/25">
+        <div className={cn('flex items-end gap-2 border bg-white/[0.03] focus-within:border-white/30',
+          page ? 'rounded-2xl border-white/15 py-2 pr-2 pl-4' : 'rounded-2xl border-white/10 p-1.5 pl-3.5')}>
           <textarea
             ref={composer}
             id={inputId}
@@ -126,9 +127,9 @@ export function ChatConversation({ chat, variant, inputId, autoFocus = false }: 
             onChange={(event) => { setInput(event.target.value); grow(event.target) }}
             onKeyDown={onKeyDown}
             aria-label="Message"
-            placeholder="Message Sype"
-            className="max-h-[200px] min-h-[36px] flex-1 resize-none bg-transparent py-2 text-[15px] text-white
-                       placeholder:text-white/35 focus:outline-none"
+            placeholder={messages.length ? 'Reply' : 'Message Sype'}
+            className={cn('max-h-[200px] min-h-[36px] flex-1 resize-none bg-transparent py-2 text-white',
+              'placeholder:text-white/35 focus:outline-none', page ? 'text-[16px]' : 'text-[15px]')}
           />
           <button
             type="button"
@@ -136,14 +137,16 @@ export function ChatConversation({ chat, variant, inputId, autoFocus = false }: 
             disabled={!input.trim() || busy}
             aria-label="Send"
             className="grid size-9 shrink-0 place-items-center rounded-xl bg-blue-500 text-white transition-colors
-                       hover:bg-blue-600 disabled:bg-white/10 disabled:text-white/35"
+                       hover:bg-blue-600 disabled:bg-transparent disabled:text-white/30"
           >
             <ArrowUp className="size-4" strokeWidth={2.5} />
           </button>
         </div>
-        {offline && (
+        {(offline || page) && (
           <p className="mt-2 text-center text-xs text-white/35">
-            No model is connected, so replies are a placeholder. Set CHAT_PROVIDER on the backend.
+            {offline
+              ? 'No model is connected, so replies are a placeholder. Set CHAT_PROVIDER on the backend.'
+              : 'Sype can make mistakes. The scheduler decides where work lands.'}
           </p>
         )}
       </div>
