@@ -4,19 +4,23 @@ import { useNavigate } from 'react-router'
 
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import type { Chat } from '@/hooks/use-chat'
-import { groupByDay, type Thread } from '@/lib/chat-threads'
+import { filterThreads, groupByDay, type Thread } from '@/lib/chat-threads'
 import { cn } from '@/lib/utils'
 
-/** Saved chats, newest first, grouped by day. Picking one opens it on the Chat page and calls `onPicked`. */
-export function ThreadList({ chat, onPicked }: { chat: Chat; onPicked?: () => void }) {
-  const groups = groupByDay(chat.threads)
+/**
+ * Saved chats, newest first, grouped by day, narrowed by `query`. Picking one opens it on the
+ * Chat page and calls `onPicked`.
+ */
+export function ThreadList({ chat, query = '', onPicked }: { chat: Chat; query?: string; onPicked?: () => void }) {
+  const groups = groupByDay(filterThreads(chat.threads, query))
+  const empty = query.trim() ? 'No chats match that search.' : 'Your chats will be saved here.'
 
   return (
     <nav aria-label="Chats">
-      {groups.length === 0 && <p className="px-2 py-1.5 text-xs text-white/35">Your chats will be saved here.</p>}
+      {groups.length === 0 && <p className="px-2.5 py-1.5 text-[13px] text-white/35">{empty}</p>}
       {groups.map((group) => (
-        <section key={group.label} className="mt-2 first:mt-0">
-          <h3 className="px-2 pb-1 text-xs text-white/35">{group.label}</h3>
+        <section key={group.label} className="mt-3 first:mt-0">
+          <h3 className="px-2.5 pb-1 text-xs text-white/35">{group.label}</h3>
           <ul className="flex flex-col gap-px">
             {group.threads.map((thread) => (
               <ThreadRow key={thread.id} thread={thread} chat={chat} onPicked={onPicked} />
@@ -51,7 +55,7 @@ function ThreadRow({ thread, chat, onPicked }: { thread: Thread; chat: Chat; onP
             onBlur={save}
             onKeyDown={(event) => { if (event.key === 'Escape') { setDraft(thread.title); setRenaming(false) } }}
             aria-label="Chat name"
-            className="w-full rounded-md border border-white/25 bg-transparent px-2 py-1.5 text-[13px] text-white focus:outline-none"
+            className="w-full rounded-md border border-white/25 bg-transparent h-9 px-2.5 text-[14px] text-white focus:outline-none"
           />
         </form>
       </li>
@@ -65,7 +69,7 @@ function ThreadRow({ thread, chat, onPicked }: { thread: Thread; chat: Chat; onP
         type="button"
         onClick={() => { chat.select(thread.id); navigate('/chat'); onPicked?.() }}
         aria-current={current ? 'page' : undefined}
-        className={cn('min-w-0 flex-1 truncate px-2 py-1.5 text-left text-[13px]', current ? 'text-white' : 'text-white/65')}
+        className={cn('h-9 min-w-0 flex-1 truncate px-2.5 text-left text-[14px]', current ? 'text-white' : 'text-white/65')}
       >
         {thread.title}
       </button>

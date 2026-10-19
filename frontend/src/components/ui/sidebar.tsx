@@ -13,7 +13,7 @@ import { cn } from '@/lib/utils'
 // A lean version of shadcn's sidebar, as Sype's app uses it: floating, glass,
 // collapsing to a rail of icons, and a sheet on phones.
 const STORAGE_KEY = 'sidebar_state'
-const SIDEBAR_WIDTH = '16rem'
+const SIDEBAR_WIDTH = '18rem'
 const SIDEBAR_WIDTH_MOBILE = '18rem'
 const SIDEBAR_WIDTH_ICON = '3rem'
 const SHORTCUT = 'b'
@@ -216,6 +216,8 @@ const sidebarMenuButtonVariants = cva(
       size: {
         default: 'h-8 text-sm',
         lg: 'h-12 text-sm group-data-[collapsible=icon]:p-0!',
+        /** The main page links: roomier rows, larger icons. */
+        nav: 'h-10 gap-3 px-2.5 text-[15px] [&>svg]:size-5',
       },
     },
     defaultVariants: { size: 'default' },
