@@ -68,7 +68,7 @@ export function WeekGrid({
     if (scroller.current) scroller.current.scrollTop = 6 * HOUR_HEIGHT
   }, [])
 
-  const busy = occurrenceSpans(busyEvents, weekStart)
+  const busy = occurrenceSpans(busyEvents, days)
   const focus = expandRecurring(productiveHours, weekStart, 'productive')
 
   // Work blocks, bucketed by the day column they belong to.

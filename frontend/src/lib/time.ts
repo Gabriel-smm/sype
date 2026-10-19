@@ -141,10 +141,11 @@ export function expandRecurring<B extends Block & { kind?: string }>(
 }
 
 /**
- * Project dated event occurrences onto the seven day columns of one week.
+ * Project dated event occurrences onto the visible day columns (any number of
+ * contiguous day starts).
  *
  * An occurrence is split at each midnight into one span per day. Parts that
- * fall outside the week are dropped; unlike weekly blocks they never wrap.
+ * fall outside the visible days are dropped; unlike weekly blocks they never wrap.
  */
 export interface OccurrenceSpan {
   id: string
@@ -154,17 +155,17 @@ export interface OccurrenceSpan {
   endMinute: number
 }
 
-export function occurrenceSpans(occurrences: Occurrence[], weekStart: Date): OccurrenceSpan[] {
+export function occurrenceSpans(occurrences: Occurrence[], days: Date[]): OccurrenceSpan[] {
   const spans: OccurrenceSpan[] = []
 
   occurrences.forEach((occurrence) => {
     const start = new Date(occurrence.start)
     const end = new Date(occurrence.end)
 
-    for (let offset = 0; offset < 7; offset += 1) {
-      const dayStart = addDays(weekStart, offset)
-      const dayEnd = addDays(weekStart, offset + 1)
-      if (start >= dayEnd || end <= dayStart) continue
+    days.forEach((day, offset) => {
+      const dayStart = day
+      const dayEnd = addDays(day, 1)
+      if (start >= dayEnd || end <= dayStart) return
 
       spans.push({
         id: `${occurrence.id}-${offset}`,
@@ -173,7 +174,7 @@ export function occurrenceSpans(occurrences: Occurrence[], weekStart: Date): Occ
         startMinute: start > dayStart ? minutesSinceMidnight(start) : 0,
         endMinute: end < dayEnd ? minutesSinceMidnight(end) : MINUTES_IN_DAY,
       })
-    }
+    })
   })
 
   return spans

@@ -1,10 +1,11 @@
 import { describe, expect, it } from 'vitest'
 
 import type { Occurrence } from '@/types/api'
-import { layoutColumns, occurrenceSpans } from './time'
+import { daysOfWeek, layoutColumns, occurrenceSpans } from './time'
 
 // Monday 2026-09-14 is the week under test.
 const weekStart = new Date(2026, 8, 14)
+const week = daysOfWeek(weekStart)
 
 const occurrence = (start: string, end: string, extra: Partial<Occurrence> = {}) => ({
   id: `${start}`, event_id: 1, calendar_id: 1, category_id: null, color_key: 'sky',
@@ -14,13 +15,13 @@ const occurrence = (start: string, end: string, extra: Partial<Occurrence> = {})
 
 describe('occurrenceSpans', () => {
   it('gives one span for a same-day event', () => {
-    const spans = occurrenceSpans([occurrence('2026-09-14T09:00:00', '2026-09-14T10:15:00')], weekStart)
+    const spans = occurrenceSpans([occurrence('2026-09-14T09:00:00', '2026-09-14T10:15:00')], week)
     expect(spans).toHaveLength(1)
     expect(spans[0]).toMatchObject({ dayOffset: 0, startMinute: 540, endMinute: 615 })
   })
 
   it('splits an overnight event at midnight', () => {
-    const spans = occurrenceSpans([occurrence('2026-09-14T23:30:00', '2026-09-15T07:30:00')], weekStart)
+    const spans = occurrenceSpans([occurrence('2026-09-14T23:30:00', '2026-09-15T07:30:00')], week)
     expect(spans.map(({ dayOffset, startMinute, endMinute }) => ({ dayOffset, startMinute, endMinute })))
       .toEqual([
         { dayOffset: 0, startMinute: 1410, endMinute: 1440 },
@@ -29,13 +30,13 @@ describe('occurrenceSpans', () => {
   })
 
   it('drops the part of a Sunday-night event that falls on the next Monday', () => {
-    const spans = occurrenceSpans([occurrence('2026-09-20T23:00:00', '2026-09-21T07:00:00')], weekStart)
+    const spans = occurrenceSpans([occurrence('2026-09-20T23:00:00', '2026-09-21T07:00:00')], week)
     expect(spans).toHaveLength(1)
     expect(spans[0]).toMatchObject({ dayOffset: 6, startMinute: 1380, endMinute: 1440 })
   })
 
   it('keeps the tail of an event that started before the week', () => {
-    const spans = occurrenceSpans([occurrence('2026-09-13T23:00:00', '2026-09-14T07:00:00')], weekStart)
+    const spans = occurrenceSpans([occurrence('2026-09-13T23:00:00', '2026-09-14T07:00:00')], week)
     expect(spans).toHaveLength(1)
     expect(spans[0]).toMatchObject({ dayOffset: 0, startMinute: 0, endMinute: 420 })
   })
@@ -45,14 +46,34 @@ describe('occurrenceSpans', () => {
       occurrence('2026-09-07T09:00:00', '2026-09-07T10:00:00'),
       occurrence('2026-09-21T09:00:00', '2026-09-21T10:00:00'),
     ]
-    expect(occurrenceSpans(outside, weekStart)).toEqual([])
+    expect(occurrenceSpans(outside, week)).toEqual([])
   })
 
   it('treats an all-day event as one full-day span', () => {
     const spans = occurrenceSpans(
-      [occurrence('2026-09-16T00:00:00', '2026-09-17T00:00:00', { all_day: true })], weekStart)
+      [occurrence('2026-09-16T00:00:00', '2026-09-17T00:00:00', { all_day: true })], week)
     expect(spans).toHaveLength(1)
     expect(spans[0]).toMatchObject({ dayOffset: 2, startMinute: 0, endMinute: 1440 })
+  })
+})
+
+describe('occurrenceSpans over a short day list', () => {
+  const overnight = occurrence('2026-09-14T23:30:00', '2026-09-15T07:30:00')
+
+  it('keeps only the visible part in a single-day list', () => {
+    const spans = occurrenceSpans([overnight], [new Date(2026, 8, 15)])
+    expect(spans).toHaveLength(1)
+    expect(spans[0]).toMatchObject({ dayOffset: 0, startMinute: 0, endMinute: 450 })
+  })
+
+  it('indexes dayOffset into the given days for a 3-day list', () => {
+    const days = [new Date(2026, 8, 15), new Date(2026, 8, 16), new Date(2026, 8, 17)]
+    const spans = occurrenceSpans(
+      [overnight, occurrence('2026-09-17T08:00:00', '2026-09-17T09:00:00')], days)
+    expect(spans.map((s) => [s.dayOffset, s.startMinute, s.endMinute])).toEqual([
+      [0, 0, 450],
+      [2, 480, 540],
+    ])
   })
 })
 
