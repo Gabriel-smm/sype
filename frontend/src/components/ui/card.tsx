@@ -2,13 +2,13 @@ import type { ComponentProps, ReactNode } from 'react'
 
 import { cn } from '@/lib/utils'
 
-/** Sype's app panel: zinc glass, used for the calendar, tasks, chat and every page. */
+/** Sype's page panel: transparent over the background, edged by a faint outline. */
 function Card({ className, ...props }: ComponentProps<'div'>) {
   return (
     <div
       data-slot="card"
       className={cn(
-        'appglass flex flex-col gap-6 rounded-xl border border-sidebar-border bg-sidebar py-6 text-sidebar-foreground shadow-sm',
+        'flex flex-col gap-6 rounded-xl border border-white/10 bg-transparent py-6 text-sidebar-foreground',
         className,
       )}
       {...props}

@@ -4,6 +4,8 @@ export interface SidebarContextValue {
   state: 'expanded' | 'collapsed'
   open: boolean
   setOpen: (open: boolean) => void
+  /** True while the desktop bar is collapsing or expanding and its contents are faded out. */
+  fading: boolean
   openMobile: boolean
   setOpenMobile: (open: boolean) => void
   isMobile: boolean

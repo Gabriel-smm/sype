@@ -6,7 +6,7 @@ The technical reference for Sype. Area-specific detail lives in [backend.md](bac
 ## Core principle
 
 **No LLM decides the schedule.** Prioritisation, decomposition and placement are deterministic,
-rule-based Python, unit-tested in isolation. The chat panel is a deliberate, opt-in exception:
+rule-based Python, unit-tested in isolation. The chat is a deliberate, opt-in exception:
 it reads and writes tasks, but placement always stays deterministic.
 
 ## System overview

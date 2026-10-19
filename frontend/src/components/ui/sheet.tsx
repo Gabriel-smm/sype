@@ -14,15 +14,20 @@ interface SheetContentProps extends Omit<ComponentProps<typeof SheetPrimitive.Co
   bare?: boolean
   /** Keep the title for screen readers only, when the child draws its own header. */
   hideHeader?: boolean
+  /** Restyle the scrim behind the sheet. */
+  overlayClassName?: string
 }
 
 /** A right-hand glass panel. Radix supplies the focus trap, Esc and scroll lock. */
-function SheetContent({ className, title, description, bare = false, hideHeader = false, children, ...props }: SheetContentProps) {
+function SheetContent({ className, title, description, bare = false, hideHeader = false, overlayClassName, children, ...props }: SheetContentProps) {
   return (
     <SheetPrimitive.Portal>
       <SheetPrimitive.Overlay
-        className="fixed inset-0 z-50 bg-black/60 backdrop-blur-[2px] data-[state=closed]:animate-out
-                   data-[state=closed]:fade-out-0 data-[state=open]:animate-in data-[state=open]:fade-in-0"
+        className={cn(
+          `fixed inset-0 z-50 bg-black/60 backdrop-blur-[2px] data-[state=closed]:animate-out
+           data-[state=closed]:fade-out-0 data-[state=open]:animate-in data-[state=open]:fade-in-0`,
+          overlayClassName,
+        )}
       />
       <SheetPrimitive.Content
         className={cn(

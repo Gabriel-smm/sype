@@ -2,7 +2,7 @@ import { cva, type VariantProps } from 'class-variance-authority'
 import { PanelLeft } from 'lucide-react'
 import { Dialog as SheetPrimitive, Slot } from 'radix-ui'
 import {
-  useCallback, useEffect, useMemo, useState, type ComponentProps, type CSSProperties, type ReactNode,
+  useCallback, useEffect, useMemo, useRef, useState, type ComponentProps, type CSSProperties, type ReactNode,
 } from 'react'
 
 import { Tooltip } from '@/components/ui/tooltip'
@@ -13,10 +13,13 @@ import { cn } from '@/lib/utils'
 // A lean version of shadcn's sidebar, as Sype's app uses it: floating, glass,
 // collapsing to a rail of icons, and a sheet on phones.
 const STORAGE_KEY = 'sidebar_state'
-const SIDEBAR_WIDTH = '16rem'
+const SIDEBAR_WIDTH = '18rem'
 const SIDEBAR_WIDTH_MOBILE = '18rem'
-const SIDEBAR_WIDTH_ICON = '3rem'
+const SIDEBAR_WIDTH_ICON = '2.5rem'
 const SHORTCUT = 'b'
+// Collapse and expand: the contents fade out, the empty bar resizes, then the new contents fade in.
+const FADE_OUT_MS = 60
+const RESIZE_MS = 150
 
 function readStored(fallback: boolean) {
   try {
@@ -36,6 +39,10 @@ function SidebarProvider({ defaultOpen = false, className, style, children }: {
   const isMobile = useIsMobile()
   const [openMobile, setOpenMobile] = useState(false)
   const [open, setOpenState] = useState(() => readStored(defaultOpen))
+  const [fading, setFading] = useState(false)
+  const timers = useRef<number[]>([])
+
+  useEffect(() => () => timers.current.forEach((id) => window.clearTimeout(id)), [])
 
   const setOpen = useCallback((next: boolean) => {
     setOpenState(next)
@@ -46,10 +53,26 @@ function SidebarProvider({ defaultOpen = false, className, style, children }: {
     }
   }, [])
 
-  const toggleSidebar = useCallback(
-    () => (isMobile ? setOpenMobile((value) => !value) : setOpen(!open)),
-    [isMobile, open, setOpen],
-  )
+  const toggleSidebar = useCallback(() => {
+    if (isMobile) {
+      setOpenMobile((value) => !value)
+      return
+    }
+    if (timers.current.length > 0) return // Mid-transition: let it finish.
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      setOpen(!open)
+      return
+    }
+    const next = !open
+    setFading(true)
+    timers.current = [
+      window.setTimeout(() => setOpen(next), FADE_OUT_MS),
+      window.setTimeout(() => {
+        setFading(false)
+        timers.current = []
+      }, FADE_OUT_MS + RESIZE_MS),
+    ]
+  }, [isMobile, open, setOpen])
 
   // Ctrl/Cmd+B, as in Sype.
   useEffect(() => {
@@ -64,8 +87,8 @@ function SidebarProvider({ defaultOpen = false, className, style, children }: {
   }, [toggleSidebar])
 
   const value = useMemo<SidebarContextValue>(() => ({
-    state: open ? 'expanded' : 'collapsed', open, setOpen, isMobile, openMobile, setOpenMobile, toggleSidebar,
-  }), [open, setOpen, isMobile, openMobile, toggleSidebar])
+    state: open ? 'expanded' : 'collapsed', open, setOpen, fading, isMobile, openMobile, setOpenMobile, toggleSidebar,
+  }), [open, setOpen, fading, isMobile, openMobile, toggleSidebar])
 
   return (
     <SidebarContext.Provider value={value}>
@@ -84,10 +107,11 @@ function SidebarProvider({ defaultOpen = false, className, style, children }: {
   )
 }
 
-const panelClasses = 'appglass flex h-full w-full flex-col rounded-lg border border-sidebar-border bg-sidebar text-sidebar-foreground shadow-sm'
+// Flush with the window edge: one straight line separates it from the page.
+const panelClasses = 'flex h-full w-full flex-col border-r border-white/10 bg-white/5 text-sidebar-foreground backdrop-blur-xl'
 
 function Sidebar({ className, children }: { className?: string; children: ReactNode }) {
-  const { isMobile, state, openMobile, setOpenMobile } = useSidebar()
+  const { isMobile, state, fading, openMobile, setOpenMobile } = useSidebar()
 
   if (isMobile) {
     return (
@@ -96,7 +120,7 @@ function Sidebar({ className, children }: { className?: string; children: ReactN
           <SheetPrimitive.Overlay className="fixed inset-0 z-50 bg-black/60 data-[state=open]:animate-in data-[state=open]:fade-in-0" />
           <SheetPrimitive.Content
             data-mobile="true"
-            className="group fixed inset-y-0 left-0 z-50 p-2 data-[state=open]:animate-in data-[state=open]:slide-in-from-left"
+            className="group fixed inset-y-0 left-0 z-50 data-[state=open]:animate-in data-[state=open]:slide-in-from-left"
             style={{ width: SIDEBAR_WIDTH_MOBILE }}
           >
             <SheetPrimitive.Title className="sr-only">Navigation</SheetPrimitive.Title>
@@ -118,17 +142,26 @@ function Sidebar({ className, children }: { className?: string; children: ReactN
     >
       {/* Reserves the sidebar's width in the flow. */}
       <div
-        className="relative h-full bg-transparent transition-[width] duration-200 ease-linear
-                   w-(--sidebar-width) group-data-[collapsible=icon]:w-[calc(var(--sidebar-width-icon)+(--spacing(4))+2px)]"
+        className="relative h-full bg-transparent transition-[width] duration-150 ease-out
+                   w-(--sidebar-width) group-data-[collapsible=icon]:w-[calc(var(--sidebar-width-icon)+(--spacing(4))+1px)]"
       />
       <div
         className={cn(
-          `fixed inset-y-0 left-0 z-10 hidden h-dvh p-2 transition-[width] duration-200 ease-linear md:flex
-           w-(--sidebar-width) group-data-[collapsible=icon]:w-[calc(var(--sidebar-width-icon)+(--spacing(4))+2px)]`,
+          `fixed inset-y-0 left-0 z-10 hidden h-dvh transition-[width] duration-150 ease-out md:flex
+           w-(--sidebar-width) group-data-[collapsible=icon]:w-[calc(var(--sidebar-width-icon)+(--spacing(4))+1px)]`,
           className,
         )}
       >
-        <div data-sidebar="sidebar" className={panelClasses}>{children}</div>
+        <div data-sidebar="sidebar" className={panelClasses}>
+          {/* Only the contents fade; the bar's tint and edge stay put. */}
+          <div
+            data-sidebar="contents"
+            className={cn('flex min-h-0 flex-1 flex-col transition-opacity ease-out',
+              fading ? 'pointer-events-none opacity-0 duration-[60ms]' : 'opacity-100 duration-100')}
+          >
+            {children}
+          </div>
+        </div>
       </div>
     </div>
   )
@@ -208,13 +241,15 @@ const sidebarMenuButtonVariants = cva(
    ring-sidebar-ring transition-[width,height,padding] hover:bg-sidebar-accent hover:text-sidebar-accent-foreground
    focus-visible:ring-2 active:bg-sidebar-accent disabled:pointer-events-none disabled:opacity-50
    data-[active=true]:bg-sidebar-accent data-[active=true]:font-medium data-[active=true]:text-sidebar-accent-foreground
-   data-[state=open]:hover:bg-sidebar-accent group-data-[collapsible=icon]:size-8! group-data-[collapsible=icon]:p-2!
+   data-[state=open]:hover:bg-sidebar-accent group-data-[collapsible=icon]:size-8! group-data-[collapsible=icon]:p-2! group-data-[collapsible=icon]:mx-auto
    [&>span:last-child]:truncate [&>svg]:size-4 [&>svg]:shrink-0`,
   {
     variants: {
       size: {
         default: 'h-8 text-sm',
         lg: 'h-12 text-sm group-data-[collapsible=icon]:p-0!',
+        /** The main page links: roomier rows, larger icons. */
+        nav: 'h-10 gap-3 px-2.5 text-[15px] [&>svg]:size-5 group-data-[collapsible=icon]:p-1.5!',
       },
     },
     defaultVariants: { size: 'default' },

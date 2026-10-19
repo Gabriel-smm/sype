@@ -1,12 +1,27 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
-/* Black glass, one blue accent: the Sype look. White text is graded by
+/* Styrene B is licensed, so it is never committed. It is used when installed on the machine or when
+   the licensed files are dropped into public/fonts/ (git-ignored); otherwise Inter takes over. */
+@font-face {
+  font-family: "Styrene B";
+  font-weight: 400;
+  font-display: swap;
+  src: local("Styrene B Regular"), local("StyreneB-Regular"), url("/fonts/StyreneB-Regular.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Styrene B";
+  font-weight: 500 700;
+  font-display: swap;
+  src: local("Styrene B Medium"), local("StyreneB-Medium"), url("/fonts/StyreneB-Medium.woff2") format("woff2");
+}
+
+/* Dark navy, one blue accent: the Sype look. White text is graded by
    opacity (100 / 70 / 60 / 40) instead of by a ramp of greys, so every
    surface stays neutral and the accent is the only colour that isn't
    information. Task-type hues are information, never decoration. */
 @theme inline {
-  --font-sans: "Inter Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Styrene B", "Inter Variable", ui-sans-serif, system-ui, sans-serif;
 
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -44,22 +59,14 @@
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
-
-  --animate-blob: blob 7s infinite;
-
-  @keyframes blob {
-    0% { transform: translate(0, 0) scale(1); }
-    33% { transform: translate(30px, -50px) scale(1.1); }
-    66% { transform: translate(-20px, 20px) scale(0.9); }
-    100% { transform: translate(0, 0) scale(1); }
-  }
 }
 
 :root {
   color-scheme: dark;
   --radius: 0.75rem;
 
-  --background: oklch(0 0 0);
+  /* One flat dark navy behind everything: no gradient, no glow. */
+  --background: #0a0f1a;
   --foreground: oklch(1 0 0);
   --muted-foreground: oklch(1 0 0 / 0.6);
   --faint: oklch(1 0 0 / 0.4);
@@ -91,8 +98,7 @@
     @apply border-border;
   }
 
-  /* Glows and blobs bleed past the edges on purpose; never let them widen the
-     page, or phones zoom out and the nav slides off screen. */
+  /* Nothing may widen the page, or phones zoom out and the nav slides off screen. */
   html,
   body {
     overflow-x: clip;
@@ -142,13 +148,9 @@
     @apply border border-white/10 bg-white/[0.04] shadow-[0_8px_32px_0_rgba(0,0,0,0.36)] backdrop-blur-xl;
   }
 
-  /* Sype's app panel: every card, the sidebar and the chat. */
+  /* Sype's zinc glass: the sidebar only. Pages are transparent over the background. */
   .appglass {
     @apply border border-white/10 bg-white/5 shadow-[0_8px_32px_0_rgba(0,0,0,0.36)] backdrop-blur-xl;
-  }
-
-  .animation-delay-2000 {
-    animation-delay: 2s;
   }
 
   /* Times and durations sit in columns, so they need to line up. */
@@ -167,7 +169,7 @@
   }
 }
 
-/* Motion answers actions; reduced motion also stills the background blobs. */
+/* Motion answers actions; reduced motion stills it. */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

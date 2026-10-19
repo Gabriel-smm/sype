@@ -1,10 +1,8 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Navigate as Redirect, Route, Routes, useNavigate } from 'react-router'
+import { useEffect, useState } from 'react'
+import { Navigate as Redirect, Route, Routes, useLocation } from 'react-router'
 
-import { COPILOT_INPUT_ID } from '@/components/chat/chat-panel'
 import { AppShell } from '@/components/layout/app-shell'
 import { AppSidebar } from '@/components/layout/app-sidebar'
-import { Background } from '@/components/layout/background'
 import { CaptureDialog } from '@/components/tasks/capture-dialog'
 import { TaskSheet } from '@/components/tasks/task-sheet'
 import { Button } from '@/components/ui/button'
@@ -14,11 +12,10 @@ import { Toaster } from '@/components/ui/sonner'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { useAppData } from '@/hooks/use-app-data'
 import { useChat } from '@/hooks/use-chat'
-import { useIsMobile } from '@/hooks/use-mobile'
 import { CalendarPage } from '@/pages/calendar'
+import { ChatPage } from '@/pages/chat'
 import { SetupPage } from '@/pages/setup'
 import { TasksPage } from '@/pages/tasks'
-import { TodayPage } from '@/pages/today'
 
 // Keys typed into a field are text, not shortcuts.
 function isTyping(target: HTMLElement) {
@@ -26,62 +23,61 @@ function isTyping(target: HTMLElement) {
 }
 
 export function App() {
-  const routerNavigate = useNavigate()
-  const navigate = useCallback((to: string) => { void routerNavigate(to) }, [routerNavigate])
-  const isMobile = useIsMobile()
+  const { pathname } = useLocation()
   const [capturing, setCapturing] = useState(false)
-  const [chatSheetOpen, setChatSheetOpen] = useState(false)
+  const [chatOpen, setChatOpen] = useState(false)
+  const [chatPath, setChatPath] = useState(pathname)
   const [editingId, setEditingId] = useState<number | null>(null)
 
-  const data = useAppData({ openTask: setEditingId, navigate })
+  const data = useAppData({ openTask: setEditingId })
   const chat = useChat()
   const { meta, settings, tasks, schedule, events, busy, error, actions } = data
 
-  // `n` or `/` from anywhere opens capture.
+  // The chat drawer belongs to the page it was opened on: moving on closes it.
+  if (chatPath !== pathname) {
+    setChatPath(pathname)
+    setChatOpen(false)
+  }
+
+  // The Chat page is the chat, so the drawer has nothing to add there.
+  const chatAvailable = pathname !== '/chat'
+
+  // From anywhere: `n` or `/` opens capture, `c` opens or closes the chat drawer.
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       if (event.metaKey || event.ctrlKey || event.altKey || isTyping(event.target as HTMLElement)) return
       if (event.key === 'n' || event.key === '/') {
         event.preventDefault()
         setCapturing(true)
+      } else if (event.key === 'c' && chatAvailable) {
+        event.preventDefault()
+        setChatOpen((open) => !open)
       }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [])
-
-  const pendingByType = useMemo(() => {
-    const counts: Record<string, number> = {}
-    for (const task of tasks) if (task.status === 'pending') counts[task.task_type] = (counts[task.task_type] ?? 0) + 1
-    return counts
-  }, [tasks])
+  }, [chatAvailable])
 
   if (error && !settings) return <Offline message={error} onRetry={() => void data.refresh()} />
   if (!settings || !meta) return <Loading />
 
   const editingTask = tasks.find((task) => task.id === editingId) ?? null
   const openCapture = () => setCapturing(true)
-  // The Co-Pilot is always on screen on desktop; the nav item just puts the cursor in it.
-  const openCopilot = () => {
-    if (isMobile) setChatSheetOpen(true)
-    else document.getElementById(COPILOT_INPUT_ID)?.focus()
-  }
 
   return (
     <TooltipProvider delayDuration={300}>
-      <SidebarProvider defaultOpen={false}>
-        <Background />
+      <SidebarProvider defaultOpen>
         <AppShell
           chat={chat}
-          chatSheetOpen={chatSheetOpen}
-          onChatSheetChange={setChatSheetOpen}
+          chatOpen={chatOpen}
+          onChatOpenChange={setChatOpen}
+          chatAvailable={chatAvailable}
+          flush={!chatAvailable}
           sidebar={
             <AppSidebar
               studentName={settings.student.name}
-              taskTypes={meta.task_types}
-              pendingByType={pendingByType}
+              chat={chat}
               onAddTask={openCapture}
-              onCopilot={openCopilot}
               onRebuild={() => void data.regenerate()}
             />
           }
@@ -93,22 +89,18 @@ export function App() {
         >
           <Routes>
             <Route index element={
-              <TodayPage schedule={schedule} tasks={tasks} settings={settings} busy={busy}
-                         onComplete={data.onComplete} onSkip={data.onSkip} onOpenTask={setEditingId}
-                         onCapture={openCapture} fixes={data.fixes} />
-            } />
-            <Route path="calendar" element={
               <CalendarPage schedule={schedule} settings={settings} busy={busy}
                             onRegenerate={() => void data.regenerate()}
                             onMoveSlot={(slot, start, end) => void data.moveSlot(slot, start, end)}
-                            onComplete={data.onComplete} onSkip={data.onSkip} onOpenTask={setEditingId}
-                            fixes={data.fixes} />
+                            onComplete={data.onComplete} onSkip={data.onSkip} onOpenTask={setEditingId} />
             } />
-            <Route path="week" element={<Redirect to="/calendar" replace />} />
+            <Route path="calendar" element={<Redirect to="/" replace />} />
+            <Route path="week" element={<Redirect to="/" replace />} />
             <Route path="tasks" element={
               <TasksPage tasks={tasks} schedule={schedule} busy={busy} actions={actions}
                          onOpenTask={setEditingId} onCapture={openCapture} />
             } />
+            <Route path="chat" element={<ChatPage chat={chat} />} />
             <Route path="setup" element={
               <SetupPage settings={settings} events={events} taskTypes={meta.task_types} busy={busy} actions={actions} />
             } />
@@ -131,7 +123,6 @@ export function App() {
 function Loading() {
   return (
     <div className="grid h-dvh place-items-center">
-      <Background />
       <p className="animate-pulse text-sm text-sidebar-foreground/60">Reading your week…</p>
     </div>
   )
@@ -140,7 +131,6 @@ function Loading() {
 function Offline({ message, onRetry }: { message: string; onRetry: () => void }) {
   return (
     <div className="grid h-dvh place-items-center px-4">
-      <Background />
       <Card className="max-w-md px-6 text-center">
         <p className="text-xl font-semibold">Sype<span className="text-blue-400">.</span></p>
         <div>

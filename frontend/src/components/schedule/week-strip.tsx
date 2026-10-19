@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button'
 import { Input, Label, NativeSelect } from '@/components/ui/input'
 import { DAY_NAMES, MINUTES_IN_DAY, expandRecurring, formatHhmm } from '@/lib/time'
 import { errorMessage } from '@/lib/utils'
-import type { Block, BlockInput, BlockKind } from '@/types/api'
+import type { Block, BlockInput } from '@/types/api'
 import type { AddBlock } from '@/types/app'
 
 const STRIP_HEIGHT = 200
@@ -16,7 +16,6 @@ const GENERIC_MONDAY = new Date(2024, 0, 1)
 
 interface Draft {
   label: string
-  kind: BlockKind
   day_of_week: string
   start_time: string
   end_time: string
@@ -32,8 +31,7 @@ interface WeekStripProps {
 }
 
 /**
- * A week painted rather than typed. Both fixed blocks and productive hours are
- * weekly and recurring, so they are easier to reason about as bands on a week
+ * A week painted rather than typed. Productive hours are weekly and recurring, so they are easier to reason about as bands on a week
  * than as rows in a table. Click a gap to add one there; click a band to remove
  * it. The list underneath carries the exact times and the keyboard path.
  */
@@ -50,7 +48,6 @@ export function WeekStrip({ blocks, tint, onAdd, onDelete, addLabel, busy }: Wee
     setError(null)
     setDraft({
       label: '',
-      kind: 'class',
       day_of_week: String(dayIndex),
       start_time: `${String(hour).padStart(2, '0')}:00`,
       end_time: `${String(hour + 2).padStart(2, '0')}:00`,
@@ -68,7 +65,6 @@ export function WeekStrip({ blocks, tint, onAdd, onDelete, addLabel, busy }: Wee
         start_time: draft.start_time,
         end_time: draft.end_time,
       }
-      if (onAdd.withKind) payload.kind = draft.kind
       await onAdd(payload)
       setDraft(null)
     } catch (err) {
@@ -79,7 +75,7 @@ export function WeekStrip({ blocks, tint, onAdd, onDelete, addLabel, busy }: Wee
   return (
     <div>
       <div className="flex gap-px overflow-hidden rounded-2xl border border-white/10 bg-white/[0.06]">
-        <div className="relative w-8 shrink-0 bg-black" style={{ height: STRIP_HEIGHT + 26 }}>
+        <div className="relative w-8 shrink-0 bg-background" style={{ height: STRIP_HEIGHT + 26 }}>
           <span className="sr-only">Time of day</span>
           {GUIDE_HOURS.slice(0, -1).map((hour) => (
             <span
@@ -94,7 +90,7 @@ export function WeekStrip({ blocks, tint, onAdd, onDelete, addLabel, busy }: Wee
         </div>
 
         {DAY_NAMES.map((name, dayIndex) => (
-          <div key={name} className="flex-1 bg-black">
+          <div key={name} className="flex-1 bg-background">
             <div className="py-1.5 text-center text-[11px] text-faint">{name}</div>
             <button
               type="button"
@@ -165,26 +161,12 @@ export function WeekStrip({ blocks, tint, onAdd, onDelete, addLabel, busy }: Wee
             <Label>Name</Label>
             <Input
               autoFocus
-              placeholder={onAdd.withKind ? 'Lecture' : 'Morning focus'}
+              placeholder="Morning focus"
               value={draft.label}
               onChange={(event) => setDraft({ ...draft, label: event.target.value })}
             />
           </label>
 
-          {onAdd.withKind && (
-            <label>
-              <Label>Kind</Label>
-              <NativeSelect
-                value={draft.kind}
-                onChange={(event) => setDraft({ ...draft, kind: event.target.value as BlockKind })}
-              >
-                <option value="class">Class</option>
-                <option value="sleep">Sleep</option>
-                <option value="lunch">Meals</option>
-                <option value="other">Other</option>
-              </NativeSelect>
-            </label>
-          )}
 
           <label>
             <Label>Day</Label>

@@ -3,7 +3,7 @@ import type {
   BlockInput, RecurringTaskInput, Task, TaskChanges, TaskInput, Weights,
 } from '@/types/api'
 
-export type AddBlock = ((block: BlockInput) => Promise<unknown>) & { withKind?: boolean }
+export type AddBlock = (block: BlockInput) => Promise<unknown>
 
 export interface Actions {
   createTask: (task: TaskInput) => Promise<Task>
@@ -14,8 +14,6 @@ export interface Actions {
   completeSubtask: (id: number) => Promise<unknown>
   skipSubtask: (id: number) => Promise<unknown>
   saveWeights: (weights: Weights) => Promise<unknown>
-  addFixedBlock: AddBlock
-  deleteFixedBlock: (id: number) => Promise<unknown>
   addProductiveWindow: AddBlock
   deleteProductiveWindow: (id: number) => Promise<unknown>
   createRecurringTask: (task: RecurringTaskInput) => Promise<unknown>
@@ -28,13 +26,3 @@ export interface Actions {
 
 /** Done / Skip on a scheduled session; a session is a step when it has a subtask. */
 export type SlotAction = (id: number, isSubtask: boolean) => Promise<unknown>
-
-/** One-tap fixes for work that did not fit, shared by Today and Week. */
-export interface Fixes {
-  onPushDeadline: (taskId: number, days: number) => void
-  onEdit: (taskId: number) => void
-  onFocusHours: () => void
-}
-
-/** A route path, optionally with a section hash: `/setup#focus`. */
-export type Navigate = (to: string) => void

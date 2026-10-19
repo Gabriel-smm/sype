@@ -57,6 +57,12 @@ All of them are optional.
 
 The Anthropic provider also needs the SDK: `.venv/bin/pip install anthropic`.
 
+## Font (optional)
+
+The UI prefers Styrene B, a licensed font that is not in the repository. If you have a licence,
+copy `StyreneB-Regular.woff2` and `StyreneB-Medium.woff2` into `frontend/public/fonts/`
+(git-ignored), or install the font on your machine. Without it the UI falls back to Inter.
+
 ## Checks
 
 Every PR has to pass all of these, and CI runs them too:

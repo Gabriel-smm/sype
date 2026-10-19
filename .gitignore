@@ -14,5 +14,6 @@ frontend/dist/
 *.swp
 
 # Local only
+frontend/public/fonts/
 .claude/worktrees/
 TODO.md
