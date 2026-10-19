@@ -123,3 +123,23 @@ def test_recurring_task_scoped_to_unknown_student_is_a_404(client):
         },
     )
     assert response.status_code == 404
+
+
+def test_recurring_template_category_is_copied_to_materialised_tasks(client):
+    cats = {c["name"]: c for c in client.get(f"/api/students/{STUDENT}/categories").json()}
+    gym = cats["Classes"]
+    template = new_recurring_task(client, category_id=gym["id"])
+    assert template["category_id"] == gym["id"]
+    assert client.get(f"/api/recurring-tasks/{template['id']}").json()["category_id"] == gym["id"]
+
+    tasks = client.get(f"/api/students/{STUDENT}/tasks").json()
+    mine = [t for t in tasks if t["recurring_task_id"] == template["id"]]
+    assert mine and all(t["category_id"] == gym["id"] for t in mine)
+
+    cleared = client.patch(f"/api/recurring-tasks/{template['id']}", json={"category_id": None})
+    assert cleared.json()["category_id"] is None
+    assert client.patch(f"/api/recurring-tasks/{template['id']}",
+                        json={"category_id": 9999}).status_code == 404
+    assert client.post(f"/api/students/{STUDENT}/recurring-tasks", json={
+        "title": "x", "estimated_duration": 30, "weekdays": [0], "category_id": 9999,
+    }).status_code == 404

@@ -13,6 +13,15 @@ from .recurrence import validate_recurrence
 from .timeutil import format_hhmm, parse_hhmm
 
 
+def _check_color_key(value: str) -> str:
+    if value not in COLOR_KEYS:
+        raise ValueError(f"color_key must be one of {COLOR_KEYS}")
+    return value
+
+
+ColorKey = Annotated[str, AfterValidator(_check_color_key)]
+
+
 class BlockBase(BaseModel):
     label: str = ""
     day_of_week: int | None = Field(None, ge=0, le=6, description="0=Mon, 6=Sun; null=every day")
@@ -55,6 +64,8 @@ class TaskCreate(BaseModel):
     grade_weight: float = Field(0.0, ge=0, le=100)
     stress_rating: int = Field(3, ge=1, le=5)
     time_invested: int = Field(0, ge=0, description="minutes")
+    category_id: int | None = None
+    color_key: ColorKey | None = None
 
     @field_validator("task_type")
     @classmethod
@@ -73,6 +84,8 @@ class TaskUpdate(BaseModel):
     stress_rating: int | None = Field(None, ge=1, le=5)
     time_invested: int | None = Field(None, ge=0)
     status: str | None = None
+    category_id: int | None = None  # an explicit null clears the category
+    color_key: ColorKey | None = None  # an explicit null clears the task's own colour
 
 
 class SubtaskOut(BaseModel):
@@ -104,6 +117,8 @@ class TaskOut(BaseModel):
     time_invested: int
     status: str
     recurring_task_id: int | None = None
+    category_id: int | None = None
+    color_key: str | None = None
     subtasks: list[SubtaskOut] = []
 
 
@@ -115,6 +130,7 @@ class RecurringTaskBase(BaseModel):
     stress_rating: int = Field(3, ge=1, le=5)
     weekdays: list[int] = Field(..., min_length=1, description="0=Mon .. 6=Sun")
     due_time: str = Field("23:59", examples=["18:00"])
+    category_id: int | None = None
 
     @field_validator("task_type")
     @classmethod
@@ -149,6 +165,7 @@ class RecurringTaskUpdate(BaseModel):
     weekdays: list[int] | None = Field(None, min_length=1)
     due_time: str | None = None
     active: bool | None = None
+    category_id: int | None = None  # an explicit null clears the category
 
     @field_validator("task_type")
     @classmethod
@@ -285,15 +302,6 @@ class EventOut(BaseModel):
     event_type: str
     timestamp: datetime
     details: str
-
-
-def _check_color_key(value: str) -> str:
-    if value not in COLOR_KEYS:
-        raise ValueError(f"color_key must be one of {COLOR_KEYS}")
-    return value
-
-
-ColorKey = Annotated[str, AfterValidator(_check_color_key)]
 
 
 class CalendarCreate(BaseModel):

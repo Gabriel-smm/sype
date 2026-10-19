@@ -340,3 +340,76 @@ def test_weights_preview_on_an_empty_week(client):
     body = client.post(f"/api/students/{STUDENT}/weights/preview", json={
         "w_urgency": 0.4, "w_grade": 0.3, "w_stress": 0.15, "w_effort_gap": 0.15}).json()
     assert body == {"ranked": [], "total_pending": 0}
+
+
+def _category(client, name):
+    return {c["name"]: c for c in client.get(f"/api/students/{STUDENT}/categories").json()}[name]
+
+
+def test_task_category_and_colour_round_trip(client):
+    classes = _category(client, "Classes")
+    created = new_task(client, category_id=classes["id"], color_key="mint")
+    assert created["category_id"] == classes["id"]
+    assert created["color_key"] == "mint"
+
+    fetched = client.get(f"/api/tasks/{created['id']}").json()
+    assert (fetched["category_id"], fetched["color_key"]) == (classes["id"], "mint")
+
+    plain = new_task(client)
+    assert plain["category_id"] is None and plain["color_key"] is None
+
+    assert client.patch(f"/api/tasks/{plain['id']}", json={"category_id": classes["id"]}
+                        ).json()["category_id"] == classes["id"]
+    assert client.patch(f"/api/tasks/{plain['id']}", json={"category_id": None}
+                        ).json()["category_id"] is None
+
+
+def test_setting_a_task_colour_clears_its_category(client):
+    classes = _category(client, "Classes")
+    task = new_task(client, category_id=classes["id"])
+    updated = client.patch(f"/api/tasks/{task['id']}", json={"color_key": "lilac"}).json()
+    assert updated["color_key"] == "lilac"
+    assert updated["category_id"] is None
+
+    # Sending both keeps both.
+    both = client.patch(f"/api/tasks/{task['id']}",
+                        json={"color_key": "rose", "category_id": classes["id"]}).json()
+    assert (both["color_key"], both["category_id"]) == ("rose", classes["id"])
+
+
+def test_task_rejects_bad_colour_and_foreign_or_unknown_category(client):
+    from app import models
+    from app.db import SessionLocal
+
+    task = new_task(client)
+    assert client.patch(f"/api/tasks/{task['id']}", json={"color_key": "neon"}).status_code == 422
+    assert client.patch(f"/api/tasks/{task['id']}", json={"category_id": 9999}).status_code == 404
+
+    with SessionLocal() as db:
+        other = models.Student(name="Other")
+        db.add(other)
+        db.flush()
+        foreign = models.Category(student_id=other.id, name="Theirs", color_key="rose")
+        db.add(foreign)
+        db.commit()
+        foreign_id = foreign.id
+    assert client.patch(f"/api/tasks/{task['id']}", json={"category_id": foreign_id}
+                        ).status_code == 404
+    response = client.post(f"/api/students/{STUDENT}/tasks", json={
+        "title": "x", "due_date": iso(days=5), "estimated_duration": 60,
+        "category_id": foreign_id,
+    })
+    assert response.status_code == 404
+    assert client.get(f"/api/tasks/{task['id']}").json()["category_id"] is None
+
+
+def test_changing_task_colour_keeps_subtasks(client):
+    task = new_task(client, task_type="essay_project", estimated_duration=600,
+                    due_date=iso(days=12))
+    ids = [s["id"] for s in task["subtasks"]]
+    assert ids
+    updated = client.patch(f"/api/tasks/{task['id']}", json={"color_key": "aqua"}).json()
+    assert [s["id"] for s in updated["subtasks"]] == ids
+    classes = _category(client, "Classes")
+    updated = client.patch(f"/api/tasks/{task['id']}", json={"category_id": classes["id"]}).json()
+    assert [s["id"] for s in updated["subtasks"]] == ids

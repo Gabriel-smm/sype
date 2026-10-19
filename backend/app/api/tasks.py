@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 
 from .. import models, schemas
 from ..db import get_db
+from .calendar import _own_category
 from ..pipeline import apply_decomposition, log_event, materialize_recurring_tasks
 
 router = APIRouter(prefix="/api", tags=["tasks"])
@@ -35,6 +36,8 @@ def list_tasks(student_id: int, status: str | None = None, db: Session = Depends
 def create_task(student_id: int, payload: schemas.TaskCreate, db: Session = Depends(get_db)):
     if db.get(models.Student, student_id) is None:
         raise HTTPException(404, f"No student {student_id}")
+    if payload.category_id is not None:
+        _own_category(db, student_id, payload.category_id)
 
     task = models.Task(student_id=student_id, **payload.model_dump())
     db.add(task)
@@ -58,6 +61,11 @@ def update_task(task_id: int, payload: schemas.TaskUpdate, db: Session = Depends
 
     if "task_type" in changes and changes["task_type"] not in models.TASK_TYPES:
         raise HTTPException(422, f"task_type must be one of {models.TASK_TYPES}")
+    if changes.get("category_id") is not None:
+        _own_category(db, task.student_id, changes["category_id"])
+    # Same rule as events: choosing a colour replaces the category's, unless both are sent.
+    if changes.get("color_key") is not None and "category_id" not in changes:
+        changes["category_id"] = None
 
     for field, value in changes.items():
         setattr(task, field, value)

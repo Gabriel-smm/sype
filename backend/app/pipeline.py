@@ -124,6 +124,7 @@ def materialize_recurring_tasks(
                 task_type=template.task_type,
                 grade_weight=template.grade_weight,
                 stress_rating=template.stress_rating,
+                category_id=template.category_id,
             )
             db.add(task)
             db.flush()
