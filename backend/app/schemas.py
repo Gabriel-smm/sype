@@ -4,9 +4,11 @@ Durations are minutes. Recurring block times cross the wire as "HH:MM".
 """
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from typing import Annotated
 
-from .models import EVENT_TYPES, TASK_TYPE_ROUTINE, TASK_TYPES
+from pydantic import AfterValidator, BaseModel, ConfigDict, Field, field_validator
+
+from .models import COLOR_KEYS, DEFAULT_CALENDAR_COLOR, EVENT_TYPES, TASK_TYPE_ROUTINE, TASK_TYPES
 from .timeutil import format_hhmm, parse_hhmm
 
 
@@ -282,6 +284,59 @@ class EventOut(BaseModel):
     event_type: str
     timestamp: datetime
     details: str
+
+
+def _check_color_key(value: str) -> str:
+    if value not in COLOR_KEYS:
+        raise ValueError(f"color_key must be one of {COLOR_KEYS}")
+    return value
+
+
+ColorKey = Annotated[str, AfterValidator(_check_color_key)]
+
+
+class CalendarCreate(BaseModel):
+    name: str = Field(..., min_length=1, max_length=80)
+    color_key: ColorKey = DEFAULT_CALENDAR_COLOR
+
+
+class CalendarUpdate(BaseModel):
+    name: str | None = Field(None, min_length=1, max_length=80)
+    color_key: ColorKey | None = None
+    visible: bool | None = None
+    position: int | None = None
+
+
+class CalendarOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    name: str
+    source: str
+    is_primary: bool
+    visible: bool
+    color_key: str
+    position: int
+
+
+class CategoryCreate(BaseModel):
+    name: str = Field(..., min_length=1, max_length=40)
+    color_key: ColorKey
+
+
+class CategoryUpdate(BaseModel):
+    name: str | None = Field(None, min_length=1, max_length=40)
+    color_key: ColorKey | None = None
+    position: int | None = None
+
+
+class CategoryOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    name: str
+    color_key: str
+    position: int
 
 
 StudentSettings.model_rebuild()
