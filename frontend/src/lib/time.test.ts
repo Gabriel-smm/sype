@@ -66,6 +66,11 @@ describe('occurrenceSpans over a short day list', () => {
     expect(spans[0]).toMatchObject({ dayOffset: 0, startMinute: 0, endMinute: 450 })
   })
 
+  it('drops an all-day event that ends at midnight of the first visible day', () => {
+    const before = occurrence('2026-09-14T00:00:00', '2026-09-16T00:00:00', { all_day: true })
+    expect(occurrenceSpans([before], [new Date(2026, 8, 16), new Date(2026, 8, 17)])).toEqual([])
+  })
+
   it('indexes dayOffset into the given days for a 3-day list', () => {
     const days = [new Date(2026, 8, 15), new Date(2026, 8, 16), new Date(2026, 8, 17)]
     const spans = occurrenceSpans(

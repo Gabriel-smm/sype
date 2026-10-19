@@ -1,6 +1,7 @@
 // Pure maths behind calendar drag gestures and the all-day strip. All day
-// arithmetic goes through date-fns so DST changes keep wall-clock times.
-import { addDays, addMinutes, differenceInMinutes } from 'date-fns'
+// arithmetic is wall-clock (local fields), because the grid is a fixed 24h clock
+// even on days a DST change makes shorter or longer.
+import { addDays, differenceInMinutes } from 'date-fns'
 
 import type { Occurrence } from '@/types/api'
 import { MINUTES_IN_DAY } from './time'
@@ -11,8 +12,17 @@ export const CLICK_MINUTES = 60
 
 const clamp = (value: number, low: number, high: number) => Math.min(Math.max(value, low), high)
 
-function dayStart(day: Date): Date {
-  return new Date(day.getFullYear(), day.getMonth(), day.getDate())
+// Local wall-clock time `minute` minutes after midnight of `day` (1440 rolls to the next midnight).
+function wallClock(day: Date, minute: number): Date {
+  return new Date(day.getFullYear(), day.getMonth(), day.getDate(), 0, minute)
+}
+
+// Shift a date by whole days and wall-clock minutes (not absolute milliseconds).
+function shiftWall(date: Date, dayDelta: number, minuteDelta: number): Date {
+  return new Date(
+    date.getFullYear(), date.getMonth(), date.getDate() + dayDelta,
+    date.getHours(), date.getMinutes() + minuteDelta, date.getSeconds(),
+  )
 }
 
 // A pointer offset inside a day column, snapped to 15 minutes and kept on the day.
@@ -36,31 +46,24 @@ export function normaliseCreate(
   } else {
     low = Math.min(from, to)
     high = Math.max(from, to)
-    if (high - low < MIN_MINUTES) {
-      high = Math.min(low + MIN_MINUTES, MINUTES_IN_DAY)
-      low = high - MIN_MINUTES
-    }
   }
 
-  const base = dayStart(day)
-  return { start: addMinutes(base, low), end: addMinutes(base, high) }
+  return { start: wallClock(day, low), end: wallClock(day, high) }
 }
 
-// Moves by whole days then minutes, preserving the duration exactly.
+// Moves by whole days then wall-clock minutes, keeping the wall-clock duration.
 export function applyMove(
   start: Date, end: Date, dayDelta: number, minuteDelta: number,
 ): { start: Date; end: Date } {
-  const duration = differenceInMinutes(end, start)
-  const moved = addMinutes(addDays(start, dayDelta), minuteDelta)
-  return { start: moved, end: addMinutes(moved, duration) }
+  return { start: shiftWall(start, dayDelta, minuteDelta), end: shiftWall(end, dayDelta, minuteDelta) }
 }
 
 // Only the end moves; the event never shrinks below the minimum.
 export function applyResize(
   start: Date, end: Date, minuteDelta: number,
 ): { start: Date; end: Date } {
-  const minEnd = addMinutes(start, MIN_MINUTES)
-  const next = addMinutes(end, minuteDelta)
+  const minEnd = shiftWall(start, 0, MIN_MINUTES)
+  const next = shiftWall(end, 0, minuteDelta)
   return { start, end: next < minEnd ? minEnd : next }
 }
 

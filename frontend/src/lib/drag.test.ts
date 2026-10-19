@@ -1,3 +1,6 @@
+// Pinned so the DST tests below really cross a transition.
+process.env.TZ = 'America/New_York'
+
 import { describe, expect, it } from 'vitest'
 
 import type { Occurrence } from '@/types/api'
@@ -76,6 +79,39 @@ describe('applyMove', () => {
   })
 })
 
+describe('wall-clock behaviour across DST', () => {
+  const springDay = new Date(2026, 2, 8)
+  const fallDay = new Date(2026, 10, 1)
+
+  it('normaliseCreate keeps the clicked wall-clock time', () => {
+    for (const d of [springDay, fallDay]) {
+      const { start, end } = normaliseCreate(d, 540, 540)
+      expect([start.getHours(), start.getMinutes()]).toEqual([9, 0])
+      expect([end.getHours(), end.getMinutes()]).toEqual([10, 0])
+    }
+  })
+  it('normaliseCreate ends at the next midnight for 1440', () => {
+    for (const d of [springDay, fallDay]) {
+      const { end } = normaliseCreate(d, 1300, 1440)
+      expect(end).toEqual(new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1))
+    }
+  })
+  it('applyMove shifts wall-clock minutes across the change', () => {
+    const m = applyMove(new Date(2026, 2, 8, 9, 0), new Date(2026, 2, 8, 10, 0), 0, 60)
+    expect(m.start).toEqual(new Date(2026, 2, 8, 10, 0))
+    expect(m.end).toEqual(new Date(2026, 2, 8, 11, 0))
+    const f = applyMove(new Date(2026, 10, 1, 0, 30), new Date(2026, 10, 1, 3, 30), 0, 120)
+    expect(f.start).toEqual(new Date(2026, 10, 1, 2, 30))
+    expect(f.end).toEqual(new Date(2026, 10, 1, 5, 30))
+  })
+  it('applyResize moves the end by wall-clock minutes', () => {
+    const r = applyResize(new Date(2026, 2, 8, 0, 0), new Date(2026, 2, 8, 1, 30), 90)
+    expect(r.end).toEqual(new Date(2026, 2, 8, 3, 0))
+    const f = applyResize(new Date(2026, 10, 1, 0, 0), new Date(2026, 10, 1, 1, 0), 120)
+    expect(f.end).toEqual(new Date(2026, 10, 1, 3, 0))
+  })
+})
+
 describe('applyResize', () => {
   it('changes only the end', () => {
     const r = applyResize(at(day, 600), at(day, 660), 30)
@@ -121,6 +157,10 @@ describe('allDayRows', () => {
     const rows = allDayRows([long, outside, timed], three)
     expect(rows).toHaveLength(1)
     expect(rows[0]).toMatchObject({ firstDay: 0, span: 1, row: 0 })
+  })
+  it('excludes an all-day event ending at midnight of the first visible day', () => {
+    const before = occ('before', '2026-09-14T00:00:00', '2026-09-16T00:00:00', { all_day: true })
+    expect(allDayRows([before], [new Date(2026, 8, 16), new Date(2026, 8, 17)])).toEqual([])
   })
   it('includes a timed event of two days', () => {
     const two = occ('two', '2026-09-16T10:00:00', '2026-09-18T10:00:00')
