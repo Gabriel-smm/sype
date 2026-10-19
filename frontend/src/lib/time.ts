@@ -156,28 +156,42 @@ export interface OccurrenceSpan {
 }
 
 export function occurrenceSpans(occurrences: Occurrence[], days: Date[]): OccurrenceSpan[] {
-  const spans: OccurrenceSpan[] = []
+  return occurrences.flatMap((occurrence) =>
+    projectRange(new Date(occurrence.start), new Date(occurrence.end), days).map((part) => ({
+      id: `${occurrence.id}-${part.dayOffset}`,
+      occurrence,
+      ...part,
+    })))
+}
 
-  occurrences.forEach((occurrence) => {
-    const start = new Date(occurrence.start)
-    const end = new Date(occurrence.end)
+export interface DayPart {
+  dayOffset: number
+  startMinute: number
+  endMinute: number
+}
 
-    days.forEach((day, offset) => {
-      const dayStart = day
-      const dayEnd = addDays(day, 1)
-      if (start >= dayEnd || end <= dayStart) return
-
-      spans.push({
-        id: `${occurrence.id}-${offset}`,
-        occurrence,
-        dayOffset: offset,
-        startMinute: start > dayStart ? minutesSinceMidnight(start) : 0,
-        endMinute: end < dayEnd ? minutesSinceMidnight(end) : MINUTES_IN_DAY,
-      })
+// Split any start–end range at each midnight and keep the parts on the visible days.
+export function projectRange(start: Date, end: Date, days: Date[]): DayPart[] {
+  const parts: DayPart[] = []
+  days.forEach((day, dayOffset) => {
+    const dayEnd = addDays(day, 1)
+    if (start >= dayEnd || end <= day) return
+    parts.push({
+      dayOffset,
+      startMinute: start > day ? minutesSinceMidnight(start) : 0,
+      endMinute: end < dayEnd ? minutesSinceMidnight(end) : MINUTES_IN_DAY,
     })
   })
+  return parts
+}
 
-  return spans
+// "9:00": the compact clock used on event chips and drag ghosts.
+export function formatShortTime(date: Date): string {
+  return `${date.getHours()}:${String(date.getMinutes()).padStart(2, '0')}`
+}
+
+export function formatTimeRange(start: Date, end: Date): string {
+  return `${formatShortTime(start)} – ${formatShortTime(end)}`
 }
 
 function labelFor(kind: string): string {

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import type { Occurrence } from '@/types/api'
-import { daysOfWeek, layoutColumns, occurrenceSpans } from './time'
+import { daysOfWeek, formatShortTime, formatTimeRange, layoutColumns, occurrenceSpans, projectRange } from './time'
 
 // Monday 2026-09-14 is the week under test.
 const weekStart = new Date(2026, 8, 14)
@@ -97,5 +97,41 @@ describe('layoutColumns', () => {
       { startMinute: 600, endMinute: 660 },
     ])
     expect(placed.map((p) => p.columns)).toEqual([1, 1])
+  })
+})
+
+describe('projectRange', () => {
+  const threeDays = week.slice(1, 4) // Tue 15 – Thu 17
+
+  it('clips a range to the visible days, one part per day', () => {
+    expect(projectRange(new Date(2026, 8, 15, 23, 30), new Date(2026, 8, 16, 7, 30), threeDays)).toEqual([
+      { dayOffset: 0, startMinute: 1410, endMinute: 1440 },
+      { dayOffset: 1, startMinute: 0, endMinute: 450 },
+    ])
+  })
+
+  it('drops parts outside the visible days', () => {
+    expect(projectRange(new Date(2026, 8, 14, 22, 0), new Date(2026, 8, 15, 1, 0), threeDays)).toEqual([
+      { dayOffset: 0, startMinute: 0, endMinute: 60 },
+    ])
+    expect(projectRange(new Date(2026, 8, 19, 9, 0), new Date(2026, 8, 19, 10, 0), threeDays)).toEqual([])
+  })
+
+  it('does not give an empty part to the day a range ends at midnight', () => {
+    expect(projectRange(new Date(2026, 8, 15, 23, 0), new Date(2026, 8, 16, 0, 0), threeDays)).toEqual([
+      { dayOffset: 0, startMinute: 1380, endMinute: 1440 },
+    ])
+  })
+})
+
+describe('formatShortTime / formatTimeRange', () => {
+  it('prints an unpadded 24-hour clock', () => {
+    expect(formatShortTime(new Date(2026, 8, 14, 9, 0))).toBe('9:00')
+    expect(formatShortTime(new Date(2026, 8, 14, 0, 5))).toBe('0:05')
+    expect(formatShortTime(new Date(2026, 8, 14, 17, 45))).toBe('17:45')
+  })
+
+  it('joins a range with an en dash', () => {
+    expect(formatTimeRange(new Date(2026, 8, 14, 9, 0), new Date(2026, 8, 14, 10, 15))).toBe('9:00 – 10:15')
   })
 })
