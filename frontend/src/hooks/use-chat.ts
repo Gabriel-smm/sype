@@ -1,15 +1,18 @@
 import { useCallback, useEffect, useState } from 'react'
 
 import { api } from '@/lib/api'
-import { newThread, parseStored, serialize, withMessages, type Thread, type ThreadState } from '@/lib/chat-threads'
+import { newThread, parseStored, placeholderThreads, serialize, withMessages, type Thread, type ThreadState } from '@/lib/chat-threads'
 import { errorMessage } from '@/lib/utils'
 import type { ChatMessage, ChatProvider } from '@/types/api'
 
 const STORAGE_KEY = 'sype.chat.v1'
 
+// A first run (nothing stored yet) starts with example chats; once saved they are ordinary chats.
 function load(): ThreadState {
   try {
-    return parseStored(localStorage.getItem(STORAGE_KEY))
+    const raw = localStorage.getItem(STORAGE_KEY)
+    if (raw === null) return { threads: placeholderThreads(), activeId: null }
+    return parseStored(raw)
   } catch {
     return { threads: [], activeId: null }
   }

@@ -66,6 +66,60 @@ export function groupByDay(threads: Thread[], now = new Date()): ThreadGroup[] {
   return groups.filter((group) => group.threads.length > 0)
 }
 
+const HOUR = 60 * 60 * 1000
+const DAY = 24 * HOUR
+
+// Example history for a first run, so the sidebar shows what saved chats look like.
+const PLACEHOLDERS: { title: string; ago: number; messages: ChatMessage[] }[] = [
+  {
+    title: 'Plan my week before the chem midterm',
+    ago: 1 * HOUR,
+    messages: [
+      { role: 'user', content: 'My chem midterm is Thursday. Can you plan my week around it?' },
+      { role: 'assistant', content: 'Add the midterm as a task due Thursday and Sype will spread review sessions over Monday to Wednesday, heaviest the day before.' },
+    ],
+  },
+  {
+    title: "What's due Friday?",
+    ago: 3 * HOUR,
+    messages: [
+      { role: 'user', content: "What's due Friday?" },
+      { role: 'assistant', content: 'The calculus problem set and the lab report draft. Both are already in your calendar for Wednesday and Thursday afternoon.' },
+    ],
+  },
+  {
+    title: 'Split the history essay into steps',
+    ago: 1 * DAY,
+    messages: [
+      { role: 'user', content: 'I have a 2,500 word history essay due in ten days. Break it up for me.' },
+      { role: 'assistant', content: 'Research, outline, first draft and revision. Give the task 8 hours and Sype will split it into sessions before the deadline.' },
+    ],
+  },
+  {
+    title: 'Move gym to mornings',
+    ago: 3 * DAY,
+    messages: [
+      { role: 'user', content: 'Can I move gym to the mornings?' },
+      { role: 'assistant', content: 'Change your gym routine in Setup to 7:00–8:00 and rebuild the schedule. Study blocks will shift to the evenings you freed up.' },
+    ],
+  },
+  {
+    title: 'Add a reading block for Lit',
+    ago: 6 * DAY,
+    messages: [
+      { role: 'user', content: 'I need to read two chapters for Lit every week.' },
+      { role: 'assistant', content: 'Set it up as a weekly recurring task of about 2 hours and it will be placed in your focus hours each week.' },
+    ],
+  },
+]
+
+/** A handful of past chats spread over today, yesterday and earlier. */
+export function placeholderThreads(now = Date.now()): Thread[] {
+  return PLACEHOLDERS.map(({ title, ago, messages }, index) => ({
+    id: `placeholder-${index}`, title, createdAt: now - ago, updatedAt: now - ago, messages,
+  }))
+}
+
 /** Chats with nothing in them are not worth keeping. */
 export function serialize({ threads, activeId }: ThreadState): string {
   return JSON.stringify({ threads: threads.filter((thread) => thread.messages.length > 0), activeId })

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import type { ChatMessage } from '@/types/api'
 import {
-  NEW_CHAT_TITLE, groupByDay, newThread, parseStored, serialize, titleFrom, withMessages, type Thread,
+  NEW_CHAT_TITLE, groupByDay, newThread, parseStored, placeholderThreads, serialize, titleFrom, withMessages, type Thread,
 } from './chat-threads'
 
 // Wednesday 23 September 2026, 14:30 local.
@@ -95,5 +95,17 @@ describe('serialize and parseStored', () => {
       activeId: 'bad',
     })
     expect(parseStored(raw)).toEqual({ threads: [thread('good', at(23))], activeId: null })
+  })
+})
+
+describe('placeholderThreads', () => {
+  it('survives a save and reload unchanged', () => {
+    const threads = placeholderThreads(NOW.getTime())
+    expect(parseStored(serialize({ threads, activeId: null }))).toEqual({ threads, activeId: null })
+  })
+
+  it('fills every day group', () => {
+    const labels = groupByDay(placeholderThreads(NOW.getTime()), NOW).map((group) => group.label)
+    expect(labels).toEqual(['Today', 'Yesterday', 'Earlier'])
   })
 })
