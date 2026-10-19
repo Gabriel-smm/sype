@@ -194,6 +194,19 @@ describe('clampMoveToDay', () => {
       .toEqual({ start: at(day, 0), end: at(day, 480) })
   })
 
+  it('keeps an overnight event ending on the day when it is held by its tail', () => {
+    const byTail = { overnight: true, holdBy: 'end' as const }
+    // Held by the morning part shown in `day`'s column: dragged up, the end stops at 00:15.
+    expect(clampMoveToDay(at(day, -600), at(day, -120), day, byTail))
+      .toEqual({ start: at(day, -465), end: at(day, 15) })
+    // Dragged down, the end stops at 24:00.
+    expect(clampMoveToDay(at(day, 1200), at(day, 1680), day, byTail))
+      .toEqual({ start: at(day, 960), end: at(day, 1440) })
+    // Within the day it is left alone.
+    expect(clampMoveToDay(at(day, -30), at(day, 450), day, byTail))
+      .toEqual({ start: at(day, -30), end: at(day, 450) })
+  })
+
   it('leaves events of 24 hours or more unchanged', () => {
     expect(clampMoveToDay(at(day, -60), at(day, 1500), day)).toEqual({ start: at(day, -60), end: at(day, 1500) })
   })

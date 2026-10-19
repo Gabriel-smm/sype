@@ -4,7 +4,7 @@
 // All time maths goes through lib/drag.ts.
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type PointerEvent, type RefObject } from 'react'
 
-import { addDays, startOfDay } from 'date-fns'
+import { startOfDay } from 'date-fns'
 
 import {
   SNAP, applyMove, applyResize, clampEndToDay, clampMoveToDay, normaliseCreate, yToMinute,
@@ -156,11 +156,11 @@ export function useGridPointer(options: Options) {
     const minuteDelta = Math.round(((at.top - current.originTop) / hourHeight) * 60 / SNAP) * SNAP
     // Clamped to the day it is dropped on, so the drag never runs off the visible grid.
     if (current.type === 'move') {
-      const dayDelta = at.day - current.originDay
-      const moved = applyMove(start, end, dayDelta, minuteDelta)
+      // The day is the column now under the grabbed part, which is always on screen.
+      const moved = applyMove(start, end, at.day - current.originDay, minuteDelta)
       const overnight = !isSameDay(start, new Date(end.getTime() - 1))
-      const day = addDays(startOfDay(start), dayDelta)
-      return { type: 'move', target, ...clampMoveToDay(moved.start, moved.end, day, { overnight }) }
+      const holdBy = isSameDay(start, days[current.originDay]) ? 'start' : 'end'
+      return { type: 'move', target, ...clampMoveToDay(moved.start, moved.end, days[at.day], { overnight, holdBy }) }
     }
     const resized = applyResize(start, end, minuteDelta)
     const endDay = startOfDay(new Date(end.getTime() - 1))

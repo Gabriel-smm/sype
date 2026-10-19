@@ -91,14 +91,12 @@ export function ChipFrame({
 export function ChipText({
   title, start, end, minutes, leading, live,
 }: { title: string; start: Date; end: Date; minutes: number; leading?: ReactNode; live?: boolean }) {
-  if (minutes < 30) {
+  if (minutes < 30 || (live && minutes < 45)) {
     return (
-      <p className="flex items-center gap-1 truncate text-[11px] leading-3">
+      <p className="flex items-center gap-1 text-[11px] leading-3 whitespace-nowrap">
         {leading}
-        <span className="truncate">
-          <span className="font-semibold">{title}</span>,{' '}
-          <span className="tnum">{live ? formatTimeRange(start, end) : formatShortTime(start)}</span>
-        </span>
+        <span className="min-w-0 truncate font-semibold">{title},</span>
+        <span className="shrink-0 tnum">{live ? formatTimeRange(start, end) : formatShortTime(start)}</span>
       </p>
     )
   }
@@ -106,7 +104,7 @@ export function ChipText({
     <div className="pt-0.5">
       <p className="flex items-center gap-1 font-semibold">
         {leading}
-        <span className="line-clamp-2 break-words">{title}</span>
+        <span className={cn('break-words', live ? 'truncate' : 'line-clamp-2')}>{title}</span>
       </p>
       {(live || minutes >= 45) && <p className="truncate tnum opacity-80">{formatTimeRange(start, end)}</p>}
     </div>

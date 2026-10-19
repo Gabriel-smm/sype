@@ -124,14 +124,24 @@ const wallMinutes = (date: Date) =>
 /**
  * Keep a moved range on the day it was dropped on: it starts no earlier than
  * 00:00 and ends no later than 24:00, keeping its wall-clock length. An
- * overnight event only has to start on the day. Ranges of 24h or more are
- * left alone (they live in the all-day row).
+ * overnight event only has to start on the day, or, when it is held by its
+ * tail (`holdBy: 'end'`, the part shown in the day's column), end on it.
+ * Ranges of 24h or more are left alone (they live in the all-day row).
  */
 export function clampMoveToDay(
-  start: Date, end: Date, day: Date, { overnight = false } = {},
+  start: Date, end: Date, day: Date,
+  { overnight = false, holdBy = 'start' }: { overnight?: boolean; holdBy?: 'start' | 'end' } = {},
 ): { start: Date; end: Date } {
   const duration = wallMinutes(end) - wallMinutes(start)
   if (duration >= MINUTES_IN_DAY) return { start, end }
+
+  if (overnight && holdBy === 'end') {
+    const offset = wallMinutes(end) - wallMinutes(day)
+    const minute = clamp(offset, SNAP, MINUTES_IN_DAY)
+    if (minute === offset) return { start, end }
+    return { start: wallClock(day, minute - duration), end: wallClock(day, minute) }
+  }
+
   const offset = wallMinutes(start) - wallMinutes(day)
   const latest = overnight ? MINUTES_IN_DAY - SNAP : MINUTES_IN_DAY - duration
   const minute = clamp(offset, 0, latest)
