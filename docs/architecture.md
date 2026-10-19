@@ -34,7 +34,7 @@ Task input (form / capture)      Recurring routine template
         ↓                    exam  -> spaced sessions 10/6/3/1 days out
 [Deterministic priority scorer]   weighted urgency / grade / stress / effort gap
         ↓
-[Greedy scheduler]           walks free slots, respects fixed blocks,
+[Greedy scheduler]           walks free slots, respects Busy events,
         ↓                    puts high-focus work in productive hours
 Week-view calendar
 ```
@@ -44,15 +44,32 @@ Week-view calendar
    so there is no background job.
 2. **Decompose** large essays and exams into ordered subtasks.
 3. **Score** every pending task/subtask and rank them, with stable tie-breaks.
-4. **Place** greedily into free slots, the week minus fixed blocks, honouring phase order and
+4. **Place** greedily into free slots, the week minus Busy event occurrences, honouring phase order and
    productive windows. Anything that can't be placed comes back as *unschedulable* with a reason.
 
 ## Data model
 
-`Student` owns `FixedBlock`s (sleep, lunch, class, other), `ProductiveWindow`s, `Weights`,
+`Student` owns `Calendar`s, colour `Category`s, `CalendarEvent`s, `ProductiveWindow`s, `Weights`,
 `Task`s (with `Subtask`s), `RecurringTask` templates (and their `RecurringTaskInstance`
 bookkeeping), `ScheduledSlot`s and an append-only `EventLog`.
 
+- **Calendar events** are the source of busy time. An event belongs to a calendar, has a start,
+  an exclusive end (all-day = midnight to midnight), an optional category, `transparency`
+  (`opaque` = Busy, `transparent` = Free; the API exposes `busy`), a `status` (`confirmed` or
+  `cancelled`) and an optional `recurrence` (RRULE/EXDATE/RDATE lines, expanded by the pure
+  `recurrence.py`). Edits to one occurrence are override rows pointing at their series
+  (`recurring_event_id`). Google-style sync fields (`external_id`, `etag`, ...) are stored but
+  unused. `kind` is `default` or `routine`.
+- **Busy time = opaque, confirmed occurrences** from every calendar. Hidden calendars still
+  block; Free and cancelled events don't. The occurrence that started last night (sleep) still
+  blocks this morning.
+- **Colour** is one of 11 keys (`COLOR_KEYS`). Effective colour: category colour, else the item's
+  own `color_key`, else the calendar colour. Tasks and routines carry a category and colour too.
+- **Migrations** (`migrations.py`): `add_missing_columns` adds new columns to an existing SQLite
+  file; data migrations run once each, recorded in `schema_migrations`. The first,
+  `fixed_blocks_to_events`, turns the old fixed blocks into weekly recurring events starting on
+  the Monday of the week before the current one. `FixedBlock` is now legacy: kept as a rollback
+  copy, never read.
 - **The schedule is derived state.** Regenerating wipes and rebuilds every `ScheduledSlot`.
 - **EventLog** records created / scheduled / rescheduled / skipped / completed / unschedulable.
   Nothing reads it yet. It is kept as future training data (see [ml.md](ml.md)).
@@ -60,8 +77,8 @@ bookkeeping), `ScheduledSlot`s and an append-only `EventLog`.
 ## Conventions
 
 - **Durations are minutes** everywhere in the API and database. The task form accepts hours.
-- **Fixed blocks and productive windows recur weekly.** `day_of_week` is `0`=Monday..`6`=Sunday,
-  or `null` for every day. An `end_time` at or before `start_time` runs overnight (sleep). A band
+- **Productive windows recur weekly; busy time comes from calendar events.** `day_of_week` is `0`=Monday..`6`=Sunday,
+  or `null` for every day. An `end_time` at or before `start_time` runs overnight. A band
   that spills off Sunday night is drawn on Monday morning too.
 - **Datetimes are naive local time.** That's fine for a single timezone; revisit before anyone travels.
 - **No auth.** Everything operates on student 1.

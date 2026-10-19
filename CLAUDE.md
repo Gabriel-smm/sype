@@ -25,8 +25,8 @@ session before non-trivial work instead of re-deriving it.
 ## Must-know conventions
 
 - Durations are **minutes** in the API and DB (the form accepts hours).
-- Fixed blocks / productive windows recur weekly: `day_of_week` 0=Mon..6=Sun or `null` = daily;
-  `end_time <= start_time` means overnight.
+- Productive windows recur weekly; busy time comes from calendar events (Busy occurrences).
+  Windows use `day_of_week` 0=Mon..6=Sun or `null` = daily; `end_time <= start_time` means overnight.
 - Datetimes are **naive local time**. The schedule is **derived state** (regenerate = wipe + rebuild).
 - No auth: everything is student 1.
 - Phase precedence and overdue-ASAP go beyond the original brief. Read `docs/architecture.md`
