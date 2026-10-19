@@ -4,11 +4,12 @@ Durations are minutes. Recurring block times cross the wire as "HH:MM".
 """
 from datetime import datetime
 
-from typing import Annotated
+from typing import Annotated, Literal
 
-from pydantic import AfterValidator, BaseModel, ConfigDict, Field, field_validator
+from pydantic import AfterValidator, BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from .models import COLOR_KEYS, DEFAULT_CALENDAR_COLOR, EVENT_TYPES, TASK_TYPE_ROUTINE, TASK_TYPES
+from .recurrence import validate_recurrence
 from .timeutil import format_hhmm, parse_hhmm
 
 
@@ -337,6 +338,94 @@ class CategoryOut(BaseModel):
     name: str
     color_key: str
     position: int
+
+
+def _naive(value: datetime) -> datetime:
+    if value.tzinfo is not None:
+        raise ValueError("Datetimes are naive local time; drop the UTC offset")
+    return value
+
+
+NaiveDatetime = Annotated[datetime, AfterValidator(_naive)]
+EventKind = Literal["default", "routine"]
+
+
+class CalendarEventCreate(BaseModel):
+    calendar_id: int | None = None  # None = the student's primary calendar
+    title: str = Field(..., min_length=1)
+    description: str = ""
+    location: str = ""
+    start: NaiveDatetime
+    end: NaiveDatetime  # exclusive
+    all_day: bool = False
+    busy: bool | None = None  # None = busy unless all-day
+    kind: EventKind = "default"
+    category_id: int | None = None
+    color_key: ColorKey | None = None
+    recurrence: list[str] = []
+
+    @model_validator(mode="after")
+    def _check_times_and_recurrence(self):
+        if self.end <= self.start:
+            raise ValueError("end must be after start")
+        validate_recurrence(self.recurrence, self.start)  # RecurrenceError is a ValueError
+        return self
+
+
+class CalendarEventUpdate(BaseModel):
+    """Every field optional. The routes re-validate the merged times and recurrence."""
+
+    calendar_id: int | None = None
+    title: str | None = Field(None, min_length=1)
+    description: str | None = None
+    location: str | None = None
+    start: NaiveDatetime | None = None
+    end: NaiveDatetime | None = None
+    all_day: bool | None = None
+    busy: bool | None = None
+    kind: EventKind | None = None
+    category_id: int | None = None  # an explicit null clears the category
+    color_key: ColorKey | None = None  # an explicit null clears the event's own colour
+    recurrence: list[str] | None = None
+
+
+class CalendarEventOut(BaseModel):
+    id: int
+    calendar_id: int
+    category_id: int | None
+    color_key: str | None  # the event's own colour; the effective one is on OccurrenceOut
+    title: str
+    description: str
+    location: str
+    start: datetime
+    end: datetime
+    all_day: bool
+    busy: bool
+    kind: str
+    status: str
+    recurrence: list[str]
+    recurring_event_id: int | None
+    original_start_time: datetime | None
+
+
+class OccurrenceOut(BaseModel):
+    """One concrete occurrence in a window; `event_id` is the series for an instance."""
+
+    id: str
+    event_id: int
+    calendar_id: int
+    category_id: int | None
+    color_key: str  # effective colour: category, else own, else calendar
+    title: str
+    description: str
+    location: str
+    start: datetime
+    end: datetime
+    all_day: bool
+    busy: bool
+    kind: str
+    recurring: bool
+    original_start: datetime | None
 
 
 StudentSettings.model_rebuild()

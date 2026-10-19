@@ -1,7 +1,8 @@
 """Calendars and categories endpoints."""
-from datetime import datetime
+from datetime import datetime, time, timedelta
 
 from app import models
+from app.calendar_service import busy_intervals
 from app.db import SessionLocal
 
 
@@ -181,3 +182,275 @@ def test_unknown_ids_return_404(client):
     assert client.delete("/api/calendars/9999").status_code == 404
     assert client.patch("/api/categories/9999", json={"name": "X"}).status_code == 404
     assert client.delete("/api/categories/9999").status_code == 404
+
+
+# --- calendar events ---------------------------------------------------------------------
+
+EVENTS = "/api/students/1/calendar-events"
+
+
+def _monday():
+    today = datetime.now().date()
+    return datetime.combine(today - timedelta(days=today.weekday()), time())
+
+
+def _week(client, **params):
+    start = _monday()
+    params = {"start": start.isoformat(), "end": (start + timedelta(days=7)).isoformat(), **params}
+    response = client.get(EVENTS, params=params)
+    assert response.status_code == 200, response.text
+    return response.json()
+
+
+def _create(client, **overrides):
+    start = _monday() + timedelta(days=1, hours=14)
+    payload = {"title": "Study group", "start": start.isoformat(),
+               "end": (start + timedelta(hours=2)).isoformat()}
+    payload.update(overrides)
+    response = client.post(EVENTS, json=payload)
+    assert response.status_code == 201, response.text
+    return response.json()
+
+
+def test_create_an_event_and_read_it_back(client):
+    created = _create(client, description="Library", location="Room 4", category_id=None)
+    primary = client.get("/api/students/1/calendars").json()[0]
+    assert created["calendar_id"] == primary["id"]  # None means the primary calendar
+    assert created["busy"] is True and created["kind"] == "default"
+    assert created["status"] == "confirmed" and created["recurrence"] == []
+    assert created["color_key"] is None and created["recurring_event_id"] is None
+    fetched = client.get(f"/api/calendar-events/{created['id']}")
+    assert fetched.status_code == 200 and fetched.json() == created
+    assert fetched.json()["location"] == "Room 4"
+
+
+def test_week_has_seeded_classes_and_sleep(client):
+    occurrences = _week(client)
+    monday = _monday()
+    bio = [o for o in occurrences if o["title"] == "Bio 101"]
+    assert sorted(datetime.fromisoformat(o["start"]) for o in bio) == [
+        monday + timedelta(hours=9), monday + timedelta(days=2, hours=9),
+    ]
+    assert all(o["color_key"] == "sky" and o["kind"] == "default" for o in bio)
+    assert all(o["recurring"] and o["original_start"] == o["start"] for o in bio)
+    assert all(o["id"] == f"{o['event_id']}_{o['start'][:16].replace('-', '').replace(':', '')}"
+               for o in bio)
+    sleep = [o for o in occurrences if o["title"] == "Sleep"]
+    assert sleep and all(o["kind"] == "routine" and o["color_key"] == "stone" for o in sleep)
+
+
+def test_one_off_occurrence_is_not_recurring(client):
+    created = _create(client)
+    [one] = [o for o in _week(client) if o["event_id"] == created["id"]]
+    assert one["id"] == str(created["id"])
+    assert one["recurring"] is False and one["original_start"] is None
+    assert one["busy"] is True and one["color_key"] == "sky"  # the calendar's colour
+
+
+def test_all_day_event_defaults_to_free(client):
+    start = _monday()
+    created = _create(client, all_day=True, start=start.isoformat(),
+                      end=(start + timedelta(days=1)).isoformat())
+    assert created["busy"] is False
+    forced = _create(client, all_day=True, busy=True, start=start.isoformat(),
+                     end=(start + timedelta(days=1)).isoformat())
+    assert forced["busy"] is True
+    timed = _create(client, busy=False)
+    assert timed["busy"] is False
+
+
+def test_invalid_recurrence_is_422(client):
+    for lines in (["RRULE:FREQ=SOMETIMES"], ["DTSTART:20260101T000000"], ["nonsense"]):
+        assert client.post(EVENTS, json={
+            "title": "X", "start": "2026-03-02T09:00", "end": "2026-03-02T10:00",
+            "recurrence": lines,
+        }).status_code == 422, lines
+
+
+def test_sub_daily_recurrence_is_422(client):
+    response = client.post(EVENTS, json={
+        "title": "X", "start": "2026-03-02T09:00", "end": "2026-03-02T10:00",
+        "recurrence": ["RRULE:FREQ=HOURLY"],
+    })
+    assert response.status_code == 422
+
+
+def test_recurring_event_expands_across_the_week(client):
+    start = _monday() + timedelta(hours=18)
+    created = _create(client, title="Gym", start=start.isoformat(),
+                      end=(start + timedelta(hours=1)).isoformat(),
+                      recurrence=["RRULE:FREQ=DAILY;COUNT=3"])
+    gym = [o for o in _week(client) if o["event_id"] == created["id"]]
+    assert len(gym) == 3 and all(o["recurring"] for o in gym)
+
+
+def test_end_must_be_after_start(client):
+    base = {"title": "X", "start": "2026-03-02T10:00"}
+    assert client.post(EVENTS, json={**base, "end": "2026-03-02T10:00"}).status_code == 422
+    assert client.post(EVENTS, json={**base, "end": "2026-03-02T09:00"}).status_code == 422
+    assert client.post(EVENTS, json={**base, "end": "2026-03-02T11:00", "title": ""}).status_code == 422
+    assert client.post(EVENTS, json={**base, "end": "2026-03-02T11:00Z"}).status_code == 422
+    assert client.post(EVENTS, json={**base, "end": "2026-03-02T11:00", "kind": "x"}).status_code == 422
+
+
+def test_occurrence_range_is_validated(client):
+    def get(**params):
+        return client.get(EVENTS, params=params).status_code
+
+    assert get() == 422
+    assert get(start="2026-03-02T00:00") == 422
+    assert get(start="2026-03-02T00:00", end="2026-03-02T00:00") == 422
+    assert get(start="2026-03-03T00:00", end="2026-03-02T00:00") == 422
+    assert get(start="2026-03-02T00:00", end="2026-07-01T00:00") == 422  # over 120 days
+    assert get(start="2026-03-02T00:00", end="2026-06-30T00:00") == 200  # exactly 120 days
+    assert get(start="2026-03-02T00:00Z", end="2026-03-03T00:00") == 422
+    assert get(start="2026-03-02T00:00", end="2026-03-03T00:00", calendar_ids="a") == 422
+
+
+def test_calendar_ids_filters_occurrences(client):
+    club = client.post("/api/students/1/calendars", json={"name": "Club"}).json()
+    created = _create(client, calendar_id=club["id"])
+    primary = client.get("/api/students/1/calendars").json()[0]
+    only_club = _week(client, calendar_ids=str(club["id"]))
+    assert [o["event_id"] for o in only_club] == [created["id"]]
+    assert created["id"] not in [o["event_id"] for o in _week(client, calendar_ids=str(primary["id"]))]
+    both = _week(client, calendar_ids=f"{primary['id']},{club['id']}")
+    assert created["id"] in [o["event_id"] for o in both] and len(both) > 1
+    assert created["id"] in [o["event_id"] for o in _week(client)]
+
+
+def test_setting_a_colour_clears_the_category(client):
+    classes = _categories(client)["Classes"]
+    created = _create(client, category_id=classes["id"])
+    assert created["category_id"] == classes["id"]
+    [occ] = [o for o in _week(client) if o["event_id"] == created["id"]]
+    assert occ["color_key"] == "sky" and occ["category_id"] == classes["id"]
+
+    routine = _categories(client)["Routine"]
+    patched = client.patch(f"/api/calendar-events/{created['id']}", json={"color_key": "rose"})
+    assert patched.status_code == 200
+    assert patched.json()["category_id"] is None and patched.json()["color_key"] == "rose"
+    [occ] = [o for o in _week(client) if o["event_id"] == created["id"]]
+    assert occ["color_key"] == "rose" and occ["category_id"] is None
+
+    both = client.patch(f"/api/calendar-events/{created['id']}",
+                        json={"color_key": "mint", "category_id": routine["id"]})
+    assert both.json()["category_id"] == routine["id"] and both.json()["color_key"] == "mint"
+
+    cleared = client.patch(f"/api/calendar-events/{created['id']}", json={"category_id": None})
+    assert cleared.json()["category_id"] is None and cleared.json()["color_key"] == "mint"
+    assert client.patch(f"/api/calendar-events/{created['id']}",
+                        json={"color_key": "neon"}).status_code == 422
+
+
+def test_creating_with_a_colour_stores_no_category(client):
+    created = _create(client, color_key="lilac")
+    assert created["category_id"] is None and created["color_key"] == "lilac"
+
+
+def test_patch_updates_fields_and_revalidates(client):
+    created = _create(client)
+    url = f"/api/calendar-events/{created['id']}"
+    start = datetime.fromisoformat(created["start"])
+    patched = client.patch(url, json={"title": "Exam prep", "busy": False,
+                                      "end": (start + timedelta(hours=3)).isoformat()})
+    assert patched.status_code == 200
+    body = patched.json()
+    assert body["title"] == "Exam prep" and body["busy"] is False
+    assert datetime.fromisoformat(body["end"]) == start + timedelta(hours=3)
+
+    # Moving only the start past the stored end leaves end <= start.
+    assert client.patch(url, json={"start": (start + timedelta(hours=9)).isoformat()}
+                        ).status_code == 422
+    assert client.patch(url, json={"end": start.isoformat()}).status_code == 422
+    assert client.patch(url, json={"recurrence": ["RRULE:FREQ=SOMETIMES"]}).status_code == 422
+    assert client.patch(url, json={"recurrence": ["RRULE:FREQ=MINUTELY"]}).status_code == 422
+    assert client.patch(url, json={"title": ""}).status_code == 422
+    assert client.get(url).json()["title"] == "Exam prep"  # nothing half-applied
+
+    ok = client.patch(url, json={"recurrence": ["RRULE:FREQ=WEEKLY"]})
+    assert ok.status_code == 200 and ok.json()["recurrence"] == ["RRULE:FREQ=WEEKLY"]
+    assert client.patch(url, json={"recurrence": []}).json()["recurrence"] == []
+
+
+def test_delete_then_restore_round_trips(client):
+    start = _monday() + timedelta(days=-1)  # the event covers the whole week
+    created = _create(client, title="Retreat", start=start.isoformat(),
+                      end=(start + timedelta(days=9)).isoformat())
+    url = f"/api/calendar-events/{created['id']}"
+    ids = lambda: [o["event_id"] for o in _week(client)]  # noqa: E731
+    assert created["id"] in ids()
+
+    assert client.delete(url).status_code == 204
+    assert created["id"] not in ids()
+    assert client.get(url).json()["status"] == "cancelled"
+    assert client.delete(url).status_code == 204  # idempotent
+
+    window = (_monday(), _monday() + timedelta(days=7))
+    with SessionLocal() as db:
+        assert not any(s <= window[0] and e >= window[1] for s, e in busy_intervals(db, 1, *window))
+
+    restored = client.post(f"{url}/restore")
+    assert restored.status_code == 200 and restored.json()["status"] == "confirmed"
+    assert created["id"] in ids()
+    with SessionLocal() as db:
+        assert any(s <= window[0] and e >= window[1] for s, e in busy_intervals(db, 1, *window))
+
+
+def test_event_ids_and_references_are_checked(client):
+    assert client.get("/api/calendar-events/9999").status_code == 404
+    assert client.patch("/api/calendar-events/9999", json={"title": "X"}).status_code == 404
+    assert client.delete("/api/calendar-events/9999").status_code == 404
+    assert client.post("/api/calendar-events/9999/restore").status_code == 404
+    assert client.get("/api/students/99/calendar-events",
+                      params={"start": "2026-03-02T00:00", "end": "2026-03-03T00:00"}
+                      ).status_code == 404
+    body = {"title": "X", "start": "2026-03-02T09:00", "end": "2026-03-02T10:00"}
+    assert client.post("/api/students/99/calendar-events", json=body).status_code == 404
+    assert client.post(EVENTS, json={**body, "calendar_id": 9999}).status_code == 404
+    assert client.post(EVENTS, json={**body, "category_id": 9999}).status_code == 404
+    created = _create(client)
+    url = f"/api/calendar-events/{created['id']}"
+    assert client.patch(url, json={"calendar_id": 9999}).status_code == 404
+    assert client.patch(url, json={"category_id": 9999}).status_code == 404
+
+
+def test_another_students_calendar_or_category_is_404(client):
+    with SessionLocal() as db:
+        other = models.Student(name="Other")
+        db.add(other)
+        db.flush()
+        calendar = models.Calendar(student_id=other.id, name="Theirs", color_key="rose")
+        category = models.Category(student_id=other.id, name="Theirs", color_key="rose")
+        db.add_all([calendar, category])
+        db.commit()
+        calendar_id, category_id = calendar.id, category.id
+    body = {"title": "X", "start": "2026-03-02T09:00", "end": "2026-03-02T10:00"}
+    assert client.post(EVENTS, json={**body, "calendar_id": calendar_id}).status_code == 404
+    assert client.post(EVENTS, json={**body, "category_id": category_id}).status_code == 404
+    created = _create(client)
+    url = f"/api/calendar-events/{created['id']}"
+    assert client.patch(url, json={"calendar_id": calendar_id}).status_code == 404
+    assert client.patch(url, json={"category_id": category_id}).status_code == 404
+
+
+def test_edited_instance_reports_the_series_id(client):
+    start = _monday() + timedelta(hours=18)
+    series = _create(client, title="Gym", start=start.isoformat(),
+                     end=(start + timedelta(hours=1)).isoformat(),
+                     recurrence=["RRULE:FREQ=DAILY;COUNT=3"])
+    second = start + timedelta(days=1)
+    with SessionLocal() as db:
+        parent = db.get(models.CalendarEvent, series["id"])
+        db.add(models.CalendarEvent(
+            student_id=1, calendar_id=parent.calendar_id, title="Gym (moved)",
+            start=second + timedelta(hours=2), end=second + timedelta(hours=3),
+            recurring_event_id=parent.id, original_start_time=second,
+        ))
+        db.commit()
+    gym = [o for o in _week(client) if o["event_id"] == series["id"]]
+    assert len(gym) == 3
+    [moved] = [o for o in gym if o["title"] == "Gym (moved)"]
+    assert moved["id"] == f"{series['id']}_{second:%Y%m%dT%H%M}"
+    assert moved["recurring"] is True and datetime.fromisoformat(moved["original_start"]) == second
+    assert datetime.fromisoformat(moved["start"]) == second + timedelta(hours=2)

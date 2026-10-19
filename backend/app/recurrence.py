@@ -12,6 +12,7 @@ from datetime import datetime
 from dateutil.rrule import rruleset, rrulestr
 
 _ALLOWED_PREFIXES = ("RRULE:", "EXDATE:", "RDATE:")
+_SUB_DAILY = ("SECONDLY", "MINUTELY", "HOURLY")
 _BYDAY = ("MO", "TU", "WE", "TH", "FR", "SA", "SU")
 
 
@@ -58,6 +59,13 @@ def _ruleset(lines: Sequence[str], start: datetime) -> rruleset:
     for line in lines:
         if not line.upper().startswith(_ALLOWED_PREFIXES):
             raise RecurrenceError(f"Unsupported recurrence line: {line!r}")
+        if line.upper().startswith("RRULE:") and any(
+            part.strip() == f"FREQ={freq}"
+            for part in line.upper()[len("RRULE:"):].split(";")
+            for freq in _SUB_DAILY
+        ):
+            # Sype events never repeat within a day, and such rules expand very slowly.
+            raise RecurrenceError(f"Recurrence must be daily or coarser: {line!r}")
     text = "DTSTART:" + start.strftime("%Y%m%dT%H%M%S") + "\n" + "\n".join(lines)
     try:
         rset = rrulestr(text, forceset=True)

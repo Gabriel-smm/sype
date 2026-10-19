@@ -1,8 +1,6 @@
 """End-to-end tests over the API: input -> decompose -> score -> schedule."""
 from datetime import datetime, time, timedelta
 
-import pytest
-
 from app.models import COLOR_KEYS
 
 STUDENT = 1
@@ -201,7 +199,6 @@ def _busy_all_week(client, **overrides):
     return response.json()
 
 
-@pytest.mark.skip(reason="routes land in Task 6")
 def test_a_busy_all_week_event_keeps_the_scheduler_out(client):
     _busy_all_week(client)
     new_task(client, estimated_duration=60)
@@ -210,7 +207,6 @@ def test_a_busy_all_week_event_keeps_the_scheduler_out(client):
     assert schedule["unschedulable"]
 
 
-@pytest.mark.skip(reason="routes land in Task 6")
 def test_a_free_event_does_not_block_the_scheduler(client):
     _busy_all_week(client, busy=False)
     new_task(client, estimated_duration=60)
@@ -218,7 +214,6 @@ def test_a_free_event_does_not_block_the_scheduler(client):
     assert schedule["slots"]
 
 
-@pytest.mark.skip(reason="routes land in Task 6")
 def test_an_event_on_a_hidden_calendar_still_blocks(client):
     calendar = client.post(f"/api/students/{STUDENT}/calendars", json={"name": "Away"}).json()
     hidden = client.patch(f"/api/calendars/{calendar['id']}", json={"visible": False})

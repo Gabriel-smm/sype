@@ -144,6 +144,17 @@ def test_validate_recurrence_rejects_garbage():
     validate_recurrence([], MON)
 
 
+@pytest.mark.parametrize("freq", ["SECONDLY", "MINUTELY", "HOURLY", "hourly"])
+def test_validate_recurrence_rejects_sub_daily_frequencies(freq):
+    with pytest.raises(RecurrenceError, match="daily"):
+        validate_recurrence([f"RRULE:FREQ={freq};COUNT=3"], MON)
+
+
+@pytest.mark.parametrize("freq", ["DAILY", "WEEKLY", "MONTHLY", "YEARLY"])
+def test_validate_recurrence_accepts_daily_or_coarser(freq):
+    validate_recurrence([f"RRULE:FREQ={freq};COUNT=3"], MON)
+
+
 def test_weekly_rule_strings():
     assert weekly_rule(None) == "RRULE:FREQ=DAILY"
     assert weekly_rule([3, 1]) == "RRULE:FREQ=WEEKLY;BYDAY=TU,TH"
