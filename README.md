@@ -11,8 +11,6 @@ and fits them into the free time around your classes and sleep.
 
 ## Features
 
-- **Your week at a glance.** The overview shows today's top three priorities, a short plan for
-  tomorrow, the shape of the week ahead and the assignments that carry the most weight.
 - **Priority you can inspect.** Every task gets a transparent, weighted score, and you can tune
   the weights and preview the effect before saving.
 - **Automatic breakdown.** Long essays become research → outline → draft → revise, in order.

@@ -16,7 +16,6 @@ import { CalendarPage } from '@/pages/calendar'
 import { ChatPage } from '@/pages/chat'
 import { SetupPage } from '@/pages/setup'
 import { TasksPage } from '@/pages/tasks'
-import { TodayPage } from '@/pages/today'
 
 // Keys typed into a field are text, not shortcuts.
 function isTyping(target: HTMLElement) {
@@ -98,18 +97,14 @@ export function App() {
         >
           <Routes>
             <Route index element={
-              <TodayPage schedule={schedule} tasks={tasks} settings={settings} busy={busy}
-                         onComplete={data.onComplete} onOpenTask={setEditingId}
-                         onCapture={openCapture} fixes={data.fixes} />
-            } />
-            <Route path="calendar" element={
               <CalendarPage schedule={schedule} settings={settings} busy={busy}
                             onRegenerate={() => void data.regenerate()}
                             onMoveSlot={(slot, start, end) => void data.moveSlot(slot, start, end)}
                             onComplete={data.onComplete} onSkip={data.onSkip} onOpenTask={setEditingId}
                             fixes={data.fixes} />
             } />
-            <Route path="week" element={<Redirect to="/calendar" replace />} />
+            <Route path="calendar" element={<Redirect to="/" replace />} />
+            <Route path="week" element={<Redirect to="/" replace />} />
             <Route path="tasks" element={
               <TasksPage tasks={tasks} schedule={schedule} busy={busy} actions={actions}
                          onOpenTask={setEditingId} onCapture={openCapture} />

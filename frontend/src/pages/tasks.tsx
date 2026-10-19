@@ -221,7 +221,7 @@ function HighHurdle({ task, busy, actions, onOpen }: { task: Task; busy: boolean
       </button>
       <div className="flex gap-2">
         <Button variant="success" size="sm" disabled={busy} onClick={() => void actions.completeTask(task.id)}>Mark done</Button>
-        <Button variant="secondary" size="sm" onClick={() => navigate('/calendar')}>Schedule</Button>
+        <Button variant="secondary" size="sm" onClick={() => navigate('/')}>Schedule</Button>
       </div>
 
       {open && steps.length > 0 && (

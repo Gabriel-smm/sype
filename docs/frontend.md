@@ -10,27 +10,14 @@ proxies `/api` to the backend, so the app is same-origin.
 | Path | Role |
 |---|---|
 | `src/app.tsx` | Router and app-level state wiring. |
-| `src/pages/` | Routed screens: `/` Overview (`today.tsx`), `/calendar`, `/tasks` (triage), `/chat`, `/setup`. `/week` redirects to `/calendar`. |
+| `src/pages/` | Routed screens: `/` Calendar (`calendar.tsx`, where the app opens), `/tasks` (triage), `/chat`, `/setup`. `/calendar` and `/week` redirect to `/`. |
 | `src/components/ui/` | Primitives (Radix + `cva`): button, input, card, badge, dialog, sheet, dropdown-menu, slider, switch, tooltip, avatar, sidebar, sonner. |
 | `src/components/layout/` | Sidebar, the shell with the chat drawer, section labels. |
-| `src/components/{overview,tasks,schedule,setup,chat}/` | Feature pieces: Overview sections (priorities, tomorrow, week glance, assignments), capture dialog and task sheet, week grid and slot sheet, block/weights/recurring editors, chat conversation, thread list and drawer panel. |
+| `src/components/{tasks,schedule,setup,chat}/` | Feature pieces: capture dialog and task sheet, week grid and slot sheet, block/weights/recurring editors, chat conversation, thread list and drawer panel. |
 | `src/hooks/` | `use-app-data` (fetching, mutations, toasts), `use-chat` (saved chat threads, shared by the page and the drawer), `use-sidebar`, `use-mobile`, `use-now`. |
-| `src/lib/` | API client, week arithmetic (`time.ts`), task vocabulary and colours (`task-meta.ts`), capture parser (`parse-capture.ts`), Overview data (`agenda.ts`), chat threads (`chat-threads.ts`). Pure logic. |
+| `src/lib/` | API client, week arithmetic (`time.ts`), task vocabulary and colours (`task-meta.ts`), capture parser (`parse-capture.ts`), where a new task landed (`agenda.ts`), chat threads (`chat-threads.ts`). Pure logic. |
 | `src/types/api.ts` | Hand-written mirror of `backend/app/schemas.py`. **Change both together.** |
 | `src/index.css` | Design tokens. |
-
-## Overview
-
-`/` is a calm glance at the week, built from pure helpers in `lib/agenda.ts`:
-
-- **Today**: the top three of today's open sessions by `priority_score` (`topPriorities`), with a
-  tick to mark one done. The rest are counted and link to the calendar.
-- **Tomorrow**: tomorrow's sessions and what falls due (`dayPlan`).
-- **The week ahead**: a rolling seven days from today (`weekSummary`), drawn by
-  `overview/week-glance.tsx` over the waking hours (`glanceHours`, 7–23, widened to fit). Work is a
-  light fill with a type-colour edge, busy blocks are hatched, diamonds mark deadlines.
-- **Major assignments**: pending one-off tasks due within 14 days, heaviest first
-  (`majorAssignments`).
 
 ## Chat
 
@@ -54,7 +41,7 @@ Defined in `src/index.css`, dark only:
 - **Dark navy, one blue accent.** Text is graded by white opacity (100 / 70 / 60 / 40), not by a
   grey ramp, so the accent is the only colour that isn't information.
 - **Task-type hues are information, never decoration** (`--color-type-*`, `lib/task-meta.ts`).
-  On the Overview and in chat they shrink to a thin edge or a dot; text and fills stay neutral.
+  In chat and lists they shrink to a thin edge or a dot; text and fills stay neutral.
   Blue marks "now" and the primary action, red only overdue.
 - **One flat dark navy background** (`--background`, `#0a0f1a`), no gradient or glow.
 - **Pages are transparent** over that background, edged by a faint `white/10` outline (`Card`).
