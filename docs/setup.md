@@ -77,6 +77,9 @@ npm run build --prefix frontend                  # production build
 
 ## Troubleshooting
 
+- **Upgrading an existing database:** startup adds the new tables and columns in place and
+  converts old fixed blocks into calendar events once. Back up `backend/task_scheduler.db` first.
+  `requirements.txt` gained `python-dateutil`; `dev.sh` installs it when the file changes.
 - **Fresh data:** stop the backend, delete `backend/task_scheduler.db` and start it again. The
   schedule is derived state, so nothing beyond your tasks and settings is lost.
 - **Frontend can't reach the API:** check that the backend is up on `BACKEND_PORT` and that

@@ -1,8 +1,8 @@
 """Greedy scheduler (Section 6 of the brief).
 
-Deterministic and DB-free: it takes plain specs for the student's fixed blocks
-and productive windows plus a ranked list of work items, and returns
-placements. No LLM is involved in any decision here.
+Deterministic and DB-free: it takes absolute busy intervals (calendar events,
+already expanded by the caller), weekly productive windows and a ranked list of
+work items, and returns placements. No LLM is involved in any decision here.
 """
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
@@ -77,7 +77,7 @@ class ScheduleResult:
 # Free-slot construction
 # --------------------------------------------------------------------------
 
-def _expand(blocks: list[BlockSpec], window_start: datetime, window_end: datetime
+def expand_weekly(blocks: list[BlockSpec], window_start: datetime, window_end: datetime
             ) -> list[tuple[datetime, datetime]]:
     """Weekly-recurring blocks -> absolute intervals clipped to the window."""
     intervals: list[tuple[datetime, datetime]] = []
@@ -148,23 +148,31 @@ def _intersect(base: list[tuple[datetime, datetime]], mask: list[tuple[datetime,
 
 
 def build_free_slots(
-    fixed_blocks: list[BlockSpec],
+    busy: list[tuple[datetime, datetime]],
     productive_windows: list[BlockSpec],
     *,
     now: datetime,
     horizon_days: int = DEFAULT_HORIZON_DAYS,
     min_slot_minutes: int = MIN_SLOT_MINUTES,
 ) -> list[FreeSlot]:
-    """The 24-hour day minus sleep/lunch/classes, tagged by productive hours."""
+    """The 24-hour day minus busy intervals, tagged by productive hours.
+
+    ``busy`` holds absolute intervals; they are clipped to the scheduling
+    window before merging, and those entirely outside it are dropped.
+    """
     window_start = now
     window_end = day_start(now) + timedelta(days=horizon_days)
     if window_end <= window_start:
         return []
 
-    busy = _merge(_expand(fixed_blocks, window_start, window_end))
-    free = _subtract([(window_start, window_end)], busy)
+    clipped = [
+        (max(start, window_start), min(end, window_end))
+        for start, end in busy
+        if end > window_start and start < window_end
+    ]
+    free = _subtract([(window_start, window_end)], _merge(clipped))
 
-    productive = _merge(_expand(productive_windows, window_start, window_end))
+    productive = _merge(expand_weekly(productive_windows, window_start, window_end))
     productive_free = _intersect(free, productive)
     plain_free = _subtract(free, productive)
 

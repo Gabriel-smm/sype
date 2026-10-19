@@ -1,7 +1,7 @@
 // Week arithmetic shared by the calendar grid and the parameter page's week strip.
 import { addDays, startOfWeek } from 'date-fns'
 
-import type { Block } from '@/types/api'
+import type { Block, Occurrence } from '@/types/api'
 
 export const DAY_NAMES = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 export const MINUTES_IN_DAY = 1440
@@ -136,6 +136,45 @@ export function expandRecurring<B extends Block & { kind?: string }>(
       }
     })
   }
+
+  return spans
+}
+
+/**
+ * Project dated event occurrences onto the seven day columns of one week.
+ *
+ * An occurrence is split at each midnight into one span per day. Parts that
+ * fall outside the week are dropped; unlike weekly blocks they never wrap.
+ */
+export interface OccurrenceSpan {
+  id: string
+  occurrence: Occurrence
+  dayOffset: number
+  startMinute: number
+  endMinute: number
+}
+
+export function occurrenceSpans(occurrences: Occurrence[], weekStart: Date): OccurrenceSpan[] {
+  const spans: OccurrenceSpan[] = []
+
+  occurrences.forEach((occurrence) => {
+    const start = new Date(occurrence.start)
+    const end = new Date(occurrence.end)
+
+    for (let offset = 0; offset < 7; offset += 1) {
+      const dayStart = addDays(weekStart, offset)
+      const dayEnd = addDays(weekStart, offset + 1)
+      if (start >= dayEnd || end <= dayStart) continue
+
+      spans.push({
+        id: `${occurrence.id}-${offset}`,
+        occurrence,
+        dayOffset: offset,
+        startMinute: start > dayStart ? minutesSinceMidnight(start) : 0,
+        endMinute: end < dayEnd ? minutesSinceMidnight(end) : MINUTES_IN_DAY,
+      })
+    }
+  })
 
   return spans
 }

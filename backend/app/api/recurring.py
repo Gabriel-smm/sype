@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from .. import models, schemas
 from ..db import get_db
 from ..pipeline import materialize_recurring_tasks
+from .calendar import _own_category
 from ..timeutil import format_hhmm, parse_hhmm
 
 router = APIRouter(prefix="/api", tags=["recurring"])
@@ -38,6 +39,7 @@ def _recurring_out(row: models.RecurringTask) -> dict:
         "weekdays": sorted(int(d) for d in row.weekdays.split(",") if d != ""),
         "due_time": format_hhmm(row.due_minute),
         "active": row.active,
+        "category_id": row.category_id,
     }
 
 
@@ -60,6 +62,8 @@ def create_recurring_task(
     student_id: int, payload: schemas.RecurringTaskCreate, db: Session = Depends(get_db)
 ):
     _get_student(db, student_id)
+    if payload.category_id is not None:
+        _own_category(db, student_id, payload.category_id)
     row = models.RecurringTask(
         student_id=student_id,
         title=payload.title,
@@ -69,6 +73,7 @@ def create_recurring_task(
         stress_rating=payload.stress_rating,
         weekdays=",".join(str(d) for d in payload.weekdays),
         due_minute=parse_hhmm(payload.due_time),
+        category_id=payload.category_id,
     )
     db.add(row)
     db.commit()
@@ -89,6 +94,8 @@ def update_recurring_task(
     row = _get_recurring_task(db, recurring_task_id)
     changes = payload.model_dump(exclude_unset=True)
 
+    if changes.get("category_id") is not None:
+        _own_category(db, row.student_id, changes["category_id"])
     if "weekdays" in changes:
         changes["weekdays"] = ",".join(str(d) for d in changes["weekdays"])
     if "due_time" in changes:

@@ -2,16 +2,24 @@
 
 No auth for this MVP: every request operates on student 1 unless told otherwise.
 """
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 
 from sqlalchemy.orm import Session
 
 from . import models
+from .calendar_defaults import (
+    WeeklyBlock,
+    ensure_default_categories,
+    ensure_primary_calendar,
+    events_from_weekly_blocks,
+)
 from .db import Base, SessionLocal, engine
+from .migrations import add_missing_columns, run_data_migrations
 from .timeutil import parse_hhmm
 
 DEFAULT_STUDENT_ID = 1
 
+# The default week, seeded as recurring calendar events (one per label + time).
 DEFAULT_FIXED_BLOCKS = [
     ("sleep", "Sleep", None, "23:30", "07:30"),
     ("lunch", "Lunch", None, "12:00", "13:00"),
@@ -30,7 +38,9 @@ DEFAULT_PRODUCTIVE_WINDOWS = [
 
 
 def ensure_schema() -> None:
+    """Create new tables, then add new columns to tables an older version created."""
     Base.metadata.create_all(bind=engine)
+    add_missing_columns(engine)
 
 
 def seed_student(db: Session) -> models.Student:
@@ -43,11 +53,12 @@ def seed_student(db: Session) -> models.Student:
     db.add(student)
     db.flush()
 
-    for kind, label, day, start, end in DEFAULT_FIXED_BLOCKS:
-        db.add(models.FixedBlock(
-            student_id=student.id, kind=kind, label=label, day_of_week=day,
-            start_minute=parse_hhmm(start), end_minute=parse_hhmm(end),
-        ))
+    ensure_primary_calendar(db, student.id)
+    ensure_default_categories(db, student.id)
+    events_from_weekly_blocks(db, student.id, [
+        WeeklyBlock(kind, label, day, parse_hhmm(start), parse_hhmm(end))
+        for kind, label, day, start, end in DEFAULT_FIXED_BLOCKS
+    ], today=date.today())
     for label, day, start, end in DEFAULT_PRODUCTIVE_WINDOWS:
         db.add(models.ProductiveWindow(
             student_id=student.id, label=label, day_of_week=day,
@@ -87,10 +98,12 @@ def seed_sample_tasks(db: Session, student_id: int = DEFAULT_STUDENT_ID) -> None
 
 
 def bootstrap(with_samples: bool = False) -> None:
+    """Startup: upgrade the schema, seed student 1 if new, then run data migrations."""
     ensure_schema()
     db = SessionLocal()
     try:
         seed_student(db)
+        run_data_migrations(db)
         if with_samples:
             seed_sample_tasks(db)
     finally:

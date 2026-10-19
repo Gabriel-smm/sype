@@ -4,8 +4,8 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from .api import chat, events, recurring, schedule, students, tasks
-from .models import BLOCK_KINDS, EVENT_TYPES, TASK_TYPES
+from .api import calendar, chat, events, recurring, schedule, students, tasks
+from .models import COLOR_KEYS, EVENT_TYPES, TASK_TYPES
 from .seed import bootstrap
 
 @asynccontextmanager
@@ -40,6 +40,7 @@ app.include_router(tasks.router)
 app.include_router(recurring.router)
 app.include_router(schedule.router)
 app.include_router(events.router)
+app.include_router(calendar.router)
 app.include_router(chat.router)
 
 
@@ -53,7 +54,7 @@ def meta() -> dict:
     """Vocabulary the frontend needs to build its dropdowns."""
     return {
         "task_types": TASK_TYPES,
-        "block_kinds": BLOCK_KINDS,
+        "colors": COLOR_KEYS,
         "event_types": EVENT_TYPES,
         "default_student_id": 1,
     }

@@ -4,10 +4,22 @@ Durations are minutes. Recurring block times cross the wire as "HH:MM".
 """
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from typing import Annotated, Literal
 
-from .models import BLOCK_KINDS, EVENT_TYPES, TASK_TYPE_ROUTINE, TASK_TYPES
+from pydantic import AfterValidator, BaseModel, ConfigDict, Field, field_validator, model_validator
+
+from .models import COLOR_KEYS, DEFAULT_CALENDAR_COLOR, EVENT_TYPES, TASK_TYPE_ROUTINE, TASK_TYPES
+from .recurrence import validate_recurrence
 from .timeutil import format_hhmm, parse_hhmm
+
+
+def _check_color_key(value: str) -> str:
+    if value not in COLOR_KEYS:
+        raise ValueError(f"color_key must be one of {COLOR_KEYS}")
+    return value
+
+
+ColorKey = Annotated[str, AfterValidator(_check_color_key)]
 
 
 class BlockBase(BaseModel):
@@ -20,21 +32,6 @@ class BlockBase(BaseModel):
     @classmethod
     def _valid_time(cls, value: str) -> str:
         return format_hhmm(parse_hhmm(value))
-
-
-class FixedBlockCreate(BlockBase):
-    kind: str = "other"
-
-    @field_validator("kind")
-    @classmethod
-    def _valid_kind(cls, value: str) -> str:
-        if value not in BLOCK_KINDS:
-            raise ValueError(f"kind must be one of {BLOCK_KINDS}")
-        return value
-
-
-class FixedBlockOut(FixedBlockCreate):
-    id: int
 
 
 class ProductiveWindowCreate(BlockBase):
@@ -54,7 +51,6 @@ class StudentOut(BaseModel):
 
 class StudentSettings(BaseModel):
     student: StudentOut
-    fixed_blocks: list[FixedBlockOut]
     productive_hours: list[ProductiveWindowOut]
     recurring_tasks: list["RecurringTaskOut"]
     weights: "WeightsOut"
@@ -68,6 +64,8 @@ class TaskCreate(BaseModel):
     grade_weight: float = Field(0.0, ge=0, le=100)
     stress_rating: int = Field(3, ge=1, le=5)
     time_invested: int = Field(0, ge=0, description="minutes")
+    category_id: int | None = None
+    color_key: ColorKey | None = None
 
     @field_validator("task_type")
     @classmethod
@@ -86,6 +84,8 @@ class TaskUpdate(BaseModel):
     stress_rating: int | None = Field(None, ge=1, le=5)
     time_invested: int | None = Field(None, ge=0)
     status: str | None = None
+    category_id: int | None = None  # an explicit null clears the category
+    color_key: ColorKey | None = None  # an explicit null clears the task's own colour
 
 
 class SubtaskOut(BaseModel):
@@ -117,6 +117,8 @@ class TaskOut(BaseModel):
     time_invested: int
     status: str
     recurring_task_id: int | None = None
+    category_id: int | None = None
+    color_key: str | None = None
     subtasks: list[SubtaskOut] = []
 
 
@@ -128,6 +130,7 @@ class RecurringTaskBase(BaseModel):
     stress_rating: int = Field(3, ge=1, le=5)
     weekdays: list[int] = Field(..., min_length=1, description="0=Mon .. 6=Sun")
     due_time: str = Field("23:59", examples=["18:00"])
+    category_id: int | None = None
 
     @field_validator("task_type")
     @classmethod
@@ -162,6 +165,7 @@ class RecurringTaskUpdate(BaseModel):
     weekdays: list[int] | None = Field(None, min_length=1)
     due_time: str | None = None
     active: bool | None = None
+    category_id: int | None = None  # an explicit null clears the category
 
     @field_validator("task_type")
     @classmethod
@@ -298,6 +302,138 @@ class EventOut(BaseModel):
     event_type: str
     timestamp: datetime
     details: str
+
+
+class CalendarCreate(BaseModel):
+    name: str = Field(..., min_length=1, max_length=80)
+    color_key: ColorKey = DEFAULT_CALENDAR_COLOR
+
+
+class CalendarUpdate(BaseModel):
+    name: str | None = Field(None, min_length=1, max_length=80)
+    color_key: ColorKey | None = None
+    visible: bool | None = None
+    position: int | None = None
+
+
+class CalendarOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    name: str
+    source: str
+    is_primary: bool
+    visible: bool
+    color_key: str
+    position: int
+
+
+class CategoryCreate(BaseModel):
+    name: str = Field(..., min_length=1, max_length=40)
+    color_key: ColorKey
+
+
+class CategoryUpdate(BaseModel):
+    name: str | None = Field(None, min_length=1, max_length=40)
+    color_key: ColorKey | None = None
+    position: int | None = None
+
+
+class CategoryOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    name: str
+    color_key: str
+    position: int
+
+
+def _naive(value: datetime) -> datetime:
+    if value.tzinfo is not None:
+        raise ValueError("Datetimes are naive local time; drop the UTC offset")
+    return value
+
+
+NaiveDatetime = Annotated[datetime, AfterValidator(_naive)]
+EventKind = Literal["default", "routine"]
+
+
+class CalendarEventCreate(BaseModel):
+    calendar_id: int | None = None  # None = the student's primary calendar
+    title: str = Field(..., min_length=1)
+    description: str = ""
+    location: str = ""
+    start: NaiveDatetime
+    end: NaiveDatetime  # exclusive
+    all_day: bool = False
+    busy: bool | None = None  # None = busy unless all-day
+    kind: EventKind = "default"
+    category_id: int | None = None
+    color_key: ColorKey | None = None
+    recurrence: list[str] = []
+
+    @model_validator(mode="after")
+    def _check_times_and_recurrence(self):
+        if self.end <= self.start:
+            raise ValueError("end must be after start")
+        validate_recurrence(self.recurrence, self.start)  # RecurrenceError is a ValueError
+        return self
+
+
+class CalendarEventUpdate(BaseModel):
+    """Every field optional. The routes re-validate the merged times and recurrence."""
+
+    calendar_id: int | None = None
+    title: str | None = Field(None, min_length=1)
+    description: str | None = None
+    location: str | None = None
+    start: NaiveDatetime | None = None
+    end: NaiveDatetime | None = None
+    all_day: bool | None = None
+    busy: bool | None = None
+    kind: EventKind | None = None
+    category_id: int | None = None  # an explicit null clears the category
+    color_key: ColorKey | None = None  # an explicit null clears the event's own colour
+    recurrence: list[str] | None = None
+
+
+class CalendarEventOut(BaseModel):
+    id: int
+    calendar_id: int
+    category_id: int | None
+    color_key: str | None  # the event's own colour; the effective one is on OccurrenceOut
+    title: str
+    description: str
+    location: str
+    start: datetime
+    end: datetime
+    all_day: bool
+    busy: bool
+    kind: str
+    status: str
+    recurrence: list[str]
+    recurring_event_id: int | None
+    original_start_time: datetime | None
+
+
+class OccurrenceOut(BaseModel):
+    """One concrete occurrence in a window; `event_id` is the series for an instance."""
+
+    id: str
+    event_id: int
+    calendar_id: int
+    category_id: int | None
+    color_key: str  # effective colour: category, else own, else calendar
+    title: str
+    description: str
+    location: str
+    start: datetime
+    end: datetime
+    all_day: bool
+    busy: bool
+    kind: str
+    recurring: bool
+    original_start: datetime | None
 
 
 StudentSettings.model_rebuild()

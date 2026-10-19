@@ -11,11 +11,12 @@ import {
   isSameDay,
   layoutColumns,
   minutesSinceMidnight,
+  occurrenceSpans,
   weekStartOf,
   type Placed,
 } from '@/lib/time'
 import { cn } from '@/lib/utils'
-import type { FixedBlock, ProductiveWindow, ScheduleSlot } from '@/types/api'
+import type { Occurrence, ProductiveWindow, ScheduleSlot } from '@/types/api'
 
 const HOUR_HEIGHT = 48
 const DAY_HEIGHT = HOUR_HEIGHT * 24
@@ -43,7 +44,7 @@ interface Drag {
 
 interface WeekGridProps {
   slots: ScheduleSlot[]
-  fixedBlocks: FixedBlock[]
+  busyEvents: Occurrence[]
   productiveHours: ProductiveWindow[]
   date: Date
   selectedId?: number
@@ -52,7 +53,7 @@ interface WeekGridProps {
 }
 
 export function WeekGrid({
-  slots, fixedBlocks, productiveHours, date, selectedId, onSelectSlot, onMoveSlot,
+  slots, busyEvents, productiveHours, date, selectedId, onSelectSlot, onMoveSlot,
 }: WeekGridProps) {
   const now = useNow()
   const scroller = useRef<HTMLDivElement>(null)
@@ -67,7 +68,7 @@ export function WeekGrid({
     if (scroller.current) scroller.current.scrollTop = 6 * HOUR_HEIGHT
   }, [])
 
-  const busy = expandRecurring(fixedBlocks, weekStart, 'fixed')
+  const busy = occurrenceSpans(busyEvents, weekStart)
   const focus = expandRecurring(productiveHours, weekStart, 'productive')
 
   // Work blocks, bucketed by the day column they belong to.
@@ -205,11 +206,11 @@ export function WeekGrid({
                 .map((span) => (
                   <div
                     key={span.id}
-                    title={`${span.label}: the scheduler stays out of this`}
+                    title={span.occurrence.busy ? span.occurrence.title : `${span.occurrence.title} (Free)`}
                     className="hatched pointer-events-none absolute inset-x-0 z-10 overflow-hidden px-2 pt-1 text-[11px] text-sidebar-foreground/40"
                     style={{ top: top(span.startMinute), height: height(span.endMinute - span.startMinute) }}
                   >
-                    {span.endMinute - span.startMinute > 45 && span.label}
+                    {span.endMinute - span.startMinute > 45 && span.occurrence.title}
                   </div>
                 ))}
 

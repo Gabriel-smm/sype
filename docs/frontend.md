@@ -10,7 +10,7 @@ proxies `/api` to the backend, so the app is same-origin.
 | Path | Role |
 |---|---|
 | `src/app.tsx` | Router and app-level state wiring. |
-| `src/pages/` | Routed screens: `/` Calendar (`calendar.tsx`, where the app opens; busy blocks are drawn read-only, and work that did not fit is not shown here), `/tasks` (triage), `/chat`, `/setup` (focus hours, routines, ranking, activity; busy time will come from a connected calendar, so it has no editor). `/calendar` and `/week` redirect to `/`. |
+| `src/pages/` | Routed screens: `/` Calendar (`calendar.tsx`, where the app opens; calendar event occurrences are drawn hatched and read-only (`hooks/use-calendar-events.ts`, `occurrenceSpans` in `lib/time.ts`), and work that did not fit is not shown here), `/tasks` (triage), `/chat`, `/setup` (focus hours, routines, ranking, activity; busy time is calendar events, so it has no editor). `/calendar` and `/week` redirect to `/`. |
 | `src/components/ui/` | Primitives (Radix + `cva`): button, input, card, badge, dialog, sheet, dropdown-menu, slider, switch, tooltip, avatar, sidebar, sonner. |
 | `src/components/layout/` | Sidebar, the shell with the chat drawer, section labels. |
 | `src/components/{tasks,schedule,setup,chat}/` | Feature pieces: capture dialog and task sheet, week grid and slot sheet, focus-hours/weights/recurring editors, chat conversation, thread list and drawer panel. |

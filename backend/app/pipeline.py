@@ -9,6 +9,7 @@ from datetime import datetime, timedelta
 from sqlalchemy.orm import Session
 
 from . import models
+from .calendar_service import busy_intervals
 from .decompose import decompose
 from .scheduler import (
     DEFAULT_HORIZON_DAYS,
@@ -34,12 +35,13 @@ def get_weights(db: Session, student_id: int) -> Weights:
 
 
 def _block_specs(rows) -> list[BlockSpec]:
+    """Weekly productive windows as scheduler specs (busy time comes from events)."""
     return [
         BlockSpec(
             start_minute=r.start_minute,
             end_minute=r.end_minute,
             day_of_week=r.day_of_week,
-            kind=getattr(r, "kind", "productive"),
+            kind="productive",
             label=r.label or "",
         )
         for r in rows
@@ -122,6 +124,7 @@ def materialize_recurring_tasks(
                 task_type=template.task_type,
                 grade_weight=template.grade_weight,
                 stress_rating=template.stress_rating,
+                category_id=template.category_id,
             )
             db.add(task)
             db.flush()
@@ -217,7 +220,11 @@ def generate_schedule(
 
     weights = get_weights(db, student_id)
     slots = build_free_slots(
-        _block_specs(student.fixed_blocks),
+        # Start a day early so last night's sleep still blocks this morning.
+        busy_intervals(
+            db, student_id, now - timedelta(days=1),
+            day_start(now) + timedelta(days=horizon_days + 1),
+        ),
         _block_specs(student.productive_hours),
         now=now,
         horizon_days=horizon_days,

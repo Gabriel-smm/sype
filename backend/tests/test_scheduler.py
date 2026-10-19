@@ -7,6 +7,7 @@ from app.scheduler import (
     BlockSpec,
     FreeSlot,
     build_free_slots,
+    expand_weekly,
     schedule,
 )
 from app.scoring import ScorableTask, Weights
@@ -29,6 +30,8 @@ FIXED_BLOCKS = [
     BlockSpec(hhmm("09:00"), hhmm("11:00"), 2, "class", "Bio 101"),
     BlockSpec(hhmm("09:00"), hhmm("11:00"), 4, "class", "Bio 101"),
 ]
+
+BUSY = expand_weekly(FIXED_BLOCKS, NOW - timedelta(days=1), NOW + timedelta(days=15))
 
 # Two self-reported productive windows, every day.
 PRODUCTIVE = [
@@ -61,7 +64,7 @@ def overlaps(a, b):
 # --------------------------------------------------------------------------
 
 def test_free_slots_never_overlap_and_are_ordered():
-    slots = build_free_slots(FIXED_BLOCKS, PRODUCTIVE, now=NOW)
+    slots = build_free_slots(BUSY, PRODUCTIVE, now=NOW)
     assert slots
     for a, b in zip(slots, slots[1:]):
         assert a.start <= b.start
@@ -69,7 +72,7 @@ def test_free_slots_never_overlap_and_are_ordered():
 
 
 def test_free_slots_never_intersect_a_fixed_block():
-    slots = build_free_slots(FIXED_BLOCKS, PRODUCTIVE, now=NOW)
+    slots = build_free_slots(BUSY, PRODUCTIVE, now=NOW)
     for slot in slots:
         cursor = slot.start
         while cursor < slot.end:
@@ -82,19 +85,19 @@ def test_free_slots_never_intersect_a_fixed_block():
 
 
 def test_sleep_block_wrapping_past_midnight_is_respected():
-    slots = build_free_slots(FIXED_BLOCKS, PRODUCTIVE, now=NOW)
+    slots = build_free_slots(BUSY, PRODUCTIVE, now=NOW)
     tuesday_slots = [s for s in slots if s.start.date() == (NOW + timedelta(days=1)).date()]
     # First free moment on Tuesday is when sleep ends, not midnight.
     assert min(s.start for s in tuesday_slots).hour == 7
 
 
 def test_slots_start_at_now_not_at_midnight():
-    slots = build_free_slots(FIXED_BLOCKS, PRODUCTIVE, now=NOW)
+    slots = build_free_slots(BUSY, PRODUCTIVE, now=NOW)
     assert min(s.start for s in slots) == NOW
 
 
 def test_productive_windows_are_tagged_and_split_out():
-    slots = build_free_slots(FIXED_BLOCKS, PRODUCTIVE, now=NOW)
+    slots = build_free_slots(BUSY, PRODUCTIVE, now=NOW)
     productive = [s for s in slots if s.is_productive]
     assert productive
     for slot in productive:
@@ -111,21 +114,35 @@ def test_productive_windows_are_tagged_and_split_out():
 
 
 def test_horizon_covers_exactly_the_requested_days():
-    slots = build_free_slots(FIXED_BLOCKS, PRODUCTIVE, now=NOW, horizon_days=7)
+    slots = build_free_slots(BUSY, PRODUCTIVE, now=NOW, horizon_days=7)
     assert max(s.end for s in slots) <= NOW.replace(hour=0) + timedelta(days=7)
     assert max(s.end for s in slots).date() == (NOW + timedelta(days=6)).date()
 
 
 def test_fragments_shorter_than_the_minimum_are_dropped():
     blocks = [BlockSpec(hhmm("08:05"), hhmm("23:59"), None, "class", "Marathon lecture")]
-    slots = build_free_slots(blocks, [], now=NOW, horizon_days=1, min_slot_minutes=15)
+    busy = expand_weekly(blocks, NOW - timedelta(days=1), NOW + timedelta(days=2))
+    slots = build_free_slots(busy, [], now=NOW, horizon_days=1, min_slot_minutes=15)
     # The 5-minute gap between NOW and 08:05 is not offered.
     assert all(s.minutes >= 15 for s in slots)
 
 
+def test_busy_intervals_outside_the_window_are_ignored():
+    far = [(NOW + timedelta(days=30), NOW + timedelta(days=31))]
+    assert build_free_slots(far, [], now=NOW, horizon_days=1) == build_free_slots([], [], now=NOW, horizon_days=1)
+
+
+def test_one_off_busy_interval_blocks_only_that_day():
+    busy = [(NOW + timedelta(hours=2), NOW + timedelta(hours=4))]
+    slots = build_free_slots(busy, [], now=NOW, horizon_days=2)
+    assert all(s.end <= busy[0][0] or s.start >= busy[0][1] for s in slots)
+    assert any(s.start <= NOW + timedelta(days=1, hours=3) < s.end for s in slots)
+
+
 def test_a_fully_booked_day_yields_no_slots():
     blocks = [BlockSpec(hhmm("00:00"), hhmm("24:00"), None, "class", "All day")]
-    assert build_free_slots(blocks, [], now=NOW, horizon_days=1) == []
+    busy = expand_weekly(blocks, NOW - timedelta(days=1), NOW + timedelta(days=2))
+    assert build_free_slots(busy, [], now=NOW, horizon_days=1) == []
 
 
 # --------------------------------------------------------------------------
@@ -133,7 +150,7 @@ def test_a_fully_booked_day_yields_no_slots():
 # --------------------------------------------------------------------------
 
 def test_no_double_booking_across_a_full_week_of_tasks():
-    slots = build_free_slots(FIXED_BLOCKS, PRODUCTIVE, now=NOW)
+    slots = build_free_slots(BUSY, PRODUCTIVE, now=NOW)
     items = [
         make("essay draft", 4, 120, grade=40, stress=5, focus=True),
         make("bio study", 3, 90, grade=30, stress=4, focus=True),
@@ -150,7 +167,7 @@ def test_no_double_booking_across_a_full_week_of_tasks():
 
 
 def test_placements_never_land_inside_a_fixed_block():
-    slots = build_free_slots(FIXED_BLOCKS, PRODUCTIVE, now=NOW)
+    slots = build_free_slots(BUSY, PRODUCTIVE, now=NOW)
     items = [make(f"task {i}", 5, 60) for i in range(10)]
     result = schedule(items, WEIGHTS, slots, now=NOW)
     for placement in result.placements:
@@ -165,7 +182,7 @@ def test_placements_never_land_inside_a_fixed_block():
 
 
 def test_high_focus_work_only_lands_in_productive_hours():
-    slots = build_free_slots(FIXED_BLOCKS, PRODUCTIVE, now=NOW)
+    slots = build_free_slots(BUSY, PRODUCTIVE, now=NOW)
     items = [
         make("draft", 4, 120, grade=40, stress=5, focus=True),
         make("study", 3, 90, grade=30, stress=4, focus=True),
@@ -178,7 +195,7 @@ def test_high_focus_work_only_lands_in_productive_hours():
 
 
 def test_higher_priority_task_is_placed_earlier():
-    slots = build_free_slots(FIXED_BLOCKS, PRODUCTIVE, now=NOW)
+    slots = build_free_slots(BUSY, PRODUCTIVE, now=NOW)
     urgent = make("urgent", 1, 60, grade=40, stress=5)
     relaxed = make("relaxed", 6, 60, grade=5, stress=1)
     result = schedule([relaxed, urgent], WEIGHTS, slots, now=NOW)
@@ -187,7 +204,7 @@ def test_higher_priority_task_is_placed_earlier():
 
 
 def test_every_item_is_either_placed_or_explained():
-    slots = build_free_slots(FIXED_BLOCKS, PRODUCTIVE, now=NOW)
+    slots = build_free_slots(BUSY, PRODUCTIVE, now=NOW)
     items = [make(f"t{i}", 5, 120) for i in range(40)]
     result = schedule(items, WEIGHTS, slots, now=NOW)
     assert len(result.placements) + len(result.unschedulable) == len(items)
@@ -195,7 +212,7 @@ def test_every_item_is_either_placed_or_explained():
 
 
 def test_task_too_long_for_any_gap_is_flagged_not_dropped():
-    slots = build_free_slots(FIXED_BLOCKS, PRODUCTIVE, now=NOW)
+    slots = build_free_slots(BUSY, PRODUCTIVE, now=NOW)
     monster = make("write entire thesis", 5, 60 * 20)
     result = schedule([monster], WEIGHTS, slots, now=NOW)
     assert result.placements == []
@@ -204,7 +221,7 @@ def test_task_too_long_for_any_gap_is_flagged_not_dropped():
 
 
 def test_focus_task_larger_than_any_productive_window_is_flagged():
-    slots = build_free_slots(FIXED_BLOCKS, PRODUCTIVE, now=NOW)
+    slots = build_free_slots(BUSY, PRODUCTIVE, now=NOW)
     # Productive windows max out at 3 hours; ask for 4 of focused work.
     result = schedule([make("mega draft", 5, 240, focus=True)], WEIGHTS, slots, now=NOW)
     assert result.placements == []
@@ -212,7 +229,7 @@ def test_focus_task_larger_than_any_productive_window_is_flagged():
 
 
 def test_deadline_is_respected_and_missed_deadline_is_flagged():
-    slots = build_free_slots(FIXED_BLOCKS, PRODUCTIVE, now=NOW)
+    slots = build_free_slots(BUSY, PRODUCTIVE, now=NOW)
     # 4 hours of work due in 3. It would fit later in the week, just not in
     # time - so the diagnosis must be about the deadline, not about capacity.
     tight = ScorableTask(
@@ -225,7 +242,7 @@ def test_deadline_is_respected_and_missed_deadline_is_flagged():
 
 
 def test_work_is_always_placed_before_its_deadline():
-    slots = build_free_slots(FIXED_BLOCKS, PRODUCTIVE, now=NOW)
+    slots = build_free_slots(BUSY, PRODUCTIVE, now=NOW)
     items = [make(f"t{i}", days, 60) for i, days in enumerate([1, 2, 2, 3, 4, 5])]
     result = schedule(items, WEIGHTS, slots, now=NOW)
     for placement in result.placements:
@@ -233,13 +250,13 @@ def test_work_is_always_placed_before_its_deadline():
 
 
 def test_nothing_is_scheduled_in_the_past():
-    slots = build_free_slots(FIXED_BLOCKS, PRODUCTIVE, now=NOW)
+    slots = build_free_slots(BUSY, PRODUCTIVE, now=NOW)
     result = schedule([make(f"t{i}", 5, 60) for i in range(5)], WEIGHTS, slots, now=NOW)
     assert all(p.start >= NOW for p in result.placements)
 
 
 def test_overdue_work_is_scheduled_asap_and_marked():
-    slots = build_free_slots(FIXED_BLOCKS, PRODUCTIVE, now=NOW)
+    slots = build_free_slots(BUSY, PRODUCTIVE, now=NOW)
     late = ScorableTask(
         id="late", title="late", days_until_due=-2, grade_weight=30, stress_rating=5,
         estimated_duration=60, due_date=NOW - timedelta(days=2),
@@ -251,7 +268,7 @@ def test_overdue_work_is_scheduled_asap_and_marked():
 
 
 def test_zero_duration_item_is_flagged_rather_than_placed():
-    slots = build_free_slots(FIXED_BLOCKS, PRODUCTIVE, now=NOW)
+    slots = build_free_slots(BUSY, PRODUCTIVE, now=NOW)
     empty = make("empty", 3, 0)
     result = schedule([empty], WEIGHTS, slots, now=NOW)
     assert result.placements == []
@@ -268,7 +285,7 @@ def test_leftover_slot_time_is_reused_by_later_tasks():
 
 
 def test_scheduling_is_deterministic():
-    slots = build_free_slots(FIXED_BLOCKS, PRODUCTIVE, now=NOW)
+    slots = build_free_slots(BUSY, PRODUCTIVE, now=NOW)
     items = [make(f"t{i}", (i % 5) + 1, 60 + i * 10, grade=i * 5) for i in range(12)]
     first = schedule(items, WEIGHTS, slots, now=NOW)
     second = schedule(list(reversed(items)), WEIGHTS, slots, now=NOW)
@@ -278,7 +295,7 @@ def test_scheduling_is_deterministic():
 
 
 def test_empty_input_produces_an_empty_schedule():
-    slots = build_free_slots(FIXED_BLOCKS, PRODUCTIVE, now=NOW)
+    slots = build_free_slots(BUSY, PRODUCTIVE, now=NOW)
     result = schedule([], WEIGHTS, slots, now=NOW)
     assert result.placements == [] and result.unschedulable == []
 
@@ -304,7 +321,7 @@ def chain(titles, *, due_days, est, focus=()):
 
 
 def test_dependent_phases_are_scheduled_in_order():
-    slots = build_free_slots(FIXED_BLOCKS, PRODUCTIVE, now=NOW)
+    slots = build_free_slots(BUSY, PRODUCTIVE, now=NOW)
     items = chain(["research", "outline", "draft", "revise"],
                   due_days=[2, 3, 4, 5], est=[60, 30, 90, 60], focus=("draft",))
     result = schedule(items, WEIGHTS, slots, now=NOW)
@@ -340,7 +357,7 @@ def test_a_phase_can_start_partway_into_a_slot_it_shares_with_its_predecessor():
 
 
 def test_precedence_does_not_reorder_independent_tasks():
-    slots = build_free_slots(FIXED_BLOCKS, PRODUCTIVE, now=NOW)
+    slots = build_free_slots(BUSY, PRODUCTIVE, now=NOW)
     urgent = make("urgent", 1, 60, grade=40, stress=5)
     relaxed = make("relaxed", 6, 60, grade=5, stress=1)
     result = schedule([relaxed, urgent], WEIGHTS, slots, now=NOW)
@@ -349,7 +366,7 @@ def test_precedence_does_not_reorder_independent_tasks():
 
 
 def test_an_unschedulable_predecessor_does_not_block_its_successor():
-    slots = build_free_slots(FIXED_BLOCKS, PRODUCTIVE, now=NOW)
+    slots = build_free_slots(BUSY, PRODUCTIVE, now=NOW)
     items = chain(["giant", "small"], due_days=[4, 5], est=[60 * 30, 60])
     result = schedule(items, WEIGHTS, slots, now=NOW)
     assert [u.item.title for u in result.unschedulable] == ["giant"]
@@ -357,7 +374,7 @@ def test_an_unschedulable_predecessor_does_not_block_its_successor():
 
 
 def test_a_dependency_cycle_degrades_to_plain_priority_order():
-    slots = build_free_slots(FIXED_BLOCKS, PRODUCTIVE, now=NOW)
+    slots = build_free_slots(BUSY, PRODUCTIVE, now=NOW)
     a = make("a", 3, 60)
     b = make("b", 4, 60)
     a.predecessor_ids = ["b"]
