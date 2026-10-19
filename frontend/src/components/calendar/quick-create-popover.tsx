@@ -19,7 +19,9 @@ interface Props {
   calendars: Calendar[]
   onClose: () => void
   onCreateEvent: (input: CalendarEventInput) => Promise<boolean>
-  onCreateTask: (input: TaskInput) => Promise<unknown>
+  onCreateTask: (input: TaskInput) => Promise<boolean>
+  /** Lets the page return focus to the block that opened this. */
+  onCloseAutoFocus?: (event: Event) => void
   onMoreOptions: (draft: CalendarEventInput) => void
 }
 
@@ -49,7 +51,7 @@ function eventInput(title: string, draft: QuickCreateDraft, calendars: Calendar[
 }
 
 export function QuickCreatePopover({
-  anchor, draft, calendars, onClose, onCreateEvent, onCreateTask, onMoreOptions,
+  anchor, draft, calendars, onClose, onCreateEvent, onCreateTask, onMoreOptions, onCloseAutoFocus,
 }: Props) {
   return (
     <Popover open={anchor != null} onOpenChange={(open) => { if (!open) onClose() }}>
@@ -62,7 +64,7 @@ export function QuickCreatePopover({
           />
         </PopoverAnchor>
       )}
-      <PopoverContent align="start" className="p-0" aria-label="Create">
+      <PopoverContent align="start" className="p-0" aria-label="Create" onCloseAutoFocus={onCloseAutoFocus}>
         {/* Remounted per draft so the typed title never leaks into the next one. */}
         <QuickCreateForm
           key={`${draft.start.getTime()}-${draft.end.getTime()}-${draft.allDay}`}
@@ -76,7 +78,7 @@ export function QuickCreatePopover({
 
 function QuickCreateForm({
   draft, calendars, onClose, onCreateEvent, onCreateTask, onMoreOptions,
-}: Omit<Props, 'anchor'>) {
+}: Omit<Props, 'anchor' | 'onCloseAutoFocus'>) {
   const [tab, setTab] = useState<'event' | 'task'>('event')
   const [title, setTitle] = useState('')
   const [saving, setSaving] = useState(false)
@@ -95,7 +97,7 @@ function QuickCreateForm({
       if (tab === 'event') {
         if (await onCreateEvent(eventInput(trimmed, draft, calendars))) onClose()
       } else {
-        await onCreateTask({
+        const created = await onCreateTask({
           title: trimmed,
           task_type: 'other',
           grade_weight: 0,
@@ -103,7 +105,7 @@ function QuickCreateForm({
           estimated_duration: Math.max(15, minutes),
           due_date: toApiDateTime(draft.end),
         })
-        onClose()
+        if (created) onClose()
       }
     } finally {
       setSaving(false)
@@ -112,10 +114,10 @@ function QuickCreateForm({
 
   return (
     <form onSubmit={submit}>
-      <Tabs value={tab} onValueChange={(v) => setTab(v as 'event' | 'task')}>
+      <Tabs value={draft.allDay ? 'event' : tab} onValueChange={(v) => setTab(v as 'event' | 'task')}>
         <TabsList className="px-3">
           <TabsTrigger value="event">Event</TabsTrigger>
-          <TabsTrigger value="task">Task</TabsTrigger>
+          {!draft.allDay && <TabsTrigger value="task">Task</TabsTrigger>}
         </TabsList>
         <div className="space-y-3 p-4">
           <Input

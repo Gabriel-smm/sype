@@ -15,7 +15,7 @@ interface Props {
   categories: Category[]
   onCreate: (input: CategoryInput) => Promise<boolean>
   onUpdate: (id: number, changes: CategoryChanges) => Promise<boolean>
-  onDelete: (id: number, reassignTo?: number) => Promise<boolean | void>
+  onDelete: (id: number, reassignTo?: number) => Promise<boolean>
 }
 
 export function CategoryManagerDialog({ open, onOpenChange, categories, onCreate, onUpdate, onDelete }: Props) {
@@ -50,7 +50,7 @@ export function CategoryManagerDialog({ open, onOpenChange, categories, onCreate
                   <NameField
                     key={`${category.id}-${category.name}`}
                     value={category.name}
-                    onCommit={(next) => void onUpdate(category.id, { name: next })}
+                    onCommit={(next) => onUpdate(category.id, { name: next })}
                   />
                   <Button
                     variant="ghost" size="icon-sm" aria-label={`Delete ${category.name}`}
@@ -64,7 +64,7 @@ export function CategoryManagerDialog({ open, onOpenChange, categories, onCreate
                     category={category}
                     others={categories.filter((c) => c.id !== category.id)}
                     onCancel={() => setDeleting(null)}
-                    onConfirm={async (reassignTo) => { await onDelete(category.id, reassignTo); setDeleting(null) }}
+                    onConfirm={async (reassignTo) => { if (await onDelete(category.id, reassignTo)) setDeleting(null) }}
                   />
                 )}
               </li>
@@ -111,18 +111,18 @@ function SwatchPopover({ label, color, onPick }: { label: string; color: ColorKe
   )
 }
 
-function NameField({ value, onCommit }: { value: string; onCommit: (name: string) => void }) {
+function NameField({ value, onCommit }: { value: string; onCommit: (name: string) => Promise<boolean> }) {
   const [text, setText] = useState(value)
-  const commit = () => {
+  const commit = async () => {
     const trimmed = text.trim()
     if (!trimmed) setText(value)
-    else if (trimmed !== value) onCommit(trimmed)
+    else if (trimmed !== value && !(await onCommit(trimmed))) setText(value)
   }
   return (
     <Input
       value={text} aria-label="Category name" className="h-9"
       onChange={(e) => setText(e.target.value)}
-      onBlur={commit}
+      onBlur={() => void commit()}
       onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); e.currentTarget.blur() } }}
     />
   )

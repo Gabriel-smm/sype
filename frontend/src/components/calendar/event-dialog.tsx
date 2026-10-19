@@ -15,6 +15,7 @@ export type EventDialogInitial = CalendarEventInput & { id?: number }
 
 interface Props {
   open: boolean
+  /** For edit and duplicate, pass the series row from api.getCalendarEvent (full description, series times, own category). */
   initial: EventDialogInitial
   calendars: Calendar[]
   categories: Category[]
@@ -72,6 +73,30 @@ function EventForm({
   const [description, setDescription] = useState(initial.description ?? '')
   const [saving, setSaving] = useState(false)
 
+  // Moving the start keeps the duration, as Google does.
+  const shiftEnd = (nextDate: string, nextTime: string) => {
+    if (!range || !nextDate || (!allDay && !nextTime)) return
+    const nextStart = parse(nextDate, allDay ? '00:00' : nextTime)
+    const lastEnd = allDay
+      ? new Date(range.end.getFullYear(), range.end.getMonth(), range.end.getDate() - 1)
+      : range.end
+    const delta = nextStart.getTime() - range.start.getTime()
+    const moved = new Date(lastEnd.getTime() + delta)
+    if (allDay) {
+      const dayShift = Math.round(delta / 86400000)
+      const e = new Date(lastEnd.getFullYear(), lastEnd.getMonth(), lastEnd.getDate() + dayShift)
+      setEndDate(datePart(e))
+    } else {
+      setEndDate(datePart(moved)); setEndTime(timePart(moved))
+    }
+  }
+  const toggleAllDay = (next: boolean) => {
+    setAllDay(next)
+    if (!next && startDate) {
+      setStartTime('09:00'); setEndTime('10:00'); setEndDate(startDate)
+    }
+  }
+
   const range = (() => {
     if (!startDate || !endDate) return null
     if (allDay) {
@@ -86,7 +111,7 @@ function EventForm({
 
   const submit = async (event: FormEvent) => {
     event.preventDefault()
-    if (invalid || saving) return
+    if (invalid || saving || !title.trim()) return
     const next: CalendarEventInput = {
       title: title.trim(),
       start: toApiDateTime(range.start),
@@ -137,19 +162,19 @@ function EventForm({
       <Input autoFocus value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Add title" aria-label="Title" />
 
       <label className="flex items-center gap-2 text-sm">
-        <Checkbox checked={allDay} onCheckedChange={(v) => setAllDay(v === true)} />
+        <Checkbox checked={allDay} onCheckedChange={(v) => toggleAllDay(v === true)} />
         All day
       </label>
 
       <div className="grid grid-cols-2 gap-3">
         <label>
           <Label>Start date</Label>
-          <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+          <Input type="date" value={startDate} onChange={(e) => { shiftEnd(e.target.value, startTime); setStartDate(e.target.value) }} />
         </label>
         {!allDay && (
           <label>
             <Label>Start time</Label>
-            <Input type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} />
+            <Input type="time" value={startTime} onChange={(e) => { shiftEnd(startDate, e.target.value); setStartTime(e.target.value) }} />
           </label>
         )}
         <label>
@@ -163,6 +188,7 @@ function EventForm({
           </label>
         )}
       </div>
+      {!title.trim() && <p className="text-sm text-sidebar-foreground/60">Add a title</p>}
       {invalid && (
         <p role="alert" className="text-sm text-destructive">End time must be after the start time</p>
       )}
@@ -202,7 +228,7 @@ function EventForm({
 
       <div className="flex justify-end gap-2 pt-1">
         <Button variant="ghost" onClick={onCancel}>Cancel</Button>
-        <Button type="submit" disabled={invalid || saving}>Save</Button>
+        <Button type="submit" disabled={invalid || saving || !title.trim()}>Save</Button>
       </div>
     </form>
   )

@@ -17,6 +17,8 @@ interface Props {
   onDelete: () => void
   onDuplicate: () => void
   onChangeColor: (pick: ColorPick) => void
+  /** Lets the page return focus to the block that opened this. */
+  onCloseAutoFocus?: (event: Event) => void
 }
 
 const pad = (n: number) => String(n).padStart(2, '0')
@@ -41,7 +43,7 @@ function describeWhen(o: Pick<Occurrence, 'start' | 'end' | 'all_day'>): string 
 }
 
 export function EventPopover({
-  anchor, occurrence, calendars, categories, onClose, onEdit, onDelete, onDuplicate, onChangeColor,
+  anchor, occurrence, calendars, categories, onClose, onEdit, onDelete, onDuplicate, onChangeColor, onCloseAutoFocus,
 }: Props) {
   const open = anchor != null && occurrence != null
   return (
@@ -55,7 +57,7 @@ export function EventPopover({
           />
         </PopoverAnchor>
       )}
-      <PopoverContent align="start" className="p-0" aria-label="Event details">
+      <PopoverContent align="start" className="p-0" aria-label="Event details" onCloseAutoFocus={onCloseAutoFocus}>
         {occurrence && (
           <EventDetails
             key={occurrence.id}
@@ -71,7 +73,7 @@ export function EventPopover({
 
 function EventDetails({
   occurrence, calendars, categories, onClose, onEdit, onDelete, onDuplicate, onChangeColor,
-}: Omit<Props, 'anchor' | 'occurrence'> & { occurrence: Occurrence }) {
+}: Omit<Props, 'anchor' | 'occurrence' | 'onCloseAutoFocus'> & { occurrence: Occurrence }) {
   const [picking, setPicking] = useState(false)
   const calendar = calendars.find((c) => c.id === occurrence.calendar_id)
   const category = categories.find((c) => c.id === occurrence.category_id)
