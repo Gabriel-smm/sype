@@ -16,7 +16,7 @@ function load(): ThreadState {
 }
 
 /**
- * Saved conversations, shared by the Chat page and the side panel, so the
+ * Saved conversations, shared by the Chat page and the chat drawer, so the
  * thread you start in one carries on in the other. Kept in the browser:
  * `activeId` null is a fresh chat that is only saved once it has a message.
  */

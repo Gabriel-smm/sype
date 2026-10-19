@@ -12,7 +12,6 @@ import { Toaster } from '@/components/ui/sonner'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { useAppData } from '@/hooks/use-app-data'
 import { useChat } from '@/hooks/use-chat'
-import { useIsMobile } from '@/hooks/use-mobile'
 import { CalendarPage } from '@/pages/calendar'
 import { ChatPage } from '@/pages/chat'
 import { SetupPage } from '@/pages/setup'
@@ -24,45 +23,29 @@ function isTyping(target: HTMLElement) {
   return target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName)
 }
 
-// The side panel's open/closed state outlives a refresh. Closed unless chosen.
-const CHAT_PANEL_KEY = 'sype.chatPanel'
-
-function readPanelOpen() {
-  try {
-    return localStorage.getItem(CHAT_PANEL_KEY) === 'open'
-  } catch {
-    return false
-  }
-}
-
 export function App() {
   const routerNavigate = useNavigate()
   const navigate = useCallback((to: string) => { void routerNavigate(to) }, [routerNavigate])
-  const isMobile = useIsMobile()
   const { pathname } = useLocation()
   const [capturing, setCapturing] = useState(false)
-  const [chatSheetOpen, setChatSheetOpen] = useState(false)
-  const [chatPanelOpen, setChatPanelOpen] = useState(readPanelOpen)
+  const [chatOpen, setChatOpen] = useState(false)
+  const [chatPath, setChatPath] = useState(pathname)
   const [editingId, setEditingId] = useState<number | null>(null)
 
   const data = useAppData({ openTask: setEditingId, navigate })
   const chat = useChat()
   const { meta, settings, tasks, schedule, events, busy, error, actions } = data
 
-  useEffect(() => {
-    try {
-      localStorage.setItem(CHAT_PANEL_KEY, chatPanelOpen ? 'open' : 'closed')
-    } catch {
-      // Storage unavailable: the panel simply starts closed next time.
-    }
-  }, [chatPanelOpen])
+  // The chat drawer belongs to the page it was opened on: moving on closes it.
+  if (chatPath !== pathname) {
+    setChatPath(pathname)
+    setChatOpen(false)
+  }
 
-  // The Chat page is the chat, so the side panel has nothing to add there.
+  // The Chat page is the chat, so the drawer has nothing to add there.
   const chatAvailable = pathname !== '/chat'
-  const chatOpen = isMobile ? chatSheetOpen : chatPanelOpen
-  const setChatOpen = isMobile ? setChatSheetOpen : setChatPanelOpen
 
-  // From anywhere: `n` or `/` opens capture, `c` opens or closes the chat beside the page.
+  // From anywhere: `n` or `/` opens capture, `c` opens or closes the chat drawer.
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       if (event.metaKey || event.ctrlKey || event.altKey || isTyping(event.target as HTMLElement)) return
@@ -76,7 +59,7 @@ export function App() {
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [chatAvailable, setChatOpen])
+  }, [chatAvailable])
 
   const pendingByType = useMemo(() => {
     const counts: Record<string, number> = {}

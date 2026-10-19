@@ -14,7 +14,7 @@ const SUGGESTIONS = [
 
 interface ChatConversationProps {
   chat: Chat
-  /** `page` centres a reading column; `panel` fills a narrow side panel. */
+  /** `page` centres a reading column; `panel` fills the narrow chat drawer. */
   variant: 'page' | 'panel'
   inputId?: string
   autoFocus?: boolean

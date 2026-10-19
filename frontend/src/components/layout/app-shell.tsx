@@ -1,18 +1,17 @@
 import { MessageSquare } from 'lucide-react'
 import type { ReactNode } from 'react'
-import { Group, Panel, Separator } from 'react-resizable-panels'
 
 import { ChatPanel } from '@/components/chat/chat-panel'
 import { Sheet, SheetContent } from '@/components/ui/sheet'
 import { SidebarInset, SidebarTrigger } from '@/components/ui/sidebar'
-import { Tooltip } from '@/components/ui/tooltip'
 import type { Chat } from '@/hooks/use-chat'
 import { useIsMobile } from '@/hooks/use-mobile'
+import { cn } from '@/lib/utils'
 
 interface AppShellProps {
   sidebar: ReactNode
   chat: Chat
-  /** Whether the chat beside the page is open: a side panel on desktop, a sheet on phones. */
+  /** Whether the chat drawer is open over the page. */
   chatOpen: boolean
   onChatOpenChange: (open: boolean) => void
   /** False on the Chat page itself, which is the chat. */
@@ -22,20 +21,18 @@ interface AppShellProps {
 }
 
 /**
- * Sype's app layout. The page takes the full width; the chat opens beside it
- * on demand, split 70/30 and resizable, from a slim rail on the right. Phones
- * get a slim top bar instead, with the chat in a sheet.
+ * Sype's app layout. The page always takes the full width; the chat slides
+ * over it as a drawer, opened from "Ask Sype" in the corner or with `C`.
+ * Phones get a slim top bar instead, and the drawer fills the screen.
  */
 export function AppShell({ sidebar, chat, chatOpen, onChatOpenChange, chatAvailable, banner, children }: AppShellProps) {
   const isMobile = useIsMobile()
   const close = () => onChatOpenChange(false)
 
-  const page = <div className="flex h-full w-full min-w-0 flex-1 flex-col py-2 pr-1 pl-2">{children}</div>
-
   return (
     <>
       {sidebar}
-      <SidebarInset className="overflow-hidden">
+      <SidebarInset className="relative overflow-hidden">
         {isMobile && (
           <header className="flex h-12 flex-shrink-0 items-center gap-2 px-3">
             <SidebarTrigger />
@@ -55,39 +52,36 @@ export function AppShell({ sidebar, chat, chatOpen, onChatOpenChange, chatAvaila
         {banner}
 
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-          {isMobile ? (
-            <div className="flex h-full min-h-0 w-full flex-col px-2 pb-2">{children}</div>
-          ) : chatAvailable && chatOpen ? (
-            <Group id="dashboard-panels" orientation="horizontal" className="h-full w-full">
-              <Panel id="main-content" defaultSize="70%" minSize="40%">{page}</Panel>
-              <Separator id="resize-handle" className="w-1 outline-none data-[separator=hover]:bg-white/10" />
-              <Panel id="chat-panel" defaultSize="30%" minSize="20%" maxSize="50%">
-                <div className="flex h-full w-full flex-col overflow-hidden py-2 pr-2 pl-1">
-                  <ChatPanel chat={chat} onClose={close} />
-                </div>
-              </Panel>
-            </Group>
-          ) : (
-            <div className="flex h-full w-full">
-              {page}
-              {chatAvailable ? (
-                <div className="flex w-11 shrink-0 flex-col items-center py-3">
-                  <Tooltip content="Open chat (C)" side="left">
-                    <button type="button" onClick={() => onChatOpenChange(true)} aria-label="Open chat"
-                            className="grid size-8 place-items-center rounded-lg text-white/55 transition-colors hover:bg-white/10 hover:text-white">
-                      <MessageSquare className="size-4" />
-                    </button>
-                  </Tooltip>
-                </div>
-              ) : <div className="w-1 shrink-0" />}
-            </div>
-          )}
+          <div className={cn('flex h-full min-h-0 w-full min-w-0 flex-col', isMobile ? 'px-2 pb-2' : 'p-2')}>{children}</div>
         </div>
+
+        {!isMobile && chatAvailable && !chatOpen && (
+          <button
+            type="button"
+            onClick={() => onChatOpenChange(true)}
+            className="absolute right-5 bottom-5 z-10 flex items-center gap-2 rounded-full border border-white/10 bg-background
+                       py-1.5 pr-1.5 pl-3 text-[13px] text-white/70 transition-colors hover:border-white/25 hover:text-white
+                       focus-visible:ring-2 focus-visible:ring-blue-400/60 focus-visible:outline-none"
+          >
+            <MessageSquare className="size-4" />
+            Ask Sype
+            <kbd className="grid size-5 place-items-center rounded-full bg-white/[0.08] font-sans text-[11px] text-white/50">C</kbd>
+          </button>
+        )}
       </SidebarInset>
 
-      {isMobile && chatAvailable && (
+      {chatAvailable && (
         <Sheet open={chatOpen} onOpenChange={onChatOpenChange}>
-          <SheetContent title="Chat" bare hideHeader className="max-w-full border-0 bg-transparent p-2 shadow-none backdrop-blur-none">
+          <SheetContent
+            title="Chat"
+            bare
+            hideHeader
+            overlayClassName={isMobile ? undefined : 'bg-black/30 backdrop-blur-none'}
+            className={cn(
+              'border-0 bg-transparent p-2 shadow-none backdrop-blur-none',
+              isMobile ? 'max-w-full' : 'max-w-[min(94vw,440px)]',
+            )}
+          >
             <ChatPanel chat={chat} onClose={close} className="bg-background" />
           </SheetContent>
         </Sheet>

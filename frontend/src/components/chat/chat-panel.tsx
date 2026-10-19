@@ -12,7 +12,7 @@ export const COPILOT_INPUT_ID = 'copilot-input'
 const iconButton = 'grid size-7 place-items-center rounded-md text-white/55 transition-colors hover:bg-white/10 hover:text-white'
 
 /**
- * The chat beside any page. It shows the same thread as the Chat page, so a
+ * The chat drawer over any page. It shows the same thread as the Chat page, so a
  * question asked here can be picked up there at full width.
  */
 export function ChatPanel({ chat, className, onClose }: { chat: Chat; className?: string; onClose: () => void }) {
