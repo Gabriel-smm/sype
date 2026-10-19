@@ -14,7 +14,7 @@ function Checkbox({ className, color = 'var(--primary)', style, ...props }: Chec
     <CheckboxPrimitive.Root
       className={cn(
         `peer flex size-[18px] shrink-0 items-center justify-center rounded-[3px] border border-white/40
-         outline-hidden disabled:cursor-not-allowed disabled:opacity-50
+         outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-sidebar disabled:cursor-not-allowed disabled:opacity-50
          data-[state=checked]:border-[var(--checkbox-color)] data-[state=checked]:bg-[var(--checkbox-color)]`,
         className,
       )}

@@ -19,8 +19,8 @@ function TabsTrigger({ className, ...props }: ComponentProps<typeof TabsPrimitiv
     <TabsPrimitive.Trigger
       className={cn(
         `-mb-px inline-flex h-10 items-center border-b-2 border-transparent px-3 text-sm text-sidebar-foreground/60
-         outline-hidden select-none hover:text-white disabled:pointer-events-none disabled:opacity-50
-         data-[state=active]:border-primary data-[state=active]:text-white`,
+         outline-hidden select-none hover:text-sidebar-foreground focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50
+         data-[state=active]:border-primary data-[state=active]:text-sidebar-foreground`,
         className,
       )}
       {...props}
