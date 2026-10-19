@@ -84,7 +84,8 @@ function SidebarProvider({ defaultOpen = false, className, style, children }: {
   )
 }
 
-const panelClasses = 'appglass flex h-full w-full flex-col rounded-lg border border-sidebar-border bg-sidebar text-sidebar-foreground shadow-sm'
+// Flush with the window edge: one straight line separates it from the page.
+const panelClasses = 'flex h-full w-full flex-col border-r border-white/10 bg-white/5 text-sidebar-foreground backdrop-blur-xl'
 
 function Sidebar({ className, children }: { className?: string; children: ReactNode }) {
   const { isMobile, state, openMobile, setOpenMobile } = useSidebar()
@@ -96,7 +97,7 @@ function Sidebar({ className, children }: { className?: string; children: ReactN
           <SheetPrimitive.Overlay className="fixed inset-0 z-50 bg-black/60 data-[state=open]:animate-in data-[state=open]:fade-in-0" />
           <SheetPrimitive.Content
             data-mobile="true"
-            className="group fixed inset-y-0 left-0 z-50 p-2 data-[state=open]:animate-in data-[state=open]:slide-in-from-left"
+            className="group fixed inset-y-0 left-0 z-50 data-[state=open]:animate-in data-[state=open]:slide-in-from-left"
             style={{ width: SIDEBAR_WIDTH_MOBILE }}
           >
             <SheetPrimitive.Title className="sr-only">Navigation</SheetPrimitive.Title>
@@ -119,12 +120,12 @@ function Sidebar({ className, children }: { className?: string; children: ReactN
       {/* Reserves the sidebar's width in the flow. */}
       <div
         className="relative h-full bg-transparent transition-[width] duration-200 ease-linear
-                   w-(--sidebar-width) group-data-[collapsible=icon]:w-[calc(var(--sidebar-width-icon)+(--spacing(4))+2px)]"
+                   w-(--sidebar-width) group-data-[collapsible=icon]:w-[calc(var(--sidebar-width-icon)+(--spacing(4))+1px)]"
       />
       <div
         className={cn(
-          `fixed inset-y-0 left-0 z-10 hidden h-dvh p-2 transition-[width] duration-200 ease-linear md:flex
-           w-(--sidebar-width) group-data-[collapsible=icon]:w-[calc(var(--sidebar-width-icon)+(--spacing(4))+2px)]`,
+          `fixed inset-y-0 left-0 z-10 hidden h-dvh transition-[width] duration-200 ease-linear md:flex
+           w-(--sidebar-width) group-data-[collapsible=icon]:w-[calc(var(--sidebar-width-icon)+(--spacing(4))+1px)]`,
           className,
         )}
       >
