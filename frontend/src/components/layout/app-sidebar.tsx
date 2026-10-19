@@ -1,9 +1,13 @@
 import {
-  CalendarDays, ChevronsUpDown, ClipboardList, Keyboard, MessageSquare, PanelLeftClose, PanelLeftOpen, Plus,
+  CalendarDays, ChevronRight, ChevronsUpDown, ClipboardList, Keyboard, MessageSquare, PanelLeftClose, PanelLeftOpen, Plus,
   RotateCw,
   Settings2, type LucideIcon,
 } from 'lucide-react'
-import { NavLink, useLocation } from 'react-router'
+import { Collapsible } from 'radix-ui'
+import { useState } from 'react'
+import { NavLink, useLocation, useNavigate } from 'react-router'
+
+import { ThreadList } from '@/components/chat/thread-list'
 
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Tooltip } from '@/components/ui/tooltip'
@@ -15,6 +19,7 @@ import {
   Sidebar, SidebarContent, SidebarFooter, SidebarGroup, SidebarGroupContent,
   SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem,
 } from '@/components/ui/sidebar'
+import type { Chat } from '@/hooks/use-chat'
 import { useSidebar } from '@/hooks/use-sidebar'
 import { cn } from '@/lib/utils'
 
@@ -34,16 +39,18 @@ const NAV: NavItem[] = [
 
 interface AppSidebarProps {
   studentName: string
+  chat: Chat
   onAddTask: () => void
   onRebuild: () => void
 }
 
-export function AppSidebar({ studentName, onAddTask, onRebuild }: AppSidebarProps) {
+export function AppSidebar({ studentName, chat, onAddTask, onRebuild }: AppSidebarProps) {
   return (
     <Sidebar>
       <NavHeader />
       <SidebarContent>
         <NavMain onAddTask={onAddTask} />
+        <NavChats chat={chat} />
       </SidebarContent>
       <SidebarFooter>
         <NavFooter name={studentName} onAddTask={onAddTask} onRebuild={onRebuild} />
@@ -103,6 +110,60 @@ function NavMain({ onAddTask }: { onAddTask: () => void }) {
         </SidebarMenu>
       </SidebarGroupContent>
     </SidebarGroup>
+  )
+}
+
+/**
+ * Past chats at the bottom of the nav. Open on the Chat page, closed elsewhere: it follows
+ * the route on every navigation, and can be toggled by hand in between. Hidden on the icon rail.
+ */
+function NavChats({ chat }: { chat: Chat }) {
+  const { pathname } = useLocation()
+  const navigate = useNavigate()
+  const { state, isMobile, setOpenMobile } = useSidebar()
+  const onChat = pathname.startsWith('/chat')
+  const [open, setOpen] = useState(onChat)
+  const [openedOn, setOpenedOn] = useState(pathname)
+
+  if (openedOn !== pathname) {
+    setOpenedOn(pathname)
+    setOpen(onChat)
+  }
+
+  if (state === 'collapsed' && !isMobile) return null
+
+  const startChat = () => {
+    chat.newChat()
+    navigate('/chat')
+    setOpenMobile(false)
+  }
+
+  return (
+    <Collapsible.Root open={open} onOpenChange={setOpen} asChild>
+      <SidebarGroup className="mt-auto min-h-0">
+        <div className="flex items-center gap-1">
+          <Collapsible.Trigger
+            className="group/chats flex h-8 min-w-0 flex-1 items-center gap-1.5 rounded-md px-2 text-xs font-medium
+                       text-sidebar-foreground/70 transition-colors hover:text-white focus-visible:ring-2
+                       focus-visible:ring-sidebar-ring focus-visible:outline-none"
+          >
+            <ChevronRight className="size-3.5 transition-transform group-data-[state=open]/chats:rotate-90
+                                     motion-reduce:transition-none" />
+            Chats
+          </Collapsible.Trigger>
+          <Tooltip content="New chat" side="right">
+            <button type="button" onClick={startChat} aria-label="New chat"
+                    className="grid size-7 shrink-0 place-items-center rounded-md text-white/55 transition-colors
+                               hover:bg-sidebar-accent hover:text-white">
+              <Plus className="size-4" />
+            </button>
+          </Tooltip>
+        </div>
+        <Collapsible.Content className="max-h-[45vh] min-h-0 overflow-y-auto pt-1">
+          <ThreadList chat={chat} onPicked={() => setOpenMobile(false)} />
+        </Collapsible.Content>
+      </SidebarGroup>
+    </Collapsible.Root>
   )
 }
 

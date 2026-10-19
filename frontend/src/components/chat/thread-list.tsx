@@ -1,47 +1,35 @@
-import { MoreHorizontal, Pencil, SquarePen, Trash2 } from 'lucide-react'
+import { MoreHorizontal, Pencil, Trash2 } from 'lucide-react'
 import { useState, type FormEvent } from 'react'
+import { useNavigate } from 'react-router'
 
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import type { Chat } from '@/hooks/use-chat'
 import { groupByDay, type Thread } from '@/lib/chat-threads'
 import { cn } from '@/lib/utils'
 
-/** Saved chats, newest first, with New chat on top. Picking one calls `onPicked` (closes the phone sheet). */
+/** Saved chats, newest first, grouped by day. Picking one opens it on the Chat page and calls `onPicked`. */
 export function ThreadList({ chat, onPicked }: { chat: Chat; onPicked?: () => void }) {
   const groups = groupByDay(chat.threads)
 
   return (
-    <nav aria-label="Chats" className="flex h-full min-h-0 flex-col">
-      <div className="flex-shrink-0 p-2">
-        <button
-          type="button"
-          onClick={() => { chat.newChat(); onPicked?.() }}
-          className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-[13px] text-white/80 transition-colors
-                     hover:bg-white/[0.06] hover:text-white"
-        >
-          <SquarePen className="size-4" />
-          New chat
-        </button>
-      </div>
-
-      <div className="min-h-0 flex-1 overflow-y-auto px-2 pb-3">
-        {groups.length === 0 && <p className="px-2.5 py-2 text-xs text-white/35">Your chats will be saved here.</p>}
-        {groups.map((group) => (
-          <section key={group.label} className="mt-3 first:mt-1">
-            <h3 className="px-2.5 pb-1 text-xs text-white/35">{group.label}</h3>
-            <ul>
-              {group.threads.map((thread) => (
-                <ThreadRow key={thread.id} thread={thread} chat={chat} onPicked={onPicked} />
-              ))}
-            </ul>
-          </section>
-        ))}
-      </div>
+    <nav aria-label="Chats">
+      {groups.length === 0 && <p className="px-2 py-1.5 text-xs text-white/35">Your chats will be saved here.</p>}
+      {groups.map((group) => (
+        <section key={group.label} className="mt-2 first:mt-0">
+          <h3 className="px-2 pb-1 text-xs text-white/35">{group.label}</h3>
+          <ul className="flex flex-col gap-px">
+            {group.threads.map((thread) => (
+              <ThreadRow key={thread.id} thread={thread} chat={chat} onPicked={onPicked} />
+            ))}
+          </ul>
+        </section>
+      ))}
     </nav>
   )
 }
 
 function ThreadRow({ thread, chat, onPicked }: { thread: Thread; chat: Chat; onPicked?: () => void }) {
+  const navigate = useNavigate()
   const [renaming, setRenaming] = useState(false)
   const [draft, setDraft] = useState(thread.title)
   const current = chat.active?.id === thread.id
@@ -63,7 +51,7 @@ function ThreadRow({ thread, chat, onPicked }: { thread: Thread; chat: Chat; onP
             onBlur={save}
             onKeyDown={(event) => { if (event.key === 'Escape') { setDraft(thread.title); setRenaming(false) } }}
             aria-label="Chat name"
-            className="w-full rounded-lg border border-white/25 bg-transparent px-2.5 py-1.5 text-[13px] text-white focus:outline-none"
+            className="w-full rounded-md border border-white/25 bg-transparent px-2 py-1.5 text-[13px] text-white focus:outline-none"
           />
         </form>
       </li>
@@ -71,13 +59,13 @@ function ThreadRow({ thread, chat, onPicked }: { thread: Thread; chat: Chat; onP
   }
 
   return (
-    <li className={cn('group relative flex items-center rounded-lg transition-colors',
-      current ? 'bg-white/[0.08]' : 'hover:bg-white/[0.04]')}>
+    <li className={cn('group relative flex items-center rounded-md transition-colors',
+      current ? 'bg-sidebar-accent' : 'hover:bg-sidebar-accent/60')}>
       <button
         type="button"
-        onClick={() => { chat.select(thread.id); onPicked?.() }}
+        onClick={() => { chat.select(thread.id); navigate('/chat'); onPicked?.() }}
         aria-current={current ? 'page' : undefined}
-        className={cn('min-w-0 flex-1 truncate px-2.5 py-1.5 text-left text-[13px]', current ? 'text-white' : 'text-white/65')}
+        className={cn('min-w-0 flex-1 truncate px-2 py-1.5 text-left text-[13px]', current ? 'text-white' : 'text-white/65')}
       >
         {thread.title}
       </button>

@@ -75,6 +75,7 @@ export function App() {
           sidebar={
             <AppSidebar
               studentName={settings.student.name}
+              chat={chat}
               onAddTask={openCapture}
               onRebuild={() => void data.regenerate()}
             />
