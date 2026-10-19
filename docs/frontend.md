@@ -61,8 +61,8 @@ Defined in `src/index.css`, dark only:
   collapse button and wordmark, Search chats, New task and the pages (`size="nav"` rows: 40px,
   20px icons, 15px text), the Chats history, then the account menu behind a top line. It starts expanded with page names and collapses to an icon rail from its header
   button or `Ctrl+B` (remembered in `localStorage['sidebar_state']`).
-  Toggling fades the contents out (100ms), resizes the empty bar (200ms), then fades the new
-  contents in (150ms), so labels never squeeze into the rail; skipped under reduced motion.
+  Toggling fades the contents out (60ms), resizes the empty bar (150ms), then fades the new
+  contents in (100ms), so labels never squeeze into the rail; skipped under reduced motion.
 - **Type**: Styrene B when available, else Inter Variable. Styrene is licensed, so it is never
   committed: `@font-face` in `index.css` uses a locally installed copy or files in
   `public/fonts/` (git-ignored, see `docs/setup.md`). `--radius` 0.75rem.

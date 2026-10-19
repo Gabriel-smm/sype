@@ -18,8 +18,8 @@ const SIDEBAR_WIDTH_MOBILE = '18rem'
 const SIDEBAR_WIDTH_ICON = '3rem'
 const SHORTCUT = 'b'
 // Collapse and expand: the contents fade out, the empty bar resizes, then the new contents fade in.
-const FADE_OUT_MS = 100
-const RESIZE_MS = 200
+const FADE_OUT_MS = 60
+const RESIZE_MS = 150
 
 function readStored(fallback: boolean) {
   try {
@@ -142,12 +142,12 @@ function Sidebar({ className, children }: { className?: string; children: ReactN
     >
       {/* Reserves the sidebar's width in the flow. */}
       <div
-        className="relative h-full bg-transparent transition-[width] duration-200 ease-out
+        className="relative h-full bg-transparent transition-[width] duration-150 ease-out
                    w-(--sidebar-width) group-data-[collapsible=icon]:w-[calc(var(--sidebar-width-icon)+(--spacing(4))+1px)]"
       />
       <div
         className={cn(
-          `fixed inset-y-0 left-0 z-10 hidden h-dvh transition-[width] duration-200 ease-out md:flex
+          `fixed inset-y-0 left-0 z-10 hidden h-dvh transition-[width] duration-150 ease-out md:flex
            w-(--sidebar-width) group-data-[collapsible=icon]:w-[calc(var(--sidebar-width-icon)+(--spacing(4))+1px)]`,
           className,
         )}
@@ -157,7 +157,7 @@ function Sidebar({ className, children }: { className?: string; children: ReactN
           <div
             data-sidebar="contents"
             className={cn('flex min-h-0 flex-1 flex-col transition-opacity ease-out',
-              fading ? 'pointer-events-none opacity-0 duration-100' : 'opacity-100 duration-150')}
+              fading ? 'pointer-events-none opacity-0 duration-[60ms]' : 'opacity-100 duration-100')}
           >
             {children}
           </div>
