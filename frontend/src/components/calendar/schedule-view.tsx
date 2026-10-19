@@ -80,10 +80,13 @@ export function ScheduleView({
                         if (isEvent) onSelectEvent(item.occurrence, anchor)
                         else onSelectSlot(item.slot, anchor)
                       }}
-                      className="flex min-h-9 w-full items-center gap-3 rounded-md px-2 py-1 text-left text-sm hover:bg-white/10"
+                      className="flex min-h-9 w-full items-center gap-3 rounded-md px-2 py-1 text-left text-sm hover:bg-white/10 focus-visible:outline-offset-[-2px]"
                     >
                       {isEvent
-                        ? <span aria-hidden className="size-3 shrink-0 rounded-full" style={{ background: hex }} />
+                        ? <span aria-hidden className="size-3 shrink-0 rounded-full"
+                          style={item.occurrence.busy
+                            ? { background: hex }
+                            : { border: `2px solid ${hex}`, background: 'transparent' }} />
                         : <Circle aria-hidden className="size-3 shrink-0" style={{ color: hex }} />}
                       <span className="w-28 shrink-0 tnum text-faint">{range}</span>
                       <span className="min-w-0 truncate">{title}</span>

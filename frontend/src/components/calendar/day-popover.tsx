@@ -1,7 +1,7 @@
 import { Circle } from 'lucide-react'
-import type { MouseEvent } from 'react'
+import { useState, type MouseEvent } from 'react'
 
-import { Popover, PopoverClose, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { EVENT_INK, eventLook, hexFor, slotColor } from '@/lib/colors'
 import { isAllDayLike } from '@/lib/drag'
 import { itemSelected, type ScheduleItem } from '@/lib/schedule-list'
@@ -33,7 +33,7 @@ export function DayItem({
     onActivate?.()
   }
   const base = cn(
-    'flex h-5 w-full min-w-0 items-center gap-1 rounded-(--radius-event) px-1.5 text-left text-xs leading-5',
+    'flex h-5 w-full min-w-0 focus-visible:outline-offset-[-2px] items-center gap-1 rounded-(--radius-event) px-1.5 text-left text-xs leading-5',
     selected && 'ring-2 ring-ring ring-offset-1 ring-offset-background',
   )
 
@@ -88,15 +88,16 @@ export function DayPopover({
   selected: GridSelection
   handlers: DayItemHandlers
 }) {
+  const [open, setOpen] = useState(false)
   const heading = day.toLocaleDateString([], { weekday: 'long', day: 'numeric', month: 'long' })
   return (
-    <Popover>
+    <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <button
           type="button"
           onClick={(event) => event.stopPropagation()}
           aria-label={`${count} more on ${heading}`}
-          className="h-5 w-full rounded-(--radius-event) px-1.5 text-left text-xs leading-5 text-faint hover:bg-white/10 hover:text-foreground"
+          className="h-5 w-full focus-visible:outline-offset-[-2px] rounded-(--radius-event) px-1.5 text-left text-xs leading-5 text-faint hover:bg-white/10 hover:text-foreground"
         >
           {count} more
         </button>
@@ -105,9 +106,13 @@ export function DayPopover({
         <p className="px-1.5 pb-2 text-sm text-faint">{heading}</p>
         <div className="flex flex-col gap-0.5">
           {items.map((item) => (
-            <PopoverClose key={item.kind === 'event' ? `e-${item.occurrence.id}` : `s-${item.slot.id}`} asChild>
-              <DayItemProxy item={item} selected={itemSelected(item, selected)} handlers={handlers} />
-            </PopoverClose>
+            <DayItem
+              key={item.kind === 'event' ? `e-${item.occurrence.id}` : `s-${item.slot.id}`}
+              item={item}
+              selected={itemSelected(item, selected)}
+              handlers={handlers}
+              onActivate={() => setOpen(false)}
+            />
           ))}
         </div>
       </PopoverContent>
@@ -115,10 +120,3 @@ export function DayPopover({
   )
 }
 
-// PopoverClose asChild needs a child that forwards its props; DayItem closes by delegating to it.
-function DayItemProxy({
-  item, selected, handlers, ...rest
-}: { item: ScheduleItem; selected: boolean; handlers: DayItemHandlers } & Record<string, unknown>) {
-  const onClick = rest.onClick as (() => void) | undefined
-  return <DayItem item={item} selected={selected} handlers={handlers} onActivate={onClick} />
-}
