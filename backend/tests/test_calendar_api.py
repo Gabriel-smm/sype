@@ -525,3 +525,47 @@ def test_edited_instance_reports_the_series_id(client):
     assert moved["id"] == f"{series['id']}_{second:%Y%m%dT%H%M}"
     assert moved["recurring"] is True and datetime.fromisoformat(moved["original_start"]) == second
     assert datetime.fromisoformat(moved["start"]) == second + timedelta(hours=2)
+
+
+SEARCH = "/api/students/1/calendar-events/search"
+
+
+def test_search_finds_occurrences_by_title_location_description(client):
+    hits = client.get(SEARCH, params={"q": "bio 101"}).json()  # case-insensitive
+    assert len(hits) >= 2 and all(h["title"] == "Bio 101" for h in hits)
+    starts = [h["start"] for h in hits]
+    assert starts == sorted(starts)
+    monday = _monday()
+    week = [h for h in hits if monday <= datetime.fromisoformat(h["start"]) < monday + timedelta(days=7)]
+    assert len(week) == 2
+    assert len(client.get(SEARCH, params={"q": "bio 101", "limit": 1}).json()) == 1
+
+    _create(client, title="Alpha", location="Quadrangle", description="bring SNACKS")
+    assert [h["title"] for h in client.get(SEARCH, params={"q": "quadr"}).json()] == ["Alpha"]
+    assert [h["title"] for h in client.get(SEARCH, params={"q": "snacks"}).json()] == ["Alpha"]
+    assert client.get(SEARCH, params={"q": "zzzz-nothing"}).json() == []
+
+
+def test_search_rejects_blank_query(client):
+    assert client.get(SEARCH, params={"q": "   "}).status_code == 422
+    assert client.get(SEARCH).status_code == 422
+    assert client.get(SEARCH, params={"q": "x" * 101}).status_code == 422
+    assert client.get(SEARCH, params={"q": "a", "limit": 0}).status_code == 422
+    assert client.get(SEARCH, params={"q": "a", "limit": 101}).status_code == 422
+
+
+def test_search_skips_cancelled_events(client):
+    created = _create(client, title="Findable")
+    assert len(client.get(SEARCH, params={"q": "findable"}).json()) == 1
+    client.delete(f"/api/calendar-events/{created['id']}")
+    assert client.get(SEARCH, params={"q": "findable"}).json() == []
+
+
+def test_occurrence_range_outside_supported_years_is_422(client):
+    def get(start, end):
+        return client.get(EVENTS, params={"start": start, "end": end}).status_code
+
+    assert get("1969-12-30T00:00", "1970-01-02T00:00") == 422
+    assert get("2199-12-30T00:00", "2200-01-02T00:00") == 200
+    assert get("2200-12-30T00:00", "2201-01-02T00:00") == 422
+    assert get("1970-01-01T00:00", "1970-01-03T00:00") == 200

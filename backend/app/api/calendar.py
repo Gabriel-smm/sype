@@ -13,6 +13,8 @@ from ..db import get_db
 from ..recurrence import Occurrence, RecurrenceError, validate_recurrence
 
 MAX_RANGE = timedelta(days=120)
+MIN_YEAR, MAX_YEAR = 1970, 2200
+SEARCH_SPAN = timedelta(days=365)
 STATUS_CONFIRMED = "confirmed"
 OPAQUE, TRANSPARENT = "opaque", "transparent"
 
@@ -281,8 +283,33 @@ def list_event_occurrences(
         raise HTTPException(422, "end must be after start")
     if end - start > MAX_RANGE:
         raise HTTPException(422, f"Range is limited to {MAX_RANGE.days} days")
+    if start.year < MIN_YEAR or end.year > MAX_YEAR:
+        raise HTTPException(422, f"Dates must fall between {MIN_YEAR} and {MAX_YEAR}")
     pairs = load_occurrences(db, student_id, start, end, calendar_ids=_parse_ids(calendar_ids))
     return [_occurrence_out(row, occurrence) for row, occurrence in pairs]
+
+
+@router.get(
+    "/students/{student_id}/calendar-events/search", response_model=list[schemas.OccurrenceOut]
+)
+def search_event_occurrences(
+    student_id: int,
+    q: str = Query(..., description="Matched against title, location and description"),
+    limit: int = Query(25, ge=1, le=100),
+    db: Session = Depends(get_db),
+):
+    _get_student(db, student_id)
+    needle = q.strip().casefold()
+    if not 1 <= len(needle) <= 100:
+        raise HTTPException(422, "q must be 1 to 100 characters")
+    today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+    pairs = load_occurrences(db, student_id, today - SEARCH_SPAN, today + SEARCH_SPAN)
+    hits = [
+        _occurrence_out(row, occurrence)
+        for row, occurrence in pairs
+        if any(needle in field.casefold() for field in (row.title, row.location, row.description))
+    ]
+    return hits[:limit]
 
 
 @router.post(

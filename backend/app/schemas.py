@@ -242,6 +242,8 @@ class ScheduledSlotOut(BaseModel):
     priority_score: float
     due_date: datetime
     overdue: bool
+    category_id: int | None
+    color_key: str | None
 
 
 class UnschedulableOut(BaseModel):

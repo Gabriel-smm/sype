@@ -413,3 +413,26 @@ def test_changing_task_colour_keeps_subtasks(client):
     classes = _category(client, "Classes")
     updated = client.patch(f"/api/tasks/{task['id']}", json={"category_id": classes["id"]}).json()
     assert [s["id"] for s in updated["subtasks"]] == ids
+
+
+def test_slot_reports_task_colour_and_category(client):
+    classes = next(
+        c for c in client.get(f"/api/students/{STUDENT}/categories").json() if c["name"] == "Classes"
+    )
+    new_task(client, title="In class", category_id=classes["id"])
+    new_task(client, title="Minty", color_key="mint")
+    new_task(client, title="Plain")
+    slots = client.post(f"/api/students/{STUDENT}/schedule/generate").json()["slots"]
+    by_title = {s["title"]: s for s in slots}
+    assert by_title["In class"]["color_key"] == "sky"
+    assert by_title["In class"]["category_id"] == classes["id"]
+    assert by_title["Minty"]["color_key"] == "mint" and by_title["Minty"]["category_id"] is None
+    assert by_title["Plain"]["color_key"] is None and by_title["Plain"]["category_id"] is None
+
+
+def test_subtask_slots_use_the_parent_task_colour(client):
+    new_task(client, title="Big essay", task_type="essay_project", estimated_duration=600,
+             due_date=iso(days=12), color_key="rose")
+    slots = client.post(f"/api/students/{STUDENT}/schedule/generate").json()["slots"]
+    sub = [s for s in slots if s["subtask_id"] is not None]
+    assert sub and all(s["color_key"] == "rose" for s in sub)

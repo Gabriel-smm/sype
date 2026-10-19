@@ -102,6 +102,8 @@ export interface ScheduleSlot {
   priority_score: number
   due_date: string
   overdue: boolean
+  category_id: number | null
+  color_key: ColorKey | null
 }
 
 export interface UnschedulableItem {

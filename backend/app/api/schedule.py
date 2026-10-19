@@ -13,20 +13,25 @@ from ..scheduler import DEFAULT_HORIZON_DAYS
 router = APIRouter(prefix="/api/students/{student_id}/schedule", tags=["schedule"])
 
 
-def _slot_out(slot: models.ScheduledSlot, now: datetime) -> dict:
+def _slot_out(db: Session, slot: models.ScheduledSlot, now: datetime) -> dict:
     if slot.subtask is not None:
         title = slot.subtask.title
         parent = slot.subtask.parent_task
         due = slot.subtask.due_by
         requires_focus = slot.subtask.requires_focus
         parent_title, task_type, task_id = parent.title, parent.task_type, parent.id
+        owner = parent
         recurring = parent.recurring_task_id is not None
     else:
         task = slot.task
         title, parent_title, due = task.title, None, task.due_date
         task_type, task_id = task.task_type, task.id
+        owner = task
         requires_focus = task.task_type in (models.TASK_TYPE_ESSAY, models.TASK_TYPE_EXAM)
         recurring = task.recurring_task_id is not None
+
+    category = db.get(models.Category, owner.category_id) if owner.category_id else None
+    color_key = category.color_key if category is not None else owner.color_key
 
     return {
         "id": slot.id,
@@ -43,6 +48,8 @@ def _slot_out(slot: models.ScheduledSlot, now: datetime) -> dict:
         "priority_score": slot.priority_score,
         "due_date": due,
         "overdue": due <= now,
+        "category_id": owner.category_id,
+        "color_key": color_key,
     }
 
 
@@ -101,7 +108,7 @@ def _read_schedule(db: Session, student_id: int, horizon_days: int, now: datetim
         "horizon_end": now.replace(hour=0, minute=0, second=0, microsecond=0)
         + timedelta(days=horizon_days),
         "generated_at": generated_at,
-        "slots": [_slot_out(s, now) for s in slots],
+        "slots": [_slot_out(db, s, now) for s in slots],
         "unschedulable": unschedulable,
     }
 

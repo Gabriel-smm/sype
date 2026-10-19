@@ -99,6 +99,11 @@ export const api = {
     if (calendarIds?.length) params.set('calendar_ids', calendarIds.join(','))
     return request<Occurrence[]>(`${base}/calendar-events?${params}`)
   },
+  calendarSearch: (q: string, limit?: number) => {
+    const params = new URLSearchParams({ q })
+    if (limit !== undefined) params.set('limit', String(limit))
+    return request<Occurrence[]>(`${base}/calendar-events/search?${params}`)
+  },
   createCalendarEvent: (event: CalendarEventInput) =>
     request<CalendarEvent>(`${base}/calendar-events`, { method: 'POST', body: JSON.stringify(event) }),
   getCalendarEvent: (id: number) => request<CalendarEvent>(`/api/calendar-events/${id}`),
