@@ -1,12 +1,27 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
+/* Styrene B is licensed, so it is never committed. It is used when installed on the machine or when
+   the licensed files are dropped into public/fonts/ (git-ignored); otherwise Inter takes over. */
+@font-face {
+  font-family: "Styrene B";
+  font-weight: 400;
+  font-display: swap;
+  src: local("Styrene B Regular"), local("StyreneB-Regular"), url("/fonts/StyreneB-Regular.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Styrene B";
+  font-weight: 500 700;
+  font-display: swap;
+  src: local("Styrene B Medium"), local("StyreneB-Medium"), url("/fonts/StyreneB-Medium.woff2") format("woff2");
+}
+
 /* Dark navy, one blue accent: the Sype look. White text is graded by
    opacity (100 / 70 / 60 / 40) instead of by a ramp of greys, so every
    surface stays neutral and the accent is the only colour that isn't
    information. Task-type hues are information, never decoration. */
 @theme inline {
-  --font-sans: "Inter Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Styrene B", "Inter Variable", ui-sans-serif, system-ui, sans-serif;
 
   --color-background: var(--background);
   --color-foreground: var(--foreground);
