@@ -14,7 +14,7 @@ function Toaster(props: ToasterProps) {
             '!rounded-lg !border !border-sidebar-border !bg-sidebar !text-sidebar-foreground !shadow-2xl',
           description: '!text-muted-foreground',
           actionButton: '!rounded-md !bg-sidebar-primary !px-3 !text-white',
-          warning: '!text-type-routine',
+          warning: '!text-cat-peach',
         },
       }}
       {...props}

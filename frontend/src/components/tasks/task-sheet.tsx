@@ -165,7 +165,7 @@ function SheetBody({ task, taskTypes, busy, actions, onClose }: SheetProps & { t
 
         <div className="flex items-center gap-3">
           <Button type="submit" disabled={busy || !dirty}>Save changes</Button>
-          {saved && <span role="status" className="text-[13px] text-type-problem">Saved. Week rebuilt.</span>}
+          {saved && <span role="status" className="text-[13px] text-cat-mint">Saved. Week rebuilt.</span>}
         </div>
         {error && <p role="alert" className="text-[13px] text-destructive">{error}</p>}
       </form>

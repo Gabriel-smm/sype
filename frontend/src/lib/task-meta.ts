@@ -1,5 +1,7 @@
 // Vocabulary and colour. Hue identifies the kind of work; it is never decoration.
 
+import { hexFor, typeDefaultColor } from '@/lib/colors'
+
 export const TYPE_LABELS: Record<string, string> = {
   essay_project: 'Essay or project',
   exam_study: 'Exam study',
@@ -10,22 +12,12 @@ export const TYPE_LABELS: Record<string, string> = {
   routine: 'Routine',
 }
 
-export const TYPE_COLORS: Record<string, string> = {
-  essay_project: '#9d8cff',
-  exam_study: '#ef8fd0',
-  problem_set: '#56d3b0',
-  reading: '#6cc3f2',
-  admin: '#9ea6b8',
-  other: '#c9b37a',
-  routine: '#f2a65a',
-}
-
 // Blue-400 and red-400: the accent and the one alarm colour.
 export const ACCENT = '#60a5fa'
 export const ALARM = '#f87171'
 
 export function typeColor(taskType: string): string {
-  return TYPE_COLORS[taskType] ?? TYPE_COLORS.other
+  return hexFor(typeDefaultColor(taskType))
 }
 
 export function typeLabel(taskType: string): string {

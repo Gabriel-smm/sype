@@ -197,7 +197,7 @@ export function WeekStrip({ blocks, tint, onAdd, onDelete, addLabel, busy }: Wee
           <Button variant="ghost" onClick={() => setDraft(null)}>Cancel</Button>
 
           {draft.end_time <= draft.start_time && (
-            <p className="w-full text-[13px] text-type-routine">Ends before it starts, so this runs overnight.</p>
+            <p className="w-full text-[13px] text-cat-peach">Ends before it starts, so this runs overnight.</p>
           )}
           {error && <p role="alert" className="w-full text-[13px] text-destructive">{error}</p>}
         </form>

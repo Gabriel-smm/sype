@@ -47,13 +47,19 @@
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
 
-  --color-type-essay: #9d8cff;
-  --color-type-exam: #ef8fd0;
-  --color-type-problem: #56d3b0;
-  --color-type-reading: #6cc3f2;
-  --color-type-admin: #9ea6b8;
-  --color-type-other: #c9b37a;
-  --color-type-routine: #f2a65a;
+  /* The only event hues. Mirrored by COLOR_HEX in lib/colors.ts. */
+  --color-cat-rose: #f4a7b9;
+  --color-cat-peach: #f8b994;
+  --color-cat-butter: #f2dc8f;
+  --color-cat-pistachio: #c5e09b;
+  --color-cat-mint: #9fdcc0;
+  --color-cat-aqua: #93d8dc;
+  --color-cat-sky: #a3c4f3;
+  --color-cat-periwinkle: #b4b8f2;
+  --color-cat-lilac: #cdb4ee;
+  --color-cat-blush: #eab2d6;
+  --color-cat-stone: #c4c0b8;
+  --radius-event: 4px;
 
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);

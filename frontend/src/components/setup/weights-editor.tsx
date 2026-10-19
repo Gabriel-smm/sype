@@ -94,7 +94,7 @@ export function WeightsEditor({ weights, busy, onSave }: WeightsEditorProps) {
 
         <div className="flex flex-wrap items-center gap-3">
           <Button onClick={() => void save()} disabled={busy || !dirty}>Save weights</Button>
-          {saved && <span role="status" className="text-[13px] text-type-problem">Saved</span>}
+          {saved && <span role="status" className="text-[13px] text-cat-mint">Saved</span>}
           {!saved && dirty && (
             <span className="text-[13px] text-faint">Not saved yet. The calendar keeps the old ordering until you do.</span>
           )}
