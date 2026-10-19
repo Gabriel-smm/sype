@@ -32,7 +32,9 @@ if [[ ! -x .venv/bin/python ]]; then
 fi
 if [[ ! -f $backend_stamp || backend/requirements.txt -nt $backend_stamp ]]; then
   echo "==> installing backend requirements"
-  .venv/bin/pip install -r backend/requirements.txt
+  # Through the interpreter, not .venv/bin/pip: pip's launcher hard-codes the
+  # path the venv was created at, so it breaks if the repo folder moves.
+  .venv/bin/python -m pip install -r backend/requirements.txt
   touch "$backend_stamp"
 fi
 
