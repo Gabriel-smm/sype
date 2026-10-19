@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import type { ChatMessage } from '@/types/api'
 import {
-  NEW_CHAT_TITLE, groupByDay, newThread, parseStored, placeholderThreads, serialize, titleFrom, withMessages, type Thread,
+  NEW_CHAT_TITLE, filterThreads, groupByDay, newThread, parseStored, placeholderThreads, serialize, titleFrom, withMessages, type Thread,
 } from './chat-threads'
 
 // Wednesday 23 September 2026, 14:30 local.
@@ -107,5 +107,18 @@ describe('placeholderThreads', () => {
   it('fills every day group', () => {
     const labels = groupByDay(placeholderThreads(NOW.getTime()), NOW).map((group) => group.label)
     expect(labels).toEqual(['Today', 'Yesterday', 'Earlier'])
+  })
+})
+
+describe('filterThreads', () => {
+  const threads = [thread('Plan my chem week', at(23)), thread('Move gym to mornings', at(22))]
+
+  it('keeps everything for an empty query', () => {
+    expect(filterThreads(threads, '  ')).toEqual(threads)
+  })
+
+  it('matches every word in any order, ignoring case', () => {
+    expect(filterThreads(threads, 'WEEK chem').map((t) => t.id)).toEqual(['Plan my chem week'])
+    expect(filterThreads(threads, 'gym exam')).toEqual([])
   })
 })

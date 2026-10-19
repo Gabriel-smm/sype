@@ -120,6 +120,16 @@ export function placeholderThreads(now = Date.now()): Thread[] {
   }))
 }
 
+/** Chats whose title contains every word of the query, ignoring case. An empty query keeps all. */
+export function filterThreads(threads: Thread[], query: string): Thread[] {
+  const words = query.toLowerCase().split(/\s+/).filter(Boolean)
+  if (words.length === 0) return threads
+  return threads.filter((thread) => {
+    const title = thread.title.toLowerCase()
+    return words.every((word) => title.includes(word))
+  })
+}
+
 /** Chats with nothing in them are not worth keeping. */
 export function serialize({ threads, activeId }: ThreadState): string {
   return JSON.stringify({ threads: threads.filter((thread) => thread.messages.length > 0), activeId })
