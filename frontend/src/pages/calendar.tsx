@@ -5,6 +5,7 @@ import { SlotSheet } from '@/components/schedule/slot-sheet'
 import { WeekGrid } from '@/components/schedule/week-grid'
 import { Card } from '@/components/ui/card'
 import { Tooltip } from '@/components/ui/tooltip'
+import { useCalendarEvents } from '@/hooks/use-calendar-events'
 import { weekStartOf } from '@/lib/time'
 import type { Schedule, ScheduleSlot, Settings } from '@/types/api'
 import type { SlotAction } from '@/types/app'
@@ -32,6 +33,10 @@ export function CalendarPage({
     next.setDate(next.getDate() + weeks * 7)
     setDate(next)
   }
+  const weekStart = weekStartOf(date)
+  const weekEnd = new Date(weekStart)
+  weekEnd.setDate(weekEnd.getDate() + 7)
+  const { occurrences } = useCalendarEvents(weekStart, weekEnd, schedule)
   const month = weekStartOf(date).toLocaleDateString([], { month: 'long', year: 'numeric' })
   const navButton = 'rounded-lg p-1 transition-colors duration-200 hover:bg-white/10'
 
@@ -68,7 +73,7 @@ export function CalendarPage({
       <div className="relative -mt-2 flex min-h-0 flex-1 flex-col">
         <WeekGrid
           slots={schedule.slots}
-          fixedBlocks={settings.fixed_blocks}
+          busyEvents={occurrences}
           productiveHours={settings.productive_hours}
           date={date}
           selectedId={selected?.id}

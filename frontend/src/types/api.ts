@@ -2,7 +2,10 @@
 // backend/app/schemas.py. Datetimes arrive as naive local ISO strings.
 
 export type TaskStatus = 'pending' | 'done' | 'skipped'
-export type BlockKind = 'sleep' | 'lunch' | 'class' | 'other'
+export const COLOR_KEYS = [
+  'rose', 'peach', 'butter', 'pistachio', 'mint', 'aqua', 'sky', 'periwinkle', 'lilac', 'blush', 'stone',
+] as const
+export type ColorKey = (typeof COLOR_KEYS)[number]
 
 export interface Block {
   id: number
@@ -12,13 +15,9 @@ export interface Block {
   end_time: string
 }
 
-export interface FixedBlock extends Block {
-  kind: BlockKind
-}
-
 export type ProductiveWindow = Block
 
-export type BlockInput = Omit<Block, 'id'> & { kind?: BlockKind }
+export type BlockInput = Omit<Block, 'id'>
 
 export interface Weights {
   w_urgency: number
@@ -35,6 +34,7 @@ export interface RecurringTaskInput {
   stress_rating: number
   weekdays: number[]
   due_time: string
+  category_id?: number | null
 }
 
 export interface RecurringTask extends RecurringTaskInput {
@@ -45,7 +45,6 @@ export interface RecurringTask extends RecurringTaskInput {
 
 export interface Settings {
   student: { id: number; name: string }
-  fixed_blocks: FixedBlock[]
   productive_hours: ProductiveWindow[]
   recurring_tasks: RecurringTask[]
   weights: Weights & { student_id: number }
@@ -72,9 +71,13 @@ export interface TaskInput {
   grade_weight: number
   stress_rating: number
   time_invested?: number
+  category_id?: number | null
+  color_key?: ColorKey | null
 }
 
-export interface Task extends Required<TaskInput> {
+export interface Task extends Required<Omit<TaskInput, 'category_id' | 'color_key'>> {
+  category_id: number | null
+  color_key: ColorKey | null
   id: number
   student_id: number
   status: TaskStatus
@@ -146,7 +149,7 @@ export interface ActivityEvent {
 
 export interface Meta {
   task_types: string[]
-  block_kinds: string[]
+  colors: ColorKey[]
   event_types: string[]
   default_student_id: number
 }
@@ -160,4 +163,87 @@ export interface ChatProvider {
   name: string
   live: boolean
   detail: string
+}
+
+export interface Calendar {
+  id: number
+  name: string
+  source: string
+  is_primary: boolean
+  visible: boolean
+  color_key: ColorKey
+  position: number
+}
+
+export interface CalendarInput {
+  name: string
+  color_key?: ColorKey
+}
+
+export type CalendarChanges = Partial<CalendarInput> & { visible?: boolean; position?: number }
+
+export interface Category {
+  id: number
+  name: string
+  color_key: ColorKey
+  position: number
+}
+
+export type CategoryInput = { name: string; color_key: ColorKey }
+export type CategoryChanges = Partial<CategoryInput> & { position?: number }
+
+export type EventKind = 'default' | 'routine'
+
+export interface CalendarEventInput {
+  calendar_id?: number | null
+  title: string
+  description?: string
+  location?: string
+  start: string
+  end: string
+  all_day?: boolean
+  busy?: boolean | null
+  kind?: EventKind
+  category_id?: number | null
+  color_key?: ColorKey | null
+  recurrence?: string[]
+}
+
+export type CalendarEventChanges = Partial<CalendarEventInput>
+
+export interface CalendarEvent {
+  id: number
+  calendar_id: number
+  category_id: number | null
+  color_key: ColorKey | null
+  title: string
+  description: string
+  location: string
+  start: string
+  end: string
+  all_day: boolean
+  busy: boolean
+  kind: EventKind
+  status: 'confirmed' | 'cancelled'
+  recurrence: string[]
+  recurring_event_id: number | null
+  original_start_time: string | null
+}
+
+export interface Occurrence {
+  id: string
+  event_id: number
+  calendar_id: number
+  category_id: number | null
+  color_key: ColorKey
+  title: string
+  description: string
+  location: string
+  start: string
+  end: string
+  all_day: boolean
+  busy: boolean
+  kind: EventKind
+  recurring: boolean
+  original_start: string | null
 }

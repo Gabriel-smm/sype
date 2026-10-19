@@ -1,8 +1,9 @@
 // Thin wrapper over the FastAPI backend. Every call is scoped to one student;
 // this MVP has no auth, so the id is fixed.
 import type {
-  ActivityEvent, BlockInput, ChatMessage, ChatProvider, Meta, ProductiveWindow,
-  RecurringTask, RecurringTaskInput, Schedule, Settings, Task, TaskChanges, TaskInput, Weights,
+  ActivityEvent, BlockInput, Calendar, CalendarChanges, CalendarEvent, CalendarEventChanges,
+  CalendarEventInput, CalendarInput, Category, CategoryChanges, CategoryInput, ChatMessage, ChatProvider, Meta, ProductiveWindow,
+  Occurrence, RecurringTask, RecurringTaskInput, Schedule, Settings, Task, TaskChanges, TaskInput, Weights,
   WeightsPreview,
 } from '@/types/api'
 
@@ -75,6 +76,37 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ start_time: startTime, end_time: endTime }),
     }),
+
+  calendars: () => request<Calendar[]>(`${base}/calendars`),
+  createCalendar: (calendar: CalendarInput) =>
+    request<Calendar>(`${base}/calendars`, { method: 'POST', body: JSON.stringify(calendar) }),
+  updateCalendar: (id: number, changes: CalendarChanges) =>
+    request<Calendar>(`/api/calendars/${id}`, { method: 'PATCH', body: JSON.stringify(changes) }),
+  deleteCalendar: (id: number) => request(`/api/calendars/${id}`, { method: 'DELETE' }),
+
+  categories: () => request<Category[]>(`${base}/categories`),
+  createCategory: (category: CategoryInput) =>
+    request<Category>(`${base}/categories`, { method: 'POST', body: JSON.stringify(category) }),
+  updateCategory: (id: number, changes: CategoryChanges) =>
+    request<Category>(`/api/categories/${id}`, { method: 'PATCH', body: JSON.stringify(changes) }),
+  deleteCategory: (id: number, reassignTo?: number) =>
+    request(`/api/categories/${id}${reassignTo === undefined ? '' : `?reassign_to=${reassignTo}`}`, {
+      method: 'DELETE',
+    }),
+
+  calendarEvents: (start: string, end: string, calendarIds?: number[]) => {
+    const params = new URLSearchParams({ start, end })
+    if (calendarIds?.length) params.set('calendar_ids', calendarIds.join(','))
+    return request<Occurrence[]>(`${base}/calendar-events?${params}`)
+  },
+  createCalendarEvent: (event: CalendarEventInput) =>
+    request<CalendarEvent>(`${base}/calendar-events`, { method: 'POST', body: JSON.stringify(event) }),
+  getCalendarEvent: (id: number) => request<CalendarEvent>(`/api/calendar-events/${id}`),
+  updateCalendarEvent: (id: number, changes: CalendarEventChanges) =>
+    request<CalendarEvent>(`/api/calendar-events/${id}`, { method: 'PATCH', body: JSON.stringify(changes) }),
+  deleteCalendarEvent: (id: number) => request(`/api/calendar-events/${id}`, { method: 'DELETE' }),
+  restoreCalendarEvent: (id: number) =>
+    request<CalendarEvent>(`/api/calendar-events/${id}/restore`, { method: 'POST' }),
 
   events: () => request<ActivityEvent[]>(`${base}/events`),
 
