@@ -116,3 +116,31 @@ export function allDayRows(occurrences: Occurrence[], days: Date[]): AllDayBar[]
     return { ...bar, row }
   })
 }
+
+// Minutes on a wall clock that never skips or repeats an hour (DST-proof differences).
+const wallMinutes = (date: Date) =>
+  Date.UTC(date.getFullYear(), date.getMonth(), date.getDate(), date.getHours(), date.getMinutes()) / 60000
+
+/**
+ * Keep a moved range on the day it was dropped on: it starts no earlier than
+ * 00:00 and ends no later than 24:00, keeping its wall-clock length. An
+ * overnight event only has to start on the day. Ranges of 24h or more are
+ * left alone (they live in the all-day row).
+ */
+export function clampMoveToDay(
+  start: Date, end: Date, day: Date, { overnight = false } = {},
+): { start: Date; end: Date } {
+  const duration = wallMinutes(end) - wallMinutes(start)
+  if (duration >= MINUTES_IN_DAY) return { start, end }
+  const offset = wallMinutes(start) - wallMinutes(day)
+  const latest = overnight ? MINUTES_IN_DAY - SNAP : MINUTES_IN_DAY - duration
+  const minute = clamp(offset, 0, latest)
+  if (minute === offset) return { start, end }
+  return { start: wallClock(day, minute), end: wallClock(day, minute + duration) }
+}
+
+/** A resized end never passes the midnight after `day`. */
+export function clampEndToDay(end: Date, day: Date): Date {
+  const limit = wallClock(day, MINUTES_IN_DAY)
+  return end > limit ? limit : end
+}

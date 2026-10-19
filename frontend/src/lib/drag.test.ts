@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest'
 
 import type { Occurrence } from '@/types/api'
 import {
-  allDayRows, applyMove, applyResize, isAllDayLike, normaliseCreate, yToMinute,
+  allDayRows, applyMove, applyResize, clampEndToDay, clampMoveToDay, isAllDayLike, normaliseCreate, yToMinute,
 } from './drag'
 import { daysOfWeek } from './time'
 
@@ -166,5 +166,50 @@ describe('allDayRows', () => {
     const two = occ('two', '2026-09-16T10:00:00', '2026-09-18T10:00:00')
     const rows = allDayRows([two], week)
     expect(rows[0]).toMatchObject({ firstDay: 2, span: 3 })
+  })
+})
+
+describe('clampMoveToDay', () => {
+  const next = new Date(2026, 8, 17)
+
+  it('leaves a move that stays on the day alone', () => {
+    expect(clampMoveToDay(at(day, 600), at(day, 660), day)).toEqual({ start: at(day, 600), end: at(day, 660) })
+  })
+
+  it('stops at midnight when dragged above the top of the day', () => {
+    expect(clampMoveToDay(at(day, -90), at(day, -30), day)).toEqual({ start: at(day, 0), end: at(day, 60) })
+  })
+
+  it('stops so the end is at 24:00 when dragged below the bottom', () => {
+    expect(clampMoveToDay(at(day, 1410), at(day, 1500), day)).toEqual({ start: at(day, 1350), end: at(next, 0) })
+  })
+
+  it('keeps an overnight event starting on the target day', () => {
+    const overnight = { overnight: true }
+    expect(clampMoveToDay(at(day, 1410), at(day, 1890), day, overnight))
+      .toEqual({ start: at(day, 1410), end: at(day, 1890) })
+    expect(clampMoveToDay(at(day, 1500), at(day, 1980), day, overnight))
+      .toEqual({ start: at(day, 1425), end: at(day, 1905) })
+    expect(clampMoveToDay(at(day, -30), at(day, 450), day, overnight))
+      .toEqual({ start: at(day, 0), end: at(day, 480) })
+  })
+
+  it('leaves events of 24 hours or more unchanged', () => {
+    expect(clampMoveToDay(at(day, -60), at(day, 1500), day)).toEqual({ start: at(day, -60), end: at(day, 1500) })
+  })
+
+  it('keeps the wall-clock duration across a DST change', () => {
+    const fallBack = new Date(2026, 10, 1) // US clocks go back at 02:00
+    const moved = clampMoveToDay(at(fallBack, -60), at(fallBack, 60), fallBack)
+    expect(moved.start.getHours()).toBe(0)
+    expect(moved.end.getHours()).toBe(2)
+    expect(moved.end.getMinutes()).toBe(0)
+  })
+})
+
+describe('clampEndToDay', () => {
+  it('caps an end at the midnight after the day', () => {
+    expect(clampEndToDay(at(day, 1500), day)).toEqual(at(day, 1440))
+    expect(clampEndToDay(at(day, 900), day)).toEqual(at(day, 900))
   })
 })

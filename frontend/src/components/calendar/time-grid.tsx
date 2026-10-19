@@ -55,7 +55,7 @@ interface TimeGridProps {
   onOpenDay: (day: Date) => void
 }
 
-type Item = DayPart & { key: string; target: DragTarget; first: boolean; last: boolean }
+type Item = DayPart & { key: string; target: DragTarget; last: boolean }
 
 const rangeOf = (target: DragTarget) => target.kind === 'event'
   ? { start: new Date(target.occurrence.start), end: new Date(target.occurrence.end) }
@@ -64,14 +64,13 @@ const rangeOf = (target: DragTarget) => target.kind === 'event'
 const keyOf = (target: DragTarget) =>
   target.kind === 'event' ? `e-${target.occurrence.id}` : `s-${target.slot.id}`
 
-/** Split a range over the visible days, noting which part holds its start and its end. */
+/** Split a range over the visible days, noting which part holds its end. */
 function itemsFor(target: DragTarget, days: Date[]): Item[] {
   const { start, end } = rangeOf(target)
   return projectRange(start, end, days).map((part) => ({
     ...part,
     key: `${keyOf(target)}-${part.dayOffset}`,
     target,
-    first: start >= days[part.dayOffset],
     last: end <= addDays(days[part.dayOffset], 1),
   }))
 }
@@ -126,10 +125,7 @@ export function TimeGrid({
   ].flatMap((target) => itemsFor(target, days))
   const laidOut = days.map((_, dayOffset) => layoutColumns(items.filter((item) => item.dayOffset === dayOffset)))
   const ghosts = preview && preview.type !== 'create'
-    ? projectRange(preview.start, preview.end, days).map((part) => ({
-      ...part,
-      last: preview.end <= addDays(days[part.dayOffset], 1),
-    }))
+    ? projectRange(preview.start, preview.end, days)
     : []
   const createGhost = preview?.type === 'create' ? preview : draft
   const createParts = createGhost ? projectRange(createGhost.start, createGhost.end, days) : []

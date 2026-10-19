@@ -85,16 +85,20 @@ export function ChipFrame({
 
 /**
  * Chip body copy, Google-style: under 30 minutes one line "Title, 9:00";
- * otherwise the title, plus the time range from 45 minutes.
+ * otherwise the title, plus the time range from 45 minutes. A chip being
+ * dragged (`live`) always shows its full range.
  */
 export function ChipText({
-  title, start, end, minutes, leading,
-}: { title: string; start: Date; end: Date; minutes: number; leading?: ReactNode }) {
+  title, start, end, minutes, leading, live,
+}: { title: string; start: Date; end: Date; minutes: number; leading?: ReactNode; live?: boolean }) {
   if (minutes < 30) {
     return (
-      <p className="flex items-center gap-1 truncate">
+      <p className="flex items-center gap-1 truncate text-[11px] leading-3">
         {leading}
-        <span className="truncate"><span className="font-semibold">{title}</span>, {formatShortTime(start)}</span>
+        <span className="truncate">
+          <span className="font-semibold">{title}</span>,{' '}
+          <span className="tnum">{live ? formatTimeRange(start, end) : formatShortTime(start)}</span>
+        </span>
       </p>
     )
   }
@@ -104,7 +108,7 @@ export function ChipText({
         {leading}
         <span className="line-clamp-2 break-words">{title}</span>
       </p>
-      {minutes >= 45 && <p className="truncate tnum opacity-80">{formatTimeRange(start, end)}</p>}
+      {(live || minutes >= 45) && <p className="truncate tnum opacity-80">{formatTimeRange(start, end)}</p>}
     </div>
   )
 }
@@ -138,6 +142,7 @@ export function EventChip({ occurrence, placement, interaction, range }: EventCh
         start={start}
         end={end}
         minutes={placement.minutes}
+        live={interaction.lifted}
       />
     </ChipFrame>
   )

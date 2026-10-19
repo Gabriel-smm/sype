@@ -4,7 +4,11 @@
 // All time maths goes through lib/drag.ts.
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type PointerEvent, type RefObject } from 'react'
 
-import { SNAP, applyMove, applyResize, normaliseCreate, yToMinute } from '@/lib/drag'
+import { addDays, startOfDay } from 'date-fns'
+
+import {
+  SNAP, applyMove, applyResize, clampEndToDay, clampMoveToDay, normaliseCreate, yToMinute,
+} from '@/lib/drag'
 import { MINUTES_IN_DAY, isSameDay, minutesSinceMidnight } from '@/lib/time'
 import type { Occurrence, ScheduleSlot } from '@/types/api'
 
@@ -88,8 +92,17 @@ export function useGridPointer(options: Options) {
       event.stopPropagation()
       release()
     }
+    // If the captured element unmounts mid-drag (a refetch replaced it), nothing else would end the gesture.
+    const onLost = (event: globalThis.PointerEvent) => {
+      const current = pending.current
+      if (current && current.pointerId === event.pointerId && !current.element.isConnected) release()
+    }
     window.addEventListener('keydown', onKey, true)
-    return () => window.removeEventListener('keydown', onKey, true)
+    document.addEventListener('lostpointercapture', onLost)
+    return () => {
+      window.removeEventListener('keydown', onKey, true)
+      document.removeEventListener('lostpointercapture', onLost)
+    }
   }, [release])
 
   function geometry(clientX: number, clientY: number) {
@@ -104,6 +117,7 @@ export function useGridPointer(options: Options) {
   function begin(
     event: PointerEvent<HTMLElement>, type: Pending['type'], target: DragTarget | null, anchor: HTMLElement,
   ) {
+    if (pending.current && !pending.current.element.isConnected) release()
     if (event.button !== 0 || pending.current) return
     const at = geometry(event.clientX, event.clientY)
     if (!at) return
@@ -140,10 +154,17 @@ export function useGridPointer(options: Options) {
     const target = current.target as DragTarget
     const { start, end } = span(target)
     const minuteDelta = Math.round(((at.top - current.originTop) / hourHeight) * 60 / SNAP) * SNAP
-    const next = current.type === 'move'
-      ? applyMove(start, end, at.day - current.originDay, minuteDelta)
-      : applyResize(start, end, minuteDelta)
-    return { type: current.type, target, ...next }
+    // Clamped to the day it is dropped on, so the drag never runs off the visible grid.
+    if (current.type === 'move') {
+      const dayDelta = at.day - current.originDay
+      const moved = applyMove(start, end, dayDelta, minuteDelta)
+      const overnight = !isSameDay(start, new Date(end.getTime() - 1))
+      const day = addDays(startOfDay(start), dayDelta)
+      return { type: 'move', target, ...clampMoveToDay(moved.start, moved.end, day, { overnight }) }
+    }
+    const resized = applyResize(start, end, minuteDelta)
+    const endDay = startOfDay(new Date(end.getTime() - 1))
+    return { type: 'resize', target, start: resized.start, end: clampEndToDay(resized.end, endDay) }
   }
 
   function onPointerMove(event: PointerEvent<HTMLElement>) {

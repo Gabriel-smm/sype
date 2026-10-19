@@ -36,14 +36,14 @@ export function TaskBlock({ slot, placement, interaction, range, onComplete }: T
         start={start}
         end={end}
         minutes={placement.minutes}
+        live={interaction.lifted}
         leading={
           <button
             type="button"
-            aria-label="Mark done"
+            aria-label={`Mark ${slot.title} done`}
             tabIndex={interaction.lifted ? -1 : 0}
-            className="-m-0.5 shrink-0 rounded-full p-0.5 hover:bg-white/15"
+            className="-m-0.5 shrink-0 rounded-full p-0.5 hover:bg-white/15 focus-visible:outline-offset-[-2px]"
             onPointerDown={(event) => event.stopPropagation()}
-            onKeyDown={(event) => event.stopPropagation()}
             onClick={(event) => {
               event.stopPropagation()
               onComplete?.()
