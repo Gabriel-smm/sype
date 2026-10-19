@@ -11,6 +11,7 @@ from app.calendar_defaults import WeeklyBlock, events_from_weekly_blocks
 from app.db import Base
 from app.migrations import add_missing_columns, run_data_migrations
 from app.models import Calendar, CalendarEvent, Category, FixedBlock, SchemaMigration
+from app.recurrence import EventSpec, expand
 
 # The `tasks` / `recurring_tasks` columns as they were before calendar events existed.
 OLD_TASKS_DDL = """
@@ -156,10 +157,10 @@ def test_add_missing_columns_accepts_not_null_with_server_default(tmp_path):
 # --- events_from_weekly_blocks --------------------------------------------------------
 
 
-def test_weekly_blocks_start_on_the_first_matching_day_of_the_current_week(db_session):
+def test_weekly_blocks_start_on_the_first_matching_day_of_the_previous_week(db_session):
     db_session.add(models.Student(id=1, name="S"))
     db_session.flush()
-    today = date(2026, 10, 18)  # a Sunday; that week's Monday is 2026-10-12
+    today = date(2026, 10, 18)  # a Sunday; the Monday of the week before is 2026-10-05
     events = events_from_weekly_blocks(db_session, 1, [
         WeeklyBlock("class", "Stats 210", 1, 13 * 60 + 30, 15 * 60),
         WeeklyBlock("class", "Stats 210", 3, 13 * 60 + 30, 15 * 60),
@@ -168,18 +169,35 @@ def test_weekly_blocks_start_on_the_first_matching_day_of_the_current_week(db_se
     ], today=today)
 
     stats, sleep, club = events
-    assert stats.start == datetime(2026, 10, 13, 13, 30)  # Tuesday
-    assert stats.end == datetime(2026, 10, 13, 15, 0)
+    assert stats.start == datetime(2026, 10, 6, 13, 30)  # Tuesday
+    assert stats.end == datetime(2026, 10, 6, 15, 0)
     assert stats.recurrence_lines == ["RRULE:FREQ=WEEKLY;BYDAY=TU,TH"]
     assert stats.category.name == "Classes"
-    assert sleep.start == datetime(2026, 10, 12, 23, 30)  # daily: the Monday
-    assert sleep.end == datetime(2026, 10, 13, 7, 30)  # overnight wraps
+    assert sleep.start == datetime(2026, 10, 5, 23, 30)  # daily: the Monday
+    assert sleep.end == datetime(2026, 10, 6, 7, 30)  # overnight wraps
     assert sleep.recurrence_lines == ["RRULE:FREQ=DAILY"]
     assert sleep.category.name == "Routine" and sleep.kind == "routine"
     assert club.category_id is None and club.kind == "default"
     assert club.end - club.start == timedelta(hours=24)  # end == start means a full day
     assert all(e.transparency == "opaque" and e.status == "confirmed" for e in events)
     assert {e.calendar.is_primary for e in events} == {True}
+
+
+def test_sleep_seeded_on_a_monday_still_blocks_that_monday_morning(db_session):
+    """Review Focus 2: the night before the seed day must already have its Sleep."""
+    db_session.add(models.Student(id=1, name="S"))
+    db_session.flush()
+    monday = date(2026, 10, 19)
+    (sleep,) = events_from_weekly_blocks(db_session, 1, [
+        WeeklyBlock("sleep", "Sleep", None, 23 * 60 + 30, 7 * 60 + 30),
+    ], today=monday)
+
+    six_am = datetime(2026, 10, 19, 6, 0)
+    occurrences = expand(
+        EventSpec(sleep.id, sleep.start, sleep.end, tuple(sleep.recurrence_lines)), [],
+        datetime(2026, 10, 19), datetime(2026, 10, 20),
+    )
+    assert any(o.start <= six_am < o.end for o in occurrences)
 
 
 def test_a_group_with_any_daily_block_becomes_daily(db_session):

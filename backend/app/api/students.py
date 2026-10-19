@@ -1,4 +1,4 @@
-"""Student settings: fixed blocks, productive hours, priority weights."""
+"""Student settings: productive hours, priority weights."""
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -42,10 +42,6 @@ def get_settings(student_id: int, db: Session = Depends(get_db)):
         db.commit()
     return {
         "student": student,
-        "fixed_blocks": [
-            {**_block_out(b), "kind": b.kind}
-            for b in sorted(student.fixed_blocks, key=lambda b: (b.day_of_week is not None, b.start_minute))
-        ],
         "productive_hours": [
             _block_out(w)
             for w in sorted(student.productive_hours, key=lambda w: (w.day_of_week is not None, w.start_minute))
@@ -55,34 +51,6 @@ def get_settings(student_id: int, db: Session = Depends(get_db)):
         ],
         "weights": weights,
     }
-
-
-@router.post("/{student_id}/fixed-blocks", response_model=schemas.FixedBlockOut, status_code=201)
-def add_fixed_block(
-    student_id: int, payload: schemas.FixedBlockCreate, db: Session = Depends(get_db)
-):
-    _get_student(db, student_id)
-    block = models.FixedBlock(
-        student_id=student_id,
-        kind=payload.kind,
-        label=payload.label,
-        day_of_week=payload.day_of_week,
-        start_minute=parse_hhmm(payload.start_time),
-        end_minute=parse_hhmm(payload.end_time),
-    )
-    db.add(block)
-    db.commit()
-    db.refresh(block)
-    return {**_block_out(block), "kind": block.kind}
-
-
-@router.delete("/{student_id}/fixed-blocks/{block_id}", status_code=204)
-def delete_fixed_block(student_id: int, block_id: int, db: Session = Depends(get_db)):
-    block = db.get(models.FixedBlock, block_id)
-    if block is None or block.student_id != student_id:
-        raise HTTPException(404, "No such fixed block")
-    db.delete(block)
-    db.commit()
 
 
 @router.post(

@@ -91,7 +91,9 @@ def events_from_weekly_blocks(
         key = (block.kind, block.label, block.start_minute, block.end_minute)
         groups.setdefault(key, set()).add(block.day_of_week)
 
-    monday = today - timedelta(days=today.weekday())
+    # Anchor a week early: a series starting today would miss the overnight
+    # instance that began last night, leaving this morning unblocked.
+    monday = today - timedelta(days=today.weekday() + 7)
     events: list[models.CalendarEvent] = []
     for (kind, label, start_minute, end_minute), day_set in groups.items():
         days = None if None in day_set else {d for d in day_set if d is not None}

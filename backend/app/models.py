@@ -1,8 +1,8 @@
 """SQLAlchemy models (Section 7 of the brief).
 
-Durations are stored in minutes everywhere. Fixed blocks and productive
-windows are weekly-recurring and stored as minutes-from-midnight; a block
-whose end_minute <= start_minute wraps past midnight (e.g. sleep 23:00-07:00).
+Durations are stored in minutes everywhere. Productive windows (and the
+legacy fixed blocks) are weekly-recurring and stored as minutes-from-midnight;
+a block whose end_minute <= start_minute wraps past midnight.
 
 Calendar events replace fixed blocks: they are dated (naive local time, `end`
 exclusive) and optionally recur through RFC 5545 lines stored as JSON text.
@@ -39,8 +39,6 @@ TASK_TYPES = [
 STATUS_PENDING = "pending"
 STATUS_DONE = "done"
 STATUS_SKIPPED = "skipped"
-
-BLOCK_KINDS = ["sleep", "lunch", "class", "other"]
 
 # Pastel palette shared by calendars, categories, events and tasks, in display order.
 COLOR_KEYS = [

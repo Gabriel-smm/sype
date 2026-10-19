@@ -1,5 +1,9 @@
 """End-to-end tests over the API: input -> decompose -> score -> schedule."""
-from datetime import datetime, timedelta
+from datetime import datetime, time, timedelta
+
+import pytest
+
+from app.models import COLOR_KEYS
 
 STUDENT = 1
 
@@ -29,8 +33,12 @@ def test_health_and_seeded_student(client):
     assert client.get("/api/health").json() == {"status": "ok"}
     settings = client.get(f"/api/students/{STUDENT}/settings").json()
     assert settings["student"]["name"] == "Test Student"
-    assert settings["fixed_blocks"] and settings["productive_hours"]
+    assert "fixed_blocks" not in settings
+    assert settings["productive_hours"]
     assert settings["weights"]["w_urgency"] == 0.4
+    meta = client.get("/api/meta").json()
+    assert meta["colors"] == COLOR_KEYS
+    assert "block_kinds" not in meta
 
 
 def test_create_task_decomposes_a_long_essay(client):
@@ -179,14 +187,68 @@ def test_reschedule_rejects_an_inverted_time_range(client):
     assert response.status_code == 422
 
 
-def test_adding_a_fixed_block_keeps_the_scheduler_out_of_it(client):
-    client.post(f"/api/students/{STUDENT}/fixed-blocks", json={
-        "kind": "class", "label": "All-day retreat", "day_of_week": None,
-        "start_time": "00:00", "end_time": "23:59"})
+def _today_at_midnight(days=0):
+    start = datetime.combine(datetime.now().date(), time()) + timedelta(days=days)
+    return start.isoformat()
+
+
+def _busy_all_week(client, **overrides):
+    payload = {"title": "Retreat", "start": _today_at_midnight(),
+               "end": _today_at_midnight(days=8), "busy": True}
+    payload.update(overrides)
+    response = client.post(f"/api/students/{STUDENT}/calendar-events", json=payload)
+    assert response.status_code == 201, response.text
+    return response.json()
+
+
+@pytest.mark.skip(reason="routes land in Task 6")
+def test_a_busy_all_week_event_keeps_the_scheduler_out(client):
+    _busy_all_week(client)
     new_task(client, estimated_duration=60)
     schedule = client.post(f"/api/students/{STUDENT}/schedule/generate").json()
     assert schedule["slots"] == []
     assert schedule["unschedulable"]
+
+
+@pytest.mark.skip(reason="routes land in Task 6")
+def test_a_free_event_does_not_block_the_scheduler(client):
+    _busy_all_week(client, busy=False)
+    new_task(client, estimated_duration=60)
+    schedule = client.post(f"/api/students/{STUDENT}/schedule/generate").json()
+    assert schedule["slots"]
+
+
+@pytest.mark.skip(reason="routes land in Task 6")
+def test_an_event_on_a_hidden_calendar_still_blocks(client):
+    calendar = client.post(f"/api/students/{STUDENT}/calendars", json={"name": "Away"}).json()
+    hidden = client.patch(f"/api/calendars/{calendar['id']}", json={"visible": False})
+    assert hidden.status_code == 200 and hidden.json()["visible"] is False
+    _busy_all_week(client, calendar_id=calendar["id"])
+    new_task(client, estimated_duration=60)
+    schedule = client.post(f"/api/students/{STUDENT}/schedule/generate").json()
+    assert schedule["slots"] == []
+
+
+def test_tonights_sleep_still_blocks_tomorrow_morning(client):
+    """Review Focus 2 end to end: the seeded 23:30-07:30 Sleep blocks every night."""
+    for index in range(30):
+        new_task(client, title=f"Reading {index}", task_type="reading",
+                 estimated_duration=90, due_date=iso(days=6))
+    slots = client.post(f"/api/students/{STUDENT}/schedule/generate").json()["slots"]
+    assert slots
+
+    today = datetime.combine(datetime.now().date(), time())
+    nights = [
+        (today + timedelta(days=d, hours=23, minutes=30),
+         today + timedelta(days=d + 1, hours=7, minutes=30))
+        for d in range(-1, 9)
+    ]
+    for slot in slots:
+        start = datetime.fromisoformat(slot["start_time"])
+        end = datetime.fromisoformat(slot["end_time"])
+        assert not time(7, 0) <= start.time() < time(7, 30), slot
+        for night_start, night_end in nights:
+            assert not (start < night_end and end > night_start), (slot, night_start)
 
 
 def test_productive_windows_can_be_added_and_removed(client):

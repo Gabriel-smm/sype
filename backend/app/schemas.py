@@ -6,7 +6,7 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-from .models import BLOCK_KINDS, EVENT_TYPES, TASK_TYPE_ROUTINE, TASK_TYPES
+from .models import EVENT_TYPES, TASK_TYPE_ROUTINE, TASK_TYPES
 from .timeutil import format_hhmm, parse_hhmm
 
 
@@ -20,21 +20,6 @@ class BlockBase(BaseModel):
     @classmethod
     def _valid_time(cls, value: str) -> str:
         return format_hhmm(parse_hhmm(value))
-
-
-class FixedBlockCreate(BlockBase):
-    kind: str = "other"
-
-    @field_validator("kind")
-    @classmethod
-    def _valid_kind(cls, value: str) -> str:
-        if value not in BLOCK_KINDS:
-            raise ValueError(f"kind must be one of {BLOCK_KINDS}")
-        return value
-
-
-class FixedBlockOut(FixedBlockCreate):
-    id: int
 
 
 class ProductiveWindowCreate(BlockBase):
@@ -54,7 +39,6 @@ class StudentOut(BaseModel):
 
 class StudentSettings(BaseModel):
     student: StudentOut
-    fixed_blocks: list[FixedBlockOut]
     productive_hours: list[ProductiveWindowOut]
     recurring_tasks: list["RecurringTaskOut"]
     weights: "WeightsOut"

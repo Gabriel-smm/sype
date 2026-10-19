@@ -5,7 +5,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from .api import chat, events, recurring, schedule, students, tasks
-from .models import BLOCK_KINDS, EVENT_TYPES, TASK_TYPES
+from .models import COLOR_KEYS, EVENT_TYPES, TASK_TYPES
 from .seed import bootstrap
 
 @asynccontextmanager
@@ -53,7 +53,7 @@ def meta() -> dict:
     """Vocabulary the frontend needs to build its dropdowns."""
     return {
         "task_types": TASK_TYPES,
-        "block_kinds": BLOCK_KINDS,
+        "colors": COLOR_KEYS,
         "event_types": EVENT_TYPES,
         "default_student_id": 1,
     }
