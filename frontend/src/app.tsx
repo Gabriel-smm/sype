@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Navigate as Redirect, Route, Routes, useLocation, useNavigate } from 'react-router'
 
 import { AppShell } from '@/components/layout/app-shell'
@@ -60,12 +60,6 @@ export function App() {
     return () => window.removeEventListener('keydown', onKey)
   }, [chatAvailable])
 
-  const pendingByType = useMemo(() => {
-    const counts: Record<string, number> = {}
-    for (const task of tasks) if (task.status === 'pending') counts[task.task_type] = (counts[task.task_type] ?? 0) + 1
-    return counts
-  }, [tasks])
-
   if (error && !settings) return <Offline message={error} onRetry={() => void data.refresh()} />
   if (!settings || !meta) return <Loading />
 
@@ -83,8 +77,6 @@ export function App() {
           sidebar={
             <AppSidebar
               studentName={settings.student.name}
-              taskTypes={meta.task_types}
-              pendingByType={pendingByType}
               onAddTask={openCapture}
               onRebuild={() => void data.regenerate()}
             />

@@ -24,7 +24,7 @@ proxies `/api` to the backend, so the app is same-origin.
 - **`/chat`** is the full page: saved chats on the left (`chat/thread-list.tsx`, a sheet on
   phones), the conversation in a centred column (`chat/chat-conversation.tsx`).
 - **Drawer** (`chat/chat-panel.tsx` in a `Sheet`): on every other page, the chat slides over the
-  page from the right (440px, light scrim), opened from the **Ask Sype** button in the bottom-right
+  page from the right as a full-height panel flush with the edge (440px, light scrim, no outline), opened from the **Ask Sype** button in the bottom-right
   corner or with `C`. The page never resizes. It starts closed, closes on navigation and is not
   remembered across reloads. Phones open it full width from the top bar. It is hidden on `/chat`.
 - **Threads** live in the browser only (`localStorage['sype.chat.v1']`, parsed defensively by
@@ -46,7 +46,7 @@ Defined in `src/index.css`, dark only:
 - **One flat dark navy background** (`--background`, `#0a0f1a`), no gradient or glow.
 - **Pages are transparent** over that background, edged by a faint `white/10` outline (`Card`).
   Only the sidebar and overlays (dialogs, sheets, menus, toasts) use the zinc glass surface.
-- **The sidebar** starts expanded with page names and collapses to an icon rail from its header
+- **The sidebar** holds New task, the pages and the account menu. It starts expanded with page names and collapses to an icon rail from its header
   button or `Ctrl+B` (remembered in `localStorage['sidebar_state']`).
 - Inter Variable, `--radius` 0.75rem.
 

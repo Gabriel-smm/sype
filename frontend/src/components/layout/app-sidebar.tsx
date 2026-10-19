@@ -1,10 +1,9 @@
 import {
-  CalendarDays, ChevronDown, ChevronsUpDown, ClipboardList, Keyboard, MessageSquare, PanelLeftClose, PanelLeftOpen, Plus,
+  CalendarDays, ChevronsUpDown, ClipboardList, Keyboard, MessageSquare, PanelLeftClose, PanelLeftOpen, Plus,
   RotateCw,
   Settings2, type LucideIcon,
 } from 'lucide-react'
-import { Collapsible } from 'radix-ui'
-import { NavLink, useLocation, useSearchParams } from 'react-router'
+import { NavLink, useLocation } from 'react-router'
 
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Tooltip } from '@/components/ui/tooltip'
@@ -13,11 +12,10 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import {
-  Sidebar, SidebarContent, SidebarFooter, SidebarGroup, SidebarGroupContent, SidebarGroupLabel,
+  Sidebar, SidebarContent, SidebarFooter, SidebarGroup, SidebarGroupContent,
   SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem,
 } from '@/components/ui/sidebar'
 import { useSidebar } from '@/hooks/use-sidebar'
-import { typeColor, typeLabel } from '@/lib/task-meta'
 import { cn } from '@/lib/utils'
 
 interface NavItem {
@@ -36,19 +34,16 @@ const NAV: NavItem[] = [
 
 interface AppSidebarProps {
   studentName: string
-  taskTypes: string[]
-  pendingByType: Record<string, number>
   onAddTask: () => void
   onRebuild: () => void
 }
 
-export function AppSidebar({ studentName, taskTypes, pendingByType, onAddTask, onRebuild }: AppSidebarProps) {
+export function AppSidebar({ studentName, onAddTask, onRebuild }: AppSidebarProps) {
   return (
     <Sidebar>
       <NavHeader />
       <SidebarContent>
         <NavMain onAddTask={onAddTask} />
-        <NavSubjects taskTypes={taskTypes} pendingByType={pendingByType} />
       </SidebarContent>
       <SidebarFooter>
         <NavFooter name={studentName} onAddTask={onAddTask} onRebuild={onRebuild} />
@@ -108,47 +103,6 @@ function NavMain({ onAddTask }: { onAddTask: () => void }) {
         </SidebarMenu>
       </SidebarGroupContent>
     </SidebarGroup>
-  )
-}
-
-/** Sype's "Favorites": here, the kinds of work, each a filter on Tasks. */
-function NavSubjects({ taskTypes, pendingByType }: { taskTypes: string[]; pendingByType: Record<string, number> }) {
-  const { state, isMobile, setOpenMobile } = useSidebar()
-  const [params] = useSearchParams()
-  const { pathname } = useLocation()
-  if (state === 'collapsed' && !isMobile) return null
-  const current = pathname === '/tasks' ? params.get('type') : null
-
-  return (
-    <Collapsible.Root defaultOpen className="group/collapsible">
-      <SidebarGroup>
-        <SidebarGroupLabel asChild className="gap-1 text-sm hover:bg-sidebar-accent hover:text-sidebar-accent-foreground">
-          <Collapsible.Trigger>
-            Subjects
-            <ChevronDown className="ml-auto transition-transform group-data-[state=closed]/collapsible:-rotate-90" />
-          </Collapsible.Trigger>
-        </SidebarGroupLabel>
-        <Collapsible.Content>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {taskTypes.map((type) => (
-                <SidebarMenuItem key={type}>
-                  <SidebarMenuButton asChild isActive={current === type}>
-                    <NavLink to={`/tasks?type=${type}`} onClick={() => setOpenMobile(false)} className="flex items-center gap-3">
-                      <span className="size-3 shrink-0 rounded-[4px]" style={{ background: typeColor(type) }} />
-                      <span className="flex-1 truncate">{typeLabel(type)}</span>
-                      {pendingByType[type] > 0 && (
-                        <span className="text-xs text-sidebar-foreground/40 tnum">{pendingByType[type]}</span>
-                      )}
-                    </NavLink>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </Collapsible.Content>
-      </SidebarGroup>
-    </Collapsible.Root>
   )
 }
 
