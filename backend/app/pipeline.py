@@ -15,6 +15,7 @@ from .scheduler import (
     BlockSpec,
     ScheduleResult,
     build_free_slots,
+    expand_weekly,
     schedule,
 )
 from .scoring import ScorableTask, Weights, days_until
@@ -217,7 +218,12 @@ def generate_schedule(
 
     weights = get_weights(db, student_id)
     slots = build_free_slots(
-        _block_specs(student.fixed_blocks),
+        # Temporary adapter until calendar events feed the pipeline directly.
+        expand_weekly(
+            _block_specs(student.fixed_blocks),
+            now - timedelta(days=1),
+            now + timedelta(days=horizon_days + 1),
+        ),
         _block_specs(student.productive_hours),
         now=now,
         horizon_days=horizon_days,
