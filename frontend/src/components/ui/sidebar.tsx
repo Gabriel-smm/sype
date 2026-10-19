@@ -2,7 +2,7 @@ import { cva, type VariantProps } from 'class-variance-authority'
 import { PanelLeft } from 'lucide-react'
 import { Dialog as SheetPrimitive, Slot } from 'radix-ui'
 import {
-  useCallback, useEffect, useMemo, useState, type ComponentProps, type CSSProperties, type ReactNode,
+  useCallback, useEffect, useMemo, useRef, useState, type ComponentProps, type CSSProperties, type ReactNode,
 } from 'react'
 
 import { Tooltip } from '@/components/ui/tooltip'
@@ -17,6 +17,9 @@ const SIDEBAR_WIDTH = '18rem'
 const SIDEBAR_WIDTH_MOBILE = '18rem'
 const SIDEBAR_WIDTH_ICON = '3rem'
 const SHORTCUT = 'b'
+// Collapse and expand: the contents fade out, the empty bar resizes, then the new contents fade in.
+const FADE_OUT_MS = 100
+const RESIZE_MS = 200
 
 function readStored(fallback: boolean) {
   try {
@@ -36,6 +39,10 @@ function SidebarProvider({ defaultOpen = false, className, style, children }: {
   const isMobile = useIsMobile()
   const [openMobile, setOpenMobile] = useState(false)
   const [open, setOpenState] = useState(() => readStored(defaultOpen))
+  const [fading, setFading] = useState(false)
+  const timers = useRef<number[]>([])
+
+  useEffect(() => () => timers.current.forEach((id) => window.clearTimeout(id)), [])
 
   const setOpen = useCallback((next: boolean) => {
     setOpenState(next)
@@ -46,10 +53,26 @@ function SidebarProvider({ defaultOpen = false, className, style, children }: {
     }
   }, [])
 
-  const toggleSidebar = useCallback(
-    () => (isMobile ? setOpenMobile((value) => !value) : setOpen(!open)),
-    [isMobile, open, setOpen],
-  )
+  const toggleSidebar = useCallback(() => {
+    if (isMobile) {
+      setOpenMobile((value) => !value)
+      return
+    }
+    if (timers.current.length > 0) return // Mid-transition: let it finish.
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      setOpen(!open)
+      return
+    }
+    const next = !open
+    setFading(true)
+    timers.current = [
+      window.setTimeout(() => setOpen(next), FADE_OUT_MS),
+      window.setTimeout(() => {
+        setFading(false)
+        timers.current = []
+      }, FADE_OUT_MS + RESIZE_MS),
+    ]
+  }, [isMobile, open, setOpen])
 
   // Ctrl/Cmd+B, as in Sype.
   useEffect(() => {
@@ -64,8 +87,8 @@ function SidebarProvider({ defaultOpen = false, className, style, children }: {
   }, [toggleSidebar])
 
   const value = useMemo<SidebarContextValue>(() => ({
-    state: open ? 'expanded' : 'collapsed', open, setOpen, isMobile, openMobile, setOpenMobile, toggleSidebar,
-  }), [open, setOpen, isMobile, openMobile, toggleSidebar])
+    state: open ? 'expanded' : 'collapsed', open, setOpen, fading, isMobile, openMobile, setOpenMobile, toggleSidebar,
+  }), [open, setOpen, fading, isMobile, openMobile, toggleSidebar])
 
   return (
     <SidebarContext.Provider value={value}>
@@ -88,7 +111,7 @@ function SidebarProvider({ defaultOpen = false, className, style, children }: {
 const panelClasses = 'flex h-full w-full flex-col border-r border-white/10 bg-white/5 text-sidebar-foreground backdrop-blur-xl'
 
 function Sidebar({ className, children }: { className?: string; children: ReactNode }) {
-  const { isMobile, state, openMobile, setOpenMobile } = useSidebar()
+  const { isMobile, state, fading, openMobile, setOpenMobile } = useSidebar()
 
   if (isMobile) {
     return (
@@ -119,17 +142,26 @@ function Sidebar({ className, children }: { className?: string; children: ReactN
     >
       {/* Reserves the sidebar's width in the flow. */}
       <div
-        className="relative h-full bg-transparent transition-[width] duration-200 ease-linear
+        className="relative h-full bg-transparent transition-[width] duration-200 ease-out
                    w-(--sidebar-width) group-data-[collapsible=icon]:w-[calc(var(--sidebar-width-icon)+(--spacing(4))+1px)]"
       />
       <div
         className={cn(
-          `fixed inset-y-0 left-0 z-10 hidden h-dvh transition-[width] duration-200 ease-linear md:flex
+          `fixed inset-y-0 left-0 z-10 hidden h-dvh transition-[width] duration-200 ease-out md:flex
            w-(--sidebar-width) group-data-[collapsible=icon]:w-[calc(var(--sidebar-width-icon)+(--spacing(4))+1px)]`,
           className,
         )}
       >
-        <div data-sidebar="sidebar" className={panelClasses}>{children}</div>
+        <div data-sidebar="sidebar" className={panelClasses}>
+          {/* Only the contents fade; the bar's tint and edge stay put. */}
+          <div
+            data-sidebar="contents"
+            className={cn('flex min-h-0 flex-1 flex-col transition-opacity ease-out',
+              fading ? 'pointer-events-none opacity-0 duration-100' : 'opacity-100 duration-150')}
+          >
+            {children}
+          </div>
+        </div>
       </div>
     </div>
   )
