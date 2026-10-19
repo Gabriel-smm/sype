@@ -15,7 +15,7 @@ import { cn } from '@/lib/utils'
 const STORAGE_KEY = 'sidebar_state'
 const SIDEBAR_WIDTH = '18rem'
 const SIDEBAR_WIDTH_MOBILE = '18rem'
-const SIDEBAR_WIDTH_ICON = '3rem'
+const SIDEBAR_WIDTH_ICON = '2.5rem'
 const SHORTCUT = 'b'
 // Collapse and expand: the contents fade out, the empty bar resizes, then the new contents fade in.
 const FADE_OUT_MS = 60
