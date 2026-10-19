@@ -1,3 +1,4 @@
+import time
 from datetime import datetime, timedelta
 
 import pytest
@@ -158,3 +159,79 @@ def test_validate_recurrence_accepts_daily_or_coarser(freq):
 def test_weekly_rule_strings():
     assert weekly_rule(None) == "RRULE:FREQ=DAILY"
     assert weekly_rule([3, 1]) == "RRULE:FREQ=WEEKLY;BYDAY=TU,TH"
+
+
+def _finishes_within(seconds, fn):
+    """Run `fn` in a daemon thread so a regression fails instead of hanging the suite."""
+    import threading
+
+    outcome = {}
+
+    def run():
+        try:
+            outcome["value"] = fn()
+        except BaseException as exc:  # noqa: BLE001 - handed back to the test
+            outcome["error"] = exc
+
+    thread = threading.Thread(target=run, daemon=True)
+    thread.start()
+    thread.join(seconds)
+    assert not thread.is_alive(), f"did not finish within {seconds}s"
+    if "error" in outcome:
+        raise outcome["error"]
+    return outcome.get("value")
+
+
+@pytest.mark.parametrize("interval", ["0", "-1"])
+def test_validate_recurrence_rejects_interval_below_one(interval):
+    # INTERVAL=0 used to pass validation and then make every expansion loop forever.
+    with pytest.raises(RecurrenceError, match="INTERVAL"):
+        _finishes_within(5, lambda: validate_recurrence(
+            [f"RRULE:FREQ=WEEKLY;INTERVAL={interval}"], MON))
+
+
+def test_expand_rejects_a_stored_interval_zero_instead_of_looping():
+    ev = EventSpec(1, MON.replace(hour=9), MON.replace(hour=10), ("RRULE:FREQ=DAILY;INTERVAL=0",))
+    with pytest.raises(RecurrenceError):
+        _finishes_within(5, lambda: expand(ev, [], MON, MON + timedelta(days=7)))
+
+
+@pytest.mark.parametrize("part", ["BYHOUR=1,2,3,4,5", "BYMINUTE=0,30", "BYSECOND=0,1", "byhour=9"])
+def test_validate_recurrence_rejects_intra_day_by_parts(part):
+    with pytest.raises(RecurrenceError, match="daily"):
+        validate_recurrence([f"RRULE:FREQ=DAILY;{part}"], MON)
+
+
+def test_never_matching_rule_is_rejected_quickly():
+    t0 = time.perf_counter()
+    with pytest.raises(RecurrenceError, match="no occurrence"):
+        _finishes_within(10, lambda: validate_recurrence(
+            ["RRULE:FREQ=DAILY;BYMONTH=2;BYMONTHDAY=30"], MON))
+    assert time.perf_counter() - t0 < 2
+    with pytest.raises(RecurrenceError, match="no occurrence"):
+        _finishes_within(10, lambda: validate_recurrence(
+            ["RRULE:FREQ=DAILY;BYMONTH=2;BYMONTHDAY=30;COUNT=3"], MON))
+
+
+def test_sparse_rules_with_an_occurrence_within_five_years_are_accepted():
+    leap_day = ["RRULE:FREQ=YEARLY;BYMONTH=2;BYMONTHDAY=29"]
+    validate_recurrence(leap_day, MON)  # next is 2028-02-29
+    ev = EventSpec(1, MON.replace(hour=9), MON.replace(hour=10), tuple(leap_day))
+    occ = expand(ev, [], datetime(2028, 2, 1), datetime(2028, 3, 1))
+    assert [o.start for o in occ] == [datetime(2028, 2, 29, 9)]
+    validate_recurrence(["RRULE:FREQ=DAILY;UNTIL=20260304T090000"], MON.replace(hour=9))
+    validate_recurrence(["RRULE:FREQ=DAILY;COUNT=2;BYMONTH=3"], MON)
+
+
+def test_expanding_a_long_running_daily_series_is_fast_and_correct():
+    ev = EventSpec(
+        1, datetime(2016, 1, 4, 23), datetime(2016, 1, 5, 7), (weekly_rule(None),)
+    )
+    window_start = datetime(2026, 3, 2, 6)
+    t0 = time.perf_counter()
+    occ = _finishes_within(10, lambda: expand(ev, [], window_start, window_start + timedelta(days=120)))
+    assert time.perf_counter() - t0 < 1
+    # the night that began at 23:00 the day before still covers 06:00
+    assert occ[0].start == datetime(2026, 3, 1, 23)
+    assert len(occ) == 121
+    assert occ[-1].start == datetime(2026, 6, 29, 23)

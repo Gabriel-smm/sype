@@ -1,5 +1,7 @@
 """Calendars and categories endpoints."""
+import json
 from datetime import datetime, time, timedelta
+from time import perf_counter
 
 from app import models
 from app.calendar_service import busy_intervals
@@ -273,6 +275,41 @@ def test_sub_daily_recurrence_is_422(client):
         "recurrence": ["RRULE:FREQ=HOURLY"],
     })
     assert response.status_code == 422
+
+
+def test_interval_zero_and_intra_day_by_parts_are_422(client):
+    for lines in (["RRULE:FREQ=DAILY;INTERVAL=0"], ["RRULE:FREQ=DAILY;BYHOUR=1,2,3,4,5"],
+                  ["RRULE:FREQ=DAILY;BYMINUTE=0,30"], ["RRULE:FREQ=WEEKLY;BYSECOND=0,1"]):
+        assert client.post(EVENTS, json={
+            "title": "X", "start": "2026-03-02T09:00", "end": "2026-03-02T10:00",
+            "recurrence": lines,
+        }).status_code == 422, lines
+
+
+def test_never_matching_recurrence_is_a_fast_422(client):
+    t0 = perf_counter()
+    response = client.post(EVENTS, json={
+        "title": "X", "start": "2026-03-02T09:00", "end": "2026-03-02T10:00",
+        "recurrence": ["RRULE:FREQ=DAILY;BYMONTH=2;BYMONTHDAY=30"],
+    })
+    assert response.status_code == 422
+    assert perf_counter() - t0 < 2
+
+
+def test_a_malformed_stored_series_does_not_break_reads_or_scheduling(client):
+    good = _create(client, title="Seminar")
+    with SessionLocal() as db:
+        primary = db.query(models.Calendar).filter_by(is_primary=True).one()
+        db.add(models.CalendarEvent(
+            student_id=1, calendar_id=primary.id, title="Broken",
+            start=_monday() + timedelta(hours=9), end=_monday() + timedelta(hours=10),
+            recurrence=json.dumps(["RRULE:FREQ=SOMETIMES"]),
+        ))
+        db.commit()
+    titles = {o["title"] for o in _week(client)}
+    assert "Seminar" in titles and "Broken" not in titles
+    assert good["id"] in {o["event_id"] for o in _week(client)}
+    assert client.post("/api/students/1/schedule/generate").status_code == 200
 
 
 def test_recurring_event_expands_across_the_week(client):

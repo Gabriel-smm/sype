@@ -6,6 +6,7 @@ pairs each occurrence with the row whose details it shows (the instance row for
 an edited instance, otherwise the series row). The scheduler only ever sees the
 plain `(start, end)` busy intervals.
 """
+import logging
 from collections import defaultdict
 from collections.abc import Sequence
 from datetime import datetime
@@ -13,7 +14,9 @@ from datetime import datetime
 from sqlalchemy.orm import Session
 
 from . import models
-from .recurrence import EventSpec, ExceptionSpec, Occurrence, expand
+from .recurrence import EventSpec, ExceptionSpec, Occurrence, RecurrenceError, expand
+
+logger = logging.getLogger(__name__)
 
 STATUS_CANCELLED = "cancelled"
 BUSY = "opaque"
@@ -45,6 +48,7 @@ def load_occurrences(
 
     Cancelled series are left out entirely; a cancelled instance removes just
     that occurrence. Hidden calendars are included: `visible` is display-only.
+    A series whose stored recurrence no longer validates is skipped with a warning.
     """
     query = db.query(models.CalendarEvent).filter(
         models.CalendarEvent.student_id == student_id,
@@ -67,9 +71,13 @@ def load_occurrences(
     for row in series:
         own = instances.get(row.id, [])
         by_id = {r.id: r for r in own}
-        for occurrence in expand(
-            _event_spec(row), [_exception_spec(r) for r in own], start, end
-        ):
+        try:
+            occurrences = expand(_event_spec(row), [_exception_spec(r) for r in own], start, end)
+        except RecurrenceError as exc:
+            # One bad stored series must not take down the calendar or scheduling.
+            logger.warning("Skipping calendar event %s: bad recurrence (%s)", row.id, exc)
+            continue
+        for occurrence in occurrences:
             out.append((by_id.get(occurrence.exception_id, row), occurrence))
     out.sort(key=lambda pair: (pair[1].start, pair[1].event_id))
     return out

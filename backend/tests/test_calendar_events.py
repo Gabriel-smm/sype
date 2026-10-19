@@ -205,3 +205,21 @@ def test_generate_schedule_ignores_free_and_cancelled_events(db_session):
     result = generate_schedule(db_session, 1, now=now)
 
     assert len(result.placements) == 1 and not result.unschedulable
+
+
+def test_a_malformed_stored_series_is_skipped_with_a_warning(db_session, caplog):
+    _event(db_session, MONDAY.replace(hour=9), MONDAY.replace(hour=10), title="Broken",
+           recurrence=["RRULE:FREQ=SOMETIMES"])
+    _event(db_session, MONDAY.replace(hour=9), MONDAY.replace(hour=10), title="Hourly",
+           recurrence=["RRULE:FREQ=DAILY;BYHOUR=1,2"])
+    ok = _event(db_session, MONDAY.replace(hour=12), MONDAY.replace(hour=13), title="Lunch",
+                recurrence=["RRULE:FREQ=DAILY"])
+
+    with caplog.at_level("WARNING", logger="app.calendar_service"):
+        pairs = load_occurrences(db_session, 1, MONDAY, MONDAY + timedelta(days=2))
+
+    assert [row.id for row, _ in pairs] == [ok.id, ok.id]
+    assert sum(r.getMessage().startswith("Skipping calendar event") for r in caplog.records) == 2
+    assert busy_intervals(db_session, 1, MONDAY, MONDAY + timedelta(days=1)) == [
+        (MONDAY.replace(hour=12), MONDAY.replace(hour=13))
+    ]

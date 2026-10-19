@@ -11,7 +11,7 @@ FastAPI + SQLAlchemy + Pydantic on Python 3.12, backed by SQLite. Entry point:
 | `app/scoring.py` | `priority_score` and `rank`. Pure functions. |
 | `app/decompose.py` | Essay-phase and exam-session rules. Pure functions. |
 | `app/scheduler.py` | Free-slot construction and greedy placement. Pure functions. |
-| `app/recurrence.py` | Expands RRULE/EXDATE/RDATE lines into occurrences. Pure; sub-daily `FREQ` is rejected. |
+| `app/recurrence.py` | Validates and expands RRULE/EXDATE/RDATE lines into occurrences. Pure. |
 | `app/calendar_service.py` | `load_occurrences`, `busy_intervals`, `effective_color`. |
 | `app/calendar_defaults.py` | Primary calendar, default categories, and the weekly sleep/lunch/class seed. |
 | `app/migrations.py` | `add_missing_columns` and the `schema_migrations` data migrations. |
@@ -72,6 +72,15 @@ item that can't be placed is returned as unschedulable with a diagnosed reason.
 
 - `GET …/calendar-events` returns **occurrences** in a range, including ones that straddle its
   edges. Series are expanded in `recurrence.py`; a malformed `recurrence` is a 422.
+- **Recurrence rules** (`validate_recurrence`, run on create/PATCH): only `RRULE:`, `EXDATE:`,
+  `RDATE:` lines; `FREQ` daily or coarser, with no `BYHOUR`/`BYMINUTE`/`BYSECOND` (nothing repeats
+  within a day) and no `BYEASTER`; `INTERVAL` ≥ 1 (dateutil loops forever on 0). Each RRULE must
+  have an instance within 5 years of `start`, so never-matching rules (Feb 30) are rejected. The
+  probe runs on the rule moved by whole 400-year Gregorian cycles to near year 9999, because
+  dateutil scans to 9999 for a rule with no match, even past `UNTIL`/`COUNT`; worst case ~0.25 s.
+  `expand` repeats only the cheap static checks. A stored series that fails them is skipped with
+  a warning in `calendar_service.load_occurrences`, so one bad row can't break the calendar or
+  scheduling.
 - **DELETE is a soft delete** (`status=cancelled`); `/restore` reverses it. Hidden calendars
   (`visible=false`) still block scheduling; Free events don't.
 - **Colour rule** (`effective_color`): category colour, else the event's `color_key`, else the

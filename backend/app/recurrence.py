@@ -7,13 +7,16 @@ time, so a 09:00 series stays at 09:00 on the wall clock across DST changes.
 """
 from collections.abc import Sequence
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from dateutil.rrule import rruleset, rrulestr
 
 _ALLOWED_PREFIXES = ("RRULE:", "EXDATE:", "RDATE:")
 _SUB_DAILY = ("SECONDLY", "MINUTELY", "HOURLY")
+_INTRA_DAY_PARTS = frozenset({"BYHOUR", "BYMINUTE", "BYSECOND"})
 _BYDAY = ("MO", "TU", "WE", "TH", "FR", "SA", "SU")
+_PROBE_SPAN = timedelta(days=5 * 365 + 2)  # 5 years, leap days included
+_PROBE_LAST_YEAR = 9993  # leaves the probe span below dateutil's MAXYEAR (9999)
 
 
 class RecurrenceError(ValueError):
@@ -54,33 +57,105 @@ class Occurrence:
     exception_id: int | None = None
 
 
+def _rrule_parts(line: str) -> dict[str, str]:
+    """`RRULE:FREQ=DAILY;INTERVAL=2` -> {"FREQ": "DAILY", "INTERVAL": "2"} (keys upper-cased)."""
+    parts: dict[str, str] = {}
+    for part in line[len("RRULE:"):].split(";"):
+        key, _, value = part.partition("=")
+        parts[key.strip().upper()] = value.strip()
+    return parts
+
+
+def _check_line(line: str) -> None:
+    """Cheap static checks that keep expansion fast and finite."""
+    if not line.upper().startswith(_ALLOWED_PREFIXES):
+        raise RecurrenceError(f"Unsupported recurrence line: {line!r}")
+    if not line.upper().startswith("RRULE:"):
+        return
+    parts = _rrule_parts(line)
+    if parts.get("FREQ", "").upper() in _SUB_DAILY or _INTRA_DAY_PARTS & parts.keys():
+        # Sype events never repeat within a day, and such rules expand very slowly.
+        raise RecurrenceError(f"Recurrence must be daily or coarser: {line!r}")
+    if "BYEASTER" in parts:
+        raise RecurrenceError(f"BYEASTER is not part of RFC 5545: {line!r}")
+    if "INTERVAL" in parts:
+        try:
+            interval = int(parts["INTERVAL"])
+        except ValueError:
+            raise RecurrenceError(f"INTERVAL must be a whole number: {line!r}") from None
+        if interval < 1:
+            # dateutil accepts INTERVAL=0 and then never advances: an endless loop.
+            raise RecurrenceError(f"INTERVAL must be at least 1: {line!r}")
+
+
 def _ruleset(lines: Sequence[str], start: datetime) -> rruleset:
-    """Parse recurrence lines against a naive DTSTART; raises RecurrenceError."""
+    """Parse recurrence lines against a naive DTSTART; raises RecurrenceError.
+
+    Parsing is cheap; nothing here iterates the rules.
+    """
     for line in lines:
-        if not line.upper().startswith(_ALLOWED_PREFIXES):
-            raise RecurrenceError(f"Unsupported recurrence line: {line!r}")
-        if line.upper().startswith("RRULE:") and any(
-            part.strip() == f"FREQ={freq}"
-            for part in line.upper()[len("RRULE:"):].split(";")
-            for freq in _SUB_DAILY
-        ):
-            # Sype events never repeat within a day, and such rules expand very slowly.
-            raise RecurrenceError(f"Recurrence must be daily or coarser: {line!r}")
+        _check_line(line)
     text = "DTSTART:" + start.strftime("%Y%m%dT%H%M%S") + "\n" + "\n".join(lines)
     try:
         rset = rrulestr(text, forceset=True)
-        if not any(line.upper().startswith("RRULE:") for line in lines):
-            rset.rdate(start)  # no rule: the first instance is DTSTART itself
-        rset.after(start, inc=True)  # surfaces errors that only appear on iteration
     except (ValueError, TypeError, KeyError) as exc:
         raise RecurrenceError(str(exc)) from exc
+    if not any(line.upper().startswith("RRULE:") for line in lines):
+        rset.rdate(start)  # no rule: the first instance is DTSTART itself
     return rset
 
 
+def _gregorian_twin(dt: datetime) -> datetime:
+    """`dt` moved by whole 400-year Gregorian cycles to a year in [9594, 9993].
+
+    The calendar repeats exactly every 400 years (146,097 days, a whole number of
+    weeks), so a rule's instances shift with it. Near year 9999 dateutil's scan
+    for the next match gives up after at most ~400 years instead of ~8,000.
+    """
+    year = _PROBE_LAST_YEAR - (_PROBE_LAST_YEAR - dt.year) % 400
+    return dt.replace(year=year)
+
+
+def _probe_first_occurrence(line: str, start: datetime) -> None:
+    """Raise RecurrenceError unless the RRULE has an instance within 5 years of `start`.
+
+    dateutil keeps scanning to year 9999 when a rule never matches (Feb 30), even
+    past UNTIL or COUNT, so the probe runs on the rule's 400-year twin instead.
+    """
+    try:
+        rule = rrulestr(line, dtstart=start)
+        twin_start = _gregorian_twin(start)
+        until = rule._until  # noqa: SLF001 - dateutil has no public accessor
+        twin_until = None
+        if until is not None:
+            if until < start:
+                raise RecurrenceError(f"Recurrence has no occurrence: {line!r}")
+            if until < start + _PROBE_SPAN:
+                twin_until = twin_start + (until - start)
+        twin = rule.replace(dtstart=twin_start, until=twin_until)
+        first = next(iter(twin), None)
+    except RecurrenceError:
+        raise
+    except (ValueError, TypeError, KeyError, OverflowError) as exc:
+        raise RecurrenceError(str(exc)) from exc
+    if first is None or first - twin_start >= _PROBE_SPAN:
+        raise RecurrenceError(
+            f"Recurrence has no occurrence within 5 years of the start: {line!r}"
+        )
+
+
 def validate_recurrence(lines: Sequence[str], start: datetime) -> None:
-    """Raise RecurrenceError unless `lines` is a valid recurrence for `start`."""
-    if lines:
-        _ruleset(lines, start)
+    """Raise RecurrenceError unless `lines` is a valid recurrence for `start`.
+
+    Every RRULE must produce an instance within 5 years of `start`; that also
+    rules out never-matching rules, which would make each expansion scan to 9999.
+    """
+    if not lines:
+        return
+    _ruleset(lines, start)
+    for line in lines:
+        if line.upper().startswith("RRULE:"):
+            _probe_first_occurrence(line, start)
 
 
 def _overlaps(start: datetime, end: datetime, window_start: datetime, window_end: datetime) -> bool:
@@ -105,6 +180,7 @@ def expand(
         return [Occurrence(event.id, event.start, event.end, event.busy)]
 
     by_original = {ex.original_start: ex for ex in exceptions}
+    # Static checks only: the first-occurrence probe ran when the event was written.
     rset = _ruleset(event.recurrence, event.start)
     out: list[Occurrence] = []
     for start in rset.between(window_start - duration, window_end, inc=True):
