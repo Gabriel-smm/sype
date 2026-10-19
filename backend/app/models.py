@@ -3,7 +3,12 @@
 Durations are stored in minutes everywhere. Fixed blocks and productive
 windows are weekly-recurring and stored as minutes-from-midnight; a block
 whose end_minute <= start_minute wraps past midnight (e.g. sleep 23:00-07:00).
+
+Calendar events replace fixed blocks: they are dated (naive local time, `end`
+exclusive) and optionally recur through RFC 5545 lines stored as JSON text.
+`FixedBlock` stays as a legacy table, read once by the fixed-block migration.
 """
+import json
 from datetime import date, datetime
 
 from sqlalchemy import (
@@ -14,6 +19,7 @@ from sqlalchemy import (
     ForeignKey,
     Integer,
     String,
+    Text,
     UniqueConstraint,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -35,6 +41,13 @@ STATUS_DONE = "done"
 STATUS_SKIPPED = "skipped"
 
 BLOCK_KINDS = ["sleep", "lunch", "class", "other"]
+
+# Pastel palette shared by calendars, categories, events and tasks, in display order.
+COLOR_KEYS = [
+    "rose", "peach", "butter", "pistachio", "mint", "aqua", "sky", "periwinkle", "lilac",
+    "blush", "stone",
+]
+DEFAULT_CALENDAR_COLOR = "sky"
 
 EVENT_TYPES = ["rescheduled", "skipped", "completed", "created", "scheduled", "unschedulable"]
 
@@ -60,10 +73,19 @@ class Student(Base):
     weights: Mapped["Weights"] = relationship(
         back_populates="student", cascade="all, delete-orphan", uselist=False
     )
+    calendars: Mapped[list["Calendar"]] = relationship(
+        back_populates="student", cascade="all, delete-orphan", order_by="Calendar.position"
+    )
+    categories: Mapped[list["Category"]] = relationship(
+        back_populates="student", cascade="all, delete-orphan", order_by="Category.position"
+    )
 
 
 class FixedBlock(Base):
-    """Sleep / lunch / class time that the scheduler must never touch."""
+    """Legacy weekly sleep / lunch / class time, superseded by CalendarEvent.
+
+    Kept so the `fixed_blocks_to_events` migration can read old databases.
+    """
 
     __tablename__ = "fixed_blocks"
 
@@ -108,6 +130,9 @@ class Task(Base):
     time_invested: Mapped[int] = mapped_column(Integer, default=0)  # minutes
     status: Mapped[str] = mapped_column(String, default=STATUS_PENDING)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+    # Nullable so add_missing_columns can add them to an existing database.
+    category_id: Mapped[int | None] = mapped_column(ForeignKey("categories.id"), nullable=True)
+    color_key: Mapped[str | None] = mapped_column(String, nullable=True)
 
     student: Mapped[Student] = relationship(back_populates="tasks")
     subtasks: Mapped[list["Subtask"]] = relationship(
@@ -170,6 +195,7 @@ class RecurringTask(Base):
     due_minute: Mapped[int] = mapped_column(Integer, default=MINUTES_PER_DAY - 1)
     active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+    category_id: Mapped[int | None] = mapped_column(ForeignKey("categories.id"), nullable=True)
 
     student: Mapped[Student] = relationship(back_populates="recurring_tasks")
     instances: Mapped[list["RecurringTaskInstance"]] = relationship(
@@ -241,3 +267,105 @@ class Weights(Base):
     w_effort_gap: Mapped[float] = mapped_column(Float, default=0.15)
 
     student: Mapped[Student] = relationship(back_populates="weights")
+
+
+class Calendar(Base):
+    """A named set of events: the local primary one, or later a synced/imported one."""
+
+    __tablename__ = "calendars"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    student_id: Mapped[int] = mapped_column(ForeignKey("students.id"), nullable=False)
+    name: Mapped[str] = mapped_column(String, nullable=False)
+    source: Mapped[str] = mapped_column(String, nullable=False, default="local")
+    is_primary: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    # Hidden calendars still block scheduling; `visible` only affects display.
+    visible: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    color_key: Mapped[str] = mapped_column(String, nullable=False, default=DEFAULT_CALENDAR_COLOR)
+    position: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    # Sync / import bookkeeping; all null for a local calendar.
+    external_id: Mapped[str | None] = mapped_column(String, nullable=True)
+    sync_token: Mapped[str | None] = mapped_column(String, nullable=True)
+    etag: Mapped[str | None] = mapped_column(String, nullable=True)
+    last_synced_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    ics_filename: Mapped[str | None] = mapped_column(String, nullable=True)
+    imported_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
+    student: Mapped[Student] = relationship(back_populates="calendars")
+    events: Mapped[list["CalendarEvent"]] = relationship(
+        back_populates="calendar", cascade="all, delete-orphan"
+    )
+
+
+class Category(Base):
+    """A colour label shared by events and tasks (e.g. Classes, Routine)."""
+
+    __tablename__ = "categories"
+    __table_args__ = (UniqueConstraint("student_id", "name", name="uq_category_name"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    student_id: Mapped[int] = mapped_column(ForeignKey("students.id"), nullable=False)
+    name: Mapped[str] = mapped_column(String, nullable=False)
+    color_key: Mapped[str] = mapped_column(String, nullable=False)
+    position: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+
+    student: Mapped[Student] = relationship(back_populates="categories")
+
+
+class CalendarEvent(Base):
+    """One event or recurring series, modelled on Google Calendar's Event resource.
+
+    `recurrence` holds RFC 5545 RRULE / EXDATE / RDATE lines as JSON text. An
+    edited or cancelled instance of a series is its own row pointing at the
+    series through `recurring_event_id` + `original_start_time`.
+    `transparency` is "opaque" (busy) or "transparent" (free).
+    """
+
+    __tablename__ = "calendar_events"
+    __table_args__ = (
+        UniqueConstraint("recurring_event_id", "original_start_time",
+                         name="uq_event_instance_override"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    student_id: Mapped[int] = mapped_column(ForeignKey("students.id"), nullable=False)
+    calendar_id: Mapped[int] = mapped_column(ForeignKey("calendars.id"), nullable=False)
+    category_id: Mapped[int | None] = mapped_column(ForeignKey("categories.id"), nullable=True)
+    color_key: Mapped[str | None] = mapped_column(String, nullable=True)
+    title: Mapped[str] = mapped_column(String, nullable=False)
+    description: Mapped[str] = mapped_column(String, nullable=False, default="")
+    location: Mapped[str] = mapped_column(String, nullable=False, default="")
+    start: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    end: Mapped[datetime] = mapped_column(DateTime, nullable=False)  # exclusive
+    all_day: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    transparency: Mapped[str] = mapped_column(String, nullable=False, default="opaque")
+    kind: Mapped[str] = mapped_column(String, nullable=False, default="default")
+    status: Mapped[str] = mapped_column(String, nullable=False, default="confirmed")
+    recurrence: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    recurring_event_id: Mapped[int | None] = mapped_column(
+        ForeignKey("calendar_events.id"), nullable=True
+    )
+    original_start_time: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    ical_uid: Mapped[str | None] = mapped_column(String, nullable=True)
+    external_id: Mapped[str | None] = mapped_column(String, nullable=True)
+    etag: Mapped[str | None] = mapped_column(String, nullable=True)
+    sequence: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, onupdate=utcnow)
+
+    calendar: Mapped[Calendar] = relationship(back_populates="events")
+    category: Mapped[Category | None] = relationship()
+
+    @property
+    def recurrence_lines(self) -> list[str]:
+        return json.loads(self.recurrence or "[]")
+
+
+class SchemaMigration(Base):
+    """One row per data migration already applied to this database."""
+
+    __tablename__ = "schema_migrations"
+
+    name: Mapped[str] = mapped_column(String, primary_key=True)
+    applied_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
