@@ -69,7 +69,7 @@ bookkeeping), `ScheduledSlot`s and an append-only `EventLog`.
   file; data migrations run once each, recorded in `schema_migrations`. The first,
   `fixed_blocks_to_events`, turns the old fixed blocks into weekly recurring events starting on
   the Monday of the week before the current one. `FixedBlock` is now legacy: kept as a rollback
-  copy, never read.
+  copy, read only by the one-time migration.
 - **The schedule is derived state.** Regenerating wipes and rebuilds every `ScheduledSlot`.
 - **EventLog** records created / scheduled / rescheduled / skipped / completed / unschedulable.
   Nothing reads it yet. It is kept as future training data (see [ml.md](ml.md)).

@@ -16,7 +16,7 @@ FastAPI + SQLAlchemy + Pydantic on Python 3.12, backed by SQLite. Entry point:
 | `app/calendar_defaults.py` | Primary calendar, default categories, and the weekly sleep/lunch/class seed. |
 | `app/migrations.py` | `add_missing_columns` and the `schema_migrations` data migrations. |
 | `app/pipeline.py` | The only module that joins the above to SQLAlchemy. Also materialises recurring templates and writes the event log. |
-| `app/models.py` | SQLAlchemy models plus the `TASK_TYPES`, `BLOCK_KINDS`, `COLOR_KEYS` and `EVENT_TYPES` vocabularies. |
+| `app/models.py` | SQLAlchemy models plus the `TASK_TYPES`, `COLOR_KEYS` and `EVENT_TYPES` vocabularies. |
 | `app/schemas.py` | Pydantic request/response models (mirrored in `frontend/src/types/api.ts`). |
 | `app/chat.py` | Chat providers (echo stub, Anthropic). |
 | `app/api/` | FastAPI routers, one per resource. |
