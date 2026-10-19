@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import {
   monthGrid,
+  quickDraftFor,
   parseViewParams,
   rangeFor,
   step,
@@ -139,5 +140,30 @@ describe('monthGrid', () => {
 describe('VIEWS', () => {
   it('lists five views with shortcuts', () => {
     expect(VIEWS.map((v) => v.key)).toEqual(['d', 'x', 'w', 'm', 'a'])
+  })
+})
+
+describe('quickDraftFor', () => {
+  const at = (h: number, m: number) => new Date(2026, 9, 19, h, m)
+
+  it('starts at the next half hour, on the shown date, for an hour', () => {
+    const r = quickDraftFor(d(2026, 10, 22), at(14, 10))
+    expect(r.start).toEqual(new Date(2026, 9, 22, 14, 30))
+    expect(r.end).toEqual(new Date(2026, 9, 22, 15, 30))
+  })
+
+  it('keeps a time already on the half hour', () => {
+    expect(quickDraftFor(d(2026, 10, 19), at(9, 0)).start).toEqual(at(9, 0))
+    expect(quickDraftFor(d(2026, 10, 19), at(9, 30)).start).toEqual(at(9, 30))
+  })
+
+  it('rounds 10:31 up to 11:00', () => {
+    expect(quickDraftFor(d(2026, 10, 19), at(10, 31)).start).toEqual(at(11, 0))
+  })
+
+  it('never starts after 23:00, so the hour stays on that day', () => {
+    const r = quickDraftFor(d(2026, 10, 19), at(23, 40))
+    expect(r.start).toEqual(at(23, 0))
+    expect(r.end).toEqual(d(2026, 10, 20))
   })
 })

@@ -61,6 +61,7 @@ export function AllDayRow({ days, bars, gutter, selectedId, onSelect }: AllDayRo
             <button
               key={occurrence.id}
               type="button"
+              data-item-id={occurrence.id}
               aria-pressed={selectedId === occurrence.id}
               onClick={(event) => onSelect(occurrence, event.currentTarget.getBoundingClientRect())}
               className={cn(

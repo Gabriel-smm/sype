@@ -1,19 +1,28 @@
-import { ChevronLeft, ChevronRight, RotateCw } from 'lucide-react'
-import { useState } from 'react'
+import { useRef } from 'react'
 
+import { CalendarSidePanel } from '@/components/calendar/calendar-side-panel'
+import { CalendarToolbar } from '@/components/calendar/calendar-toolbar'
+import { CategoryManagerDialog } from '@/components/calendar/category-manager-dialog'
+import { EventDialog } from '@/components/calendar/event-dialog'
+import { EventPopover } from '@/components/calendar/event-popover'
+import { MonthView } from '@/components/calendar/month-view'
+import { QuickCreatePopover } from '@/components/calendar/quick-create-popover'
+import { ScheduleView } from '@/components/calendar/schedule-view'
+import { SearchResults } from '@/components/calendar/search-results'
+import { TimeGrid } from '@/components/calendar/time-grid'
 import { SlotSheet } from '@/components/schedule/slot-sheet'
-import { WeekGrid } from '@/components/schedule/week-grid'
 import { Card } from '@/components/ui/card'
-import { Tooltip } from '@/components/ui/tooltip'
-import { useCalendarEvents } from '@/hooks/use-calendar-events'
-import { weekStartOf } from '@/lib/time'
+import { Sheet, SheetContent } from '@/components/ui/sheet'
+import { useCalendarPage } from '@/hooks/use-calendar-page'
+import { step, titleFor } from '@/lib/calendar-view'
 import type { Schedule, ScheduleSlot, Settings } from '@/types/api'
-import type { SlotAction } from '@/types/app'
+import type { Actions, SlotAction } from '@/types/app'
 
 interface CalendarPageProps {
   schedule: Schedule
   settings: Settings
   busy: boolean
+  actions: Actions
   onRegenerate: () => void
   onMoveSlot: (slot: ScheduleSlot, start: Date, end: Date) => void
   onComplete: SlotAction
@@ -21,79 +30,177 @@ interface CalendarPageProps {
   onOpenTask: (taskId: number) => void
 }
 
-/** Sype's weekly calendar card: month title, week arrows, Today, and the grid. */
+/** Sype's Google-Calendar-style page: toolbar, side panel, the current view and its overlays. */
 export function CalendarPage({
-  schedule, settings, busy, onRegenerate, onMoveSlot, onComplete, onSkip, onOpenTask,
+  schedule, settings, busy, actions, onRegenerate, onMoveSlot, onComplete, onSkip, onOpenTask,
 }: CalendarPageProps) {
-  const [date, setDate] = useState(() => new Date())
-  const [selected, setSelected] = useState<ScheduleSlot | null>(null)
+  const toolbar = useRef<HTMLDivElement>(null)
+  const main = useRef<HTMLDivElement>(null)
+  const searchInput = useRef<HTMLInputElement>(null)
+  const page = useCalendarPage({ schedule, createTask: actions.createTask, refs: { toolbar, main, searchInput } })
+  const { view, date, range, calendar, on, panel } = page
 
-  const shiftWeek = (weeks: number) => {
-    const next = new Date(date)
-    next.setDate(next.getDate() + weeks * 7)
-    setDate(next)
+  const completeSlot = (slot: ScheduleSlot) => {
+    const id = slot.subtask_id ?? slot.task_id
+    if (id != null) onComplete(id, slot.subtask_id != null).catch(() => {}) // The app banner shows failures.
   }
-  const weekStart = weekStartOf(date)
-  const weekEnd = new Date(weekStart)
-  weekEnd.setDate(weekEnd.getDate() + 7)
-  const { occurrences } = useCalendarEvents(weekStart, weekEnd, schedule)
-  const month = weekStartOf(date).toLocaleDateString([], { month: 'long', year: 'numeric' })
-  const navButton = 'rounded-lg p-1 transition-colors duration-200 hover:bg-white/10'
+  const openDay = (day: Date) => page.navigate('day', day)
+  const selectDate = (day: Date) => {
+    page.navigate(view, day)
+    panel.setSheetOpen(false)
+  }
+
+  const sidePanel = (
+    <CalendarSidePanel
+      date={date}
+      calendars={calendar.calendars}
+      categories={calendar.categories}
+      onCreate={(anchor) => {
+        panel.setSheetOpen(false)
+        on.createHere(anchor)
+      }}
+      onSelectDate={selectDate}
+      onToggleCalendar={(id, visible) => void calendar.setCalendarVisible(id, visible)}
+      onManageCategories={() => on.setCategoriesOpen(true)}
+    />
+  )
+
+  let body
+  if (page.search.current) {
+    body = <SearchResults {...page.search.current} onSelect={on.openResult} />
+  } else if (view === 'month') {
+    body = (
+      <MonthView date={date} occurrences={calendar.occurrences} slots={schedule.slots} selected={page.selected}
+                 onSelectEvent={on.selectEvent} onSelectSlot={on.selectSlot}
+                 onCreateAllDay={on.createAllDay} onOpenDay={openDay} />
+    )
+  } else if (view === 'schedule') {
+    body = (
+      <ScheduleView start={range.start} days={range.days.length} occurrences={calendar.occurrences}
+                    slots={schedule.slots} onSelectEvent={on.selectEvent} onSelectSlot={on.selectSlot}
+                    onCreate={on.createHere} />
+    )
+  } else {
+    const draft = page.quick?.anchor && !page.quick.draft.allDay ? page.quick.draft : null
+    body = (
+      <TimeGrid
+        key={view}
+        days={range.days}
+        occurrences={calendar.occurrences}
+        slots={schedule.slots}
+        productiveHours={settings.productive_hours}
+        selected={page.selected}
+        draft={draft}
+        onSelectEvent={on.selectEvent}
+        onSelectSlot={on.selectSlot}
+        onCreateDraft={on.createDraft}
+        onMoveEvent={(o, start, end) => void calendar.moveEvent(o, start, end)}
+        onResizeEvent={(o, start, end) => void calendar.moveEvent(o, start, end)}
+        onMoveSlot={onMoveSlot}
+        onCompleteSlot={completeSlot}
+        onOpenDay={openDay}
+      />
+    )
+  }
 
   return (
-    <Card className="h-full min-h-0 w-full overflow-hidden pb-0">
-      <div className="flex flex-shrink-0 flex-wrap items-center justify-between gap-3 px-4">
-        <h2 className="text-sm font-semibold text-sidebar-foreground">{month}</h2>
-        <div className="flex items-center gap-3">
-          <Legend />
-          <Tooltip content="Rebuild the week. This also undoes sessions you dragged.">
-            <button type="button" onClick={onRegenerate} disabled={busy} aria-label="Rebuild schedule"
-                    className={`${navButton} disabled:opacity-40`}>
-              <RotateCw className={`size-4 text-sidebar-foreground ${busy ? 'animate-spin' : ''}`} />
-            </button>
-          </Tooltip>
-          <div className="flex items-center gap-1">
-            <button type="button" onClick={() => shiftWeek(-1)} aria-label="Previous week" className={navButton}>
-              <ChevronLeft className="size-4 text-sidebar-foreground" />
-            </button>
-            <button
-              type="button"
-              onClick={() => setDate(new Date())}
-              className="rounded-lg bg-sidebar-primary px-4 py-1 text-xs font-medium text-sidebar-primary-foreground transition-opacity duration-200 hover:opacity-90"
-            >
-              Today
-            </button>
-            <button type="button" onClick={() => shiftWeek(1)} aria-label="Next week" className={navButton}>
-              <ChevronRight className="size-4 text-sidebar-foreground" />
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <div className="relative -mt-2 flex min-h-0 flex-1 flex-col">
-        <WeekGrid
-          slots={schedule.slots}
-          busyEvents={occurrences}
-          productiveHours={settings.productive_hours}
-          date={date}
-          selectedId={selected?.id}
-          onSelectSlot={setSelected}
-          onMoveSlot={onMoveSlot}
+    <Card className="h-full min-h-0 w-full gap-0 overflow-hidden py-0">
+      <div ref={toolbar}>
+        <CalendarToolbar
+          view={view}
+          title={titleFor(view, date)}
+          busy={busy}
+          panelOpen={panel.open}
+          search={page.search}
+          searchInputRef={searchInput}
+          onTogglePanel={panel.toggle}
+          onToday={() => page.navigate(view, new Date())}
+          onStep={(direction) => page.navigate(view, step(view, date, direction))}
+          onView={(next) => page.navigate(next, date)}
+          onRegenerate={onRegenerate}
         />
       </div>
 
-      <SlotSheet slot={selected} onClose={() => setSelected(null)} onComplete={onComplete}
+      <div className="flex min-h-0 flex-1">
+        {!page.mobile && panel.open && (
+          <aside aria-label="Calendars" className="w-64 shrink-0 overflow-y-auto">{sidePanel}</aside>
+        )}
+        <div ref={main} className="flex min-h-0 min-w-0 flex-1 flex-col">
+          {calendar.error && (
+            <p role="alert" className="flex items-center gap-3 px-4 py-2 text-sm text-red-400">
+              Could not load events: {calendar.error}
+              <button type="button" onClick={calendar.refetch} className="underline underline-offset-4 hover:text-red-300">
+                Try again
+              </button>
+            </p>
+          )}
+          {body}
+        </div>
+      </div>
+
+      {page.mobile && (
+        <Sheet open={panel.sheetOpen} onOpenChange={panel.setSheetOpen}>
+          <SheetContent
+            title="Calendars"
+            hideHeader
+            bare
+            className="right-auto left-0 max-w-[min(85vw,300px)] border-r border-l-0
+                       data-[state=closed]:slide-out-to-left! data-[state=open]:slide-in-from-left!"
+          >
+            <div className="h-full overflow-y-auto pt-2">{sidePanel}</div>
+          </SheetContent>
+        </Sheet>
+      )}
+
+      <EventPopover
+        anchor={page.popover?.anchor ?? null}
+        occurrence={page.popover?.occurrence ?? null}
+        calendars={calendar.calendars}
+        categories={calendar.categories}
+        onClose={on.closePopover}
+        onEdit={() => page.popover && on.edit(page.popover.occurrence)}
+        onDelete={() => page.popover && on.remove(page.popover.occurrence)}
+        onDuplicate={() => page.popover && on.duplicate(page.popover.occurrence)}
+        onChangeColor={(pick) => page.popover && on.changeColor(page.popover.occurrence, pick)}
+        onCloseAutoFocus={on.onCloseAutoFocus}
+      />
+
+      {page.quick && (
+        <QuickCreatePopover
+          anchor={page.quick.anchor}
+          draft={page.quick.draft}
+          calendars={calendar.calendars}
+          onClose={on.closeQuick}
+          onCreateEvent={calendar.createEvent}
+          onCreateTask={on.createTask}
+          onMoreOptions={on.moreOptions}
+          onCloseAutoFocus={on.onCloseAutoFocus}
+        />
+      )}
+
+      {page.dialog && (
+        <EventDialog
+          open={page.dialog.open}
+          initial={page.dialog.initial}
+          calendars={calendar.calendars}
+          categories={calendar.categories}
+          onOpenChange={(open) => { if (!open) on.closeDialog() }}
+          onSave={on.saveDialog}
+          onCloseAutoFocus={on.onDialogCloseAutoFocus}
+        />
+      )}
+
+      <CategoryManagerDialog
+        open={page.categoriesOpen}
+        onOpenChange={on.setCategoriesOpen}
+        categories={calendar.categories}
+        onCreate={calendar.createCategory}
+        onUpdate={calendar.updateCategory}
+        onDelete={calendar.deleteCategory}
+      />
+
+      <SlotSheet slot={page.slot} onClose={on.closeSlot} onComplete={onComplete}
                  onSkip={onSkip} onEditTask={onOpenTask} />
     </Card>
-  )
-}
-
-function Legend() {
-  return (
-    <ul className="hidden items-center gap-3 text-[11px] text-sidebar-foreground/50 xl:flex">
-      <li className="flex items-center gap-1.5"><span className="block size-2.5 rounded-sm bg-blue-500/25" />Focus hours</li>
-      <li className="flex items-center gap-1.5"><span className="hatched block size-2.5 rounded-sm border border-white/15" />Busy</li>
-      <li className="flex items-center gap-1.5"><span className="block h-2.5 w-1 rounded-sm bg-red-500" />Now</li>
-    </ul>
   )
 }

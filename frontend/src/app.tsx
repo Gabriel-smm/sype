@@ -93,9 +93,9 @@ export function App() {
         >
           <Routes>
             <Route index element={
-              <CalendarPage schedule={schedule} settings={settings} busy={busy}
+              <CalendarPage schedule={schedule} settings={settings} busy={busy} actions={actions}
                             onRegenerate={() => void data.regenerate()}
-                            onMoveSlot={(slot, start, end) => void data.moveSlot(slot, start, end)}
+                            onMoveSlot={(slot, start, end) => void data.moveSlot(slot, start, end).catch(() => {})}
                             onComplete={data.onComplete} onSkip={data.onSkip} onOpenTask={setEditingId} />
             } />
             <Route path="calendar" element={<Redirect to="/" replace />} />

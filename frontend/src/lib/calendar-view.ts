@@ -128,3 +128,16 @@ export function monthGrid(date: Date): Date[][] {
   const { days } = rangeFor('month', date)
   return Array.from({ length: days.length / 7 }, (_, row) => days.slice(row * 7, row * 7 + 7))
 }
+
+const LATEST_DRAFT_MINUTE = 23 * 60
+
+/**
+ * Where a keyboard or Create-button event lands: the next half hour from `now`,
+ * on the shown `date`, for 60 minutes. It starts by 23:00 so it ends that day.
+ */
+export function quickDraftFor(date: Date, now: Date): { start: Date; end: Date } {
+  const minutes = Math.min(Math.ceil((now.getHours() * 60 + now.getMinutes()) / 30) * 30, LATEST_DRAFT_MINUTE)
+  const start = new Date(date.getFullYear(), date.getMonth(), date.getDate(), Math.floor(minutes / 60), minutes % 60)
+  const end = new Date(start.getFullYear(), start.getMonth(), start.getDate(), start.getHours() + 1, start.getMinutes())
+  return { start, end }
+}

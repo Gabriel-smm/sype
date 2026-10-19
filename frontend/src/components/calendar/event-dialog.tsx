@@ -22,12 +22,14 @@ interface Props {
   onOpenChange: (open: boolean) => void
   /** Resolve true when saved. On a PATCH, `input` holds only the changed fields. */
   onSave: (input: CalendarEventInput | CalendarEventChanges, id?: number) => Promise<boolean>
+  /** Lets the page return focus to the block that opened this. */
+  onCloseAutoFocus?: (event: Event) => void
 }
 
-export function EventDialog({ open, initial, calendars, categories, onOpenChange, onSave }: Props) {
+export function EventDialog({ open, initial, calendars, categories, onOpenChange, onSave, onCloseAutoFocus }: Props) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="md:w-[min(520px,92vw)]">
+      <DialogContent className="md:w-[min(520px,92vw)]" onCloseAutoFocus={onCloseAutoFocus}>
         {/* Unmounted while closed, so every open starts from `initial`. */}
         <EventForm
           initial={initial} calendars={calendars} categories={categories}
@@ -49,7 +51,7 @@ function parse(date: string, time: string): Date {
 
 function EventForm({
   initial, calendars, categories, onCancel, onSave,
-}: Omit<Props, 'open' | 'onOpenChange'> & { onCancel: () => void }) {
+}: Omit<Props, 'open' | 'onOpenChange' | 'onCloseAutoFocus'> & { onCancel: () => void }) {
   const start0 = new Date(initial.start)
   const end0 = new Date(initial.end)
   const allDay0 = initial.all_day ?? false

@@ -39,8 +39,10 @@ function chipKeyDown(onSelect: (anchor: HTMLElement) => void) {
 
 /** The shared frame of event chips and task blocks: position, focus, drag and the 6px resize edge. */
 export function ChipFrame({
-  placement, interaction, label, className, style, children,
+  placement, interaction, label, className, style, children, itemId,
 }: {
+  /** Lets the page find the block again (focus return, search jumps). */
+  itemId?: string
   placement: ChipPlacement
   interaction: ChipInteraction
   label: string
@@ -56,6 +58,7 @@ export function ChipFrame({
       aria-label={label}
       aria-pressed={selected}
       data-chip
+      data-item-id={itemId}
       onPointerDown={onPointerDown}
       onKeyDown={chipKeyDown(onSelect)}
       className={cn(
@@ -128,6 +131,7 @@ export function EventChip({ occurrence, placement, interaction, range }: EventCh
 
   return (
     <ChipFrame
+      itemId={occurrence.id}
       placement={placement}
       interaction={interaction}
       label={`${occurrence.title || '(No title)'}, ${formatTimeRange(start, end)}${free ? ', free' : ''}`}

@@ -81,6 +81,7 @@ export function CalendarToolbar({
             <Search aria-hidden className="size-4 shrink-0 text-faint" />
             <input
               ref={searchInputRef}
+              autoFocus
               value={search.query}
               onChange={(event) => search.onQueryChange(event.target.value)}
               placeholder="Search events"
