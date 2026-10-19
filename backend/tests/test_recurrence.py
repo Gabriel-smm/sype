@@ -235,3 +235,67 @@ def test_expanding_a_long_running_daily_series_is_fast_and_correct():
     assert occ[0].start == datetime(2026, 3, 1, 23)
     assert len(occ) == 121
     assert occ[-1].start == datetime(2026, 6, 29, 23)
+
+
+_SMUGGLED = [
+    "RRULE:FREQ=DAILY;INTERVAL=0",
+    "RRULE:FREQ=DAILY;BYMONTH=2;BYMONTHDAY=30",
+    "RRULE:FREQ=MINUTELY",
+]
+
+
+@pytest.mark.parametrize("rule", _SMUGGLED)
+@pytest.mark.parametrize("sep", ["\n", "\r\n", "\r", " ", "\t", "\x0b", " "])
+def test_a_rule_smuggled_inside_another_item_is_rejected(rule, sep):
+    # rrulestr re-splits the joined text on whitespace, so one item could carry a second line.
+    with pytest.raises(RecurrenceError):
+        _finishes_within(5, lambda: validate_recurrence([f"EXDATE:20200101T090000{sep}{rule}"], MON))
+
+
+@pytest.mark.parametrize("rule", _SMUGGLED)
+def test_expand_rejects_a_stored_smuggled_rule_before_iterating(rule):
+    ev = EventSpec(1, MON.replace(hour=9), MON.replace(hour=10),
+                   (f"EXDATE:20200101T090000\n{rule}",))
+    with pytest.raises(RecurrenceError):
+        _finishes_within(5, lambda: expand(ev, [], MON, MON + timedelta(days=7)))
+
+
+def test_control_characters_are_rejected():
+    for line in ("RRULE:FREQ=DAILY\x00", "RRULE:FREQ=DAILY\x7f", "RRULE:FREQ=\x1bDAILY"):
+        with pytest.raises(RecurrenceError):
+            validate_recurrence([line], MON)
+
+
+def test_probe_rejects_an_item_that_parses_to_several_rules():
+    from app.recurrence import _probe_first_occurrence
+
+    with pytest.raises(RecurrenceError):
+        _probe_first_occurrence("RRULE:FREQ=DAILY\nRRULE:FREQ=WEEKLY", MON)
+
+
+def test_expand_turns_iteration_errors_into_recurrence_errors(monkeypatch):
+    from dateutil.rrule import rruleset
+
+    def boom(*args, **kwargs):
+        raise ValueError("year 10000 is out of range")
+
+    monkeypatch.setattr(rruleset, "between", boom)
+    with pytest.raises(RecurrenceError):
+        expand(_daily_series(), [], MON, MON + timedelta(days=1))
+
+
+def test_at_most_100_recurrence_lines():
+    exdates = [f"EXDATE:{(MON + timedelta(days=i)).strftime('%Y%m%dT090000')}" for i in range(1, 100)]
+    validate_recurrence([weekly_rule(None), *exdates], MON.replace(hour=9))  # exactly 100
+    with pytest.raises(RecurrenceError, match="100"):
+        validate_recurrence([weekly_rule(None), *exdates, "EXDATE:20300101T090000"], MON)
+
+
+def test_recurring_series_must_start_in_1970_or_later():
+    validate_recurrence([weekly_rule(None)], datetime(1970, 1, 1))
+    with pytest.raises(RecurrenceError, match="1970"):
+        validate_recurrence([weekly_rule(None)], datetime(1969, 12, 31, 23))
+    validate_recurrence([], datetime(1900, 1, 1))  # a one-off event is not a series
+    old = EventSpec(1, datetime(1900, 1, 1, 9), datetime(1900, 1, 1, 10), (weekly_rule(None),))
+    with pytest.raises(RecurrenceError, match="1970"):
+        expand(old, [], MON, MON + timedelta(days=1))

@@ -9,7 +9,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 
-from dateutil.rrule import rruleset, rrulestr
+from dateutil.rrule import rrule, rruleset, rrulestr
 
 _ALLOWED_PREFIXES = ("RRULE:", "EXDATE:", "RDATE:")
 _SUB_DAILY = ("SECONDLY", "MINUTELY", "HOURLY")
@@ -17,6 +17,8 @@ _INTRA_DAY_PARTS = frozenset({"BYHOUR", "BYMINUTE", "BYSECOND"})
 _BYDAY = ("MO", "TU", "WE", "TH", "FR", "SA", "SU")
 _PROBE_SPAN = timedelta(days=5 * 365 + 2)  # 5 years, leap days included
 _PROBE_LAST_YEAR = 9993  # leaves the probe span below dateutil's MAXYEAR (9999)
+MAX_LINES = 100  # bounds EXDATE/RDATE lists
+MIN_SERIES_YEAR = 1970  # bounds how far expansion has to walk from DTSTART
 
 
 class RecurrenceError(ValueError):
@@ -68,6 +70,11 @@ def _rrule_parts(line: str) -> dict[str, str]:
 
 def _check_line(line: str) -> None:
     """Cheap static checks that keep expansion fast and finite."""
+    if any(c.isspace() or not c.isprintable() for c in line):
+        # rrulestr re-splits the joined text on whitespace: one item must be one line.
+        raise RecurrenceError(
+            f"Recurrence lines may not contain spaces or control characters: {line!r}"
+        )
     if not line.upper().startswith(_ALLOWED_PREFIXES):
         raise RecurrenceError(f"Unsupported recurrence line: {line!r}")
     if not line.upper().startswith("RRULE:"):
@@ -93,6 +100,10 @@ def _ruleset(lines: Sequence[str], start: datetime) -> rruleset:
 
     Parsing is cheap; nothing here iterates the rules.
     """
+    if len(lines) > MAX_LINES:
+        raise RecurrenceError(f"At most {MAX_LINES} recurrence lines are allowed")
+    if start.year < MIN_SERIES_YEAR:
+        raise RecurrenceError(f"A recurring event must start in {MIN_SERIES_YEAR} or later")
     for line in lines:
         _check_line(line)
     text = "DTSTART:" + start.strftime("%Y%m%dT%H%M%S") + "\n" + "\n".join(lines)
@@ -124,6 +135,8 @@ def _probe_first_occurrence(line: str, start: datetime) -> None:
     """
     try:
         rule = rrulestr(line, dtstart=start)
+        if not isinstance(rule, rrule):
+            raise RecurrenceError(f"One recurrence line must hold one rule: {line!r}")
         twin_start = _gregorian_twin(start)
         until = rule._until  # noqa: SLF001 - dateutil has no public accessor
         twin_until = None
@@ -182,8 +195,12 @@ def expand(
     by_original = {ex.original_start: ex for ex in exceptions}
     # Static checks only: the first-occurrence probe ran when the event was written.
     rset = _ruleset(event.recurrence, event.start)
+    try:
+        starts = rset.between(window_start - duration, window_end, inc=True)
+    except (ValueError, TypeError, KeyError, OverflowError) as exc:
+        raise RecurrenceError(str(exc)) from exc
     out: list[Occurrence] = []
-    for start in rset.between(window_start - duration, window_end, inc=True):
+    for start in starts:
         end = start + duration
         if start in by_original or not _overlaps(start, end, window_start, window_end):
             continue  # replaced or cancelled by an exception, or outside the window

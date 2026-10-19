@@ -286,6 +286,25 @@ def test_interval_zero_and_intra_day_by_parts_are_422(client):
         }).status_code == 422, lines
 
 
+def test_smuggled_lines_too_many_lines_and_old_series_are_422(client):
+    def post(lines, start="2026-03-02T09:00", end="2026-03-02T10:00"):
+        return client.post(EVENTS, json={"title": "X", "start": start, "end": end,
+                                          "recurrence": lines}).status_code
+
+    for rule in ("RRULE:FREQ=DAILY;INTERVAL=0", "RRULE:FREQ=DAILY;BYMONTH=2;BYMONTHDAY=30",
+                 "RRULE:FREQ=MINUTELY"):
+        assert post([f"EXDATE:20200101T090000\n{rule}"]) == 422, rule
+        assert post([f"EXDATE:20200101T090000 {rule}"]) == 422, rule
+    assert post(["RRULE:FREQ=DAILY\nRRULE:FREQ=WEEKLY"]) == 422
+    assert post(["RRULE:FREQ=DAILY"] + ["EXDATE:20300101T090000"] * 100) == 422
+    assert post(["RRULE:FREQ=DAILY"], "1969-12-31T09:00", "1969-12-31T10:00") == 422
+    assert post([], "1969-12-31T09:00", "1969-12-31T10:00") == 201
+    created = _create(client)
+    url = f"/api/calendar-events/{created['id']}"
+    assert client.patch(url, json={"recurrence": ["EXDATE:20200101T090000\nRRULE:FREQ=MINUTELY"]}
+                        ).status_code == 422
+
+
 def test_never_matching_recurrence_is_a_fast_422(client):
     t0 = perf_counter()
     response = client.post(EVENTS, json={
