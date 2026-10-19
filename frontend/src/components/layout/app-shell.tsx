@@ -78,7 +78,7 @@ export function AppShell({ sidebar, chat, chatOpen, onChatOpenChange, chatAvaila
             hideHeader
             overlayClassName={isMobile ? undefined : 'bg-black/30 backdrop-blur-none'}
             className={cn(
-              'border-0 bg-transparent p-2 shadow-none backdrop-blur-none',
+              'border-0 bg-transparent shadow-none backdrop-blur-none',
               isMobile ? 'max-w-full' : 'max-w-[min(94vw,440px)]',
             )}
           >
