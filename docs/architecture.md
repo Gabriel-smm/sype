@@ -36,7 +36,7 @@ Task input (form / capture)      Recurring routine template
         ↓
 [Greedy scheduler]           walks free slots, respects Busy events,
         ↓                    puts high-focus work in productive hours
-Week-view calendar
+Overview (week view planned)
 ```
 
 1. **Materialise** active recurring templates into ordinary `Task` rows (idempotent, one
