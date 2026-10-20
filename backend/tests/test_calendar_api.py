@@ -533,8 +533,6 @@ SEARCH = "/api/students/1/calendar-events/search"
 def test_search_finds_occurrences_by_title_location_description(client):
     hits = client.get(SEARCH, params={"q": "bio 101"}).json()  # case-insensitive
     assert len(hits) >= 2 and all(h["title"] == "Bio 101" for h in hits)
-    starts = [h["start"] for h in hits]
-    assert starts == sorted(starts)
     monday = _monday()
     week = [h for h in hits if monday <= datetime.fromisoformat(h["start"]) < monday + timedelta(days=7)]
     assert len(week) == 2
@@ -544,6 +542,22 @@ def test_search_finds_occurrences_by_title_location_description(client):
     assert [h["title"] for h in client.get(SEARCH, params={"q": "quadr"}).json()] == ["Alpha"]
     assert [h["title"] for h in client.get(SEARCH, params={"q": "snacks"}).json()] == ["Alpha"]
     assert client.get(SEARCH, params={"q": "zzzz-nothing"}).json() == []
+
+
+def test_search_lists_upcoming_matches_first_then_past_newest_first(client):
+    today = datetime.combine(datetime.now().date(), time())
+    first = today - timedelta(days=40) + timedelta(hours=8)
+    _create(client, title="Daily standup", start=first.isoformat(),
+            end=(first + timedelta(minutes=15)).isoformat(), recurrence=["RRULE:FREQ=DAILY;COUNT=50"])
+    hits = client.get(SEARCH, params={"q": "daily standup"}).json()
+    assert len(hits) == 25
+    starts = [datetime.fromisoformat(h["start"]) for h in hits]
+    assert starts[0] == today + timedelta(hours=8)  # today's occurrence, not the series start
+    upcoming = [s for s in starts if s >= today]
+    past = [s for s in starts if s < today]
+    assert len(upcoming) == 10 and starts == upcoming + past  # 40 past, 10 upcoming
+    assert upcoming == sorted(upcoming) and past == sorted(past, reverse=True)
+    assert past and past[0] == today - timedelta(days=1) + timedelta(hours=8)
 
 
 def test_search_rejects_blank_query(client):

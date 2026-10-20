@@ -304,12 +304,17 @@ def search_event_occurrences(
         raise HTTPException(422, "q must be 1 to 100 characters")
     today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
     pairs = load_occurrences(db, student_id, today - SEARCH_SPAN, today + SEARCH_SPAN)
-    hits = [
-        _occurrence_out(row, occurrence)
+    matches = [
+        (row, occurrence)
         for row, occurrence in pairs
         if any(needle in field.casefold() for field in (row.title, row.location, row.description))
     ]
-    return hits[:limit]
+    # Upcoming matches first (soonest first), then past ones (most recent first).
+    upcoming = sorted((p for p in matches if p[1].start >= today), key=lambda p: p[1].start)
+    past = sorted(
+        (p for p in matches if p[1].start < today), key=lambda p: p[1].start, reverse=True
+    )
+    return [_occurrence_out(row, occurrence) for row, occurrence in (upcoming + past)[:limit]]
 
 
 @router.post(
