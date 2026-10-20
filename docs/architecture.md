@@ -59,7 +59,8 @@ bookkeeping), `ScheduledSlot`s and an append-only `EventLog`.
   `cancelled`) and an optional `recurrence` (RRULE/EXDATE/RDATE lines, expanded by the pure
   `recurrence.py`). Edits to one occurrence are override rows pointing at their series
   (`recurring_event_id`). Google-style sync fields (`external_id`, `etag`, ...) are stored but
-  unused. `kind` is `default` or `routine`.
+  unused. `kind` is `default` or `routine`. Events are seeded (`calendar_defaults.py`) and no UI
+  edits them: the intended source is a Google Calendar sync, with this table as its local cache.
 - **Busy time = opaque, confirmed occurrences** from every calendar. Hidden calendars still
   block; Free and cancelled events don't. The occurrence that started last night (sleep) still
   blocks this morning.
@@ -99,3 +100,5 @@ bookkeeping), `ScheduledSlot`s and an append-only `EventLog`.
   one unbroken 5-hour block. These show up as *unschedulable* with a reason rather than failing
   silently.
 - The event log is written but never read, on purpose (future training data).
+- **Busy time can't be edited in the app yet.** It comes from seeded calendar events until Google
+  Calendar sync lands. The in-app calendar editor was dropped (#61).
