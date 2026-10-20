@@ -20,15 +20,17 @@ const allDay = (item: ScheduleItem) => item.kind === 'event' && isAllDayLike(ite
 
 /**
  * Group events and task blocks by the days they overlap, for the schedule
- * list. Routine occurrences are left out. Days with nothing planned are
- * omitted, except `today` when it falls in range.
+ * list. Routine occurrences are left out unless `includeRoutine` is set (the
+ * schedule view lists them, muted). Days with nothing planned are omitted,
+ * except `today` when it falls in range.
  */
 export function groupByDay(
   occurrences: Occurrence[], slots: ScheduleSlot[], start: Date, days: number, today: Date,
+  { includeRoutine = false }: { includeRoutine?: boolean } = {},
 ): DayGroup[] {
   const items: { item: ScheduleItem; from: Date; to: Date }[] = [
     ...occurrences
-      .filter((occurrence) => occurrence.kind !== 'routine')
+      .filter((occurrence) => includeRoutine || occurrence.kind !== 'routine')
       .map((occurrence) => ({
         item: { kind: 'event', occurrence } as ScheduleItem,
         from: new Date(occurrence.start), to: new Date(occurrence.end),

@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button'
 import { groupByDay } from '@/lib/schedule-list'
 import { cn } from '@/lib/utils'
 import type { Occurrence, ScheduleSlot } from '@/types/api'
-import { hexFor, slotColor } from '@/lib/colors'
+import { eventLook, hexFor, slotColor } from '@/lib/colors'
 import { isAllDayLike } from '@/lib/drag'
 import { formatTimeRange, isSameDay } from '@/lib/time'
 import { Circle } from 'lucide-react'
@@ -26,7 +26,7 @@ export function ScheduleView({
 }: ScheduleViewProps) {
   const today = new Date()
   const groups = useMemo(
-    () => groupByDay(occurrences, slots, start, days, new Date()),
+    () => groupByDay(occurrences, slots, start, days, new Date(), { includeRoutine: true }),
     [occurrences, slots, start, days],
   )
 
@@ -70,6 +70,9 @@ export function ScheduleView({
                 const title = isEvent ? item.occurrence.title || '(No title)' : item.slot.title
                 const allDay = isEvent && isAllDayLike(item.occurrence)
                 const range = allDay ? 'All day' : formatTimeRange(from, to)
+                // Routines (sleep, meals) are listed so they can be opened, but stay in the background.
+                const routine = isEvent && eventLook(item.occurrence) === 'routine'
+
                 return (
                   <li key={isEvent ? `e-${item.occurrence.id}` : `s-${item.slot.id}`}>
                     <button
@@ -80,11 +83,16 @@ export function ScheduleView({
                         if (isEvent) onSelectEvent(item.occurrence, anchor)
                         else onSelectSlot(item.slot, anchor)
                       }}
-                      className="flex min-h-9 w-full items-center gap-3 rounded-md px-2 py-1 text-left text-sm hover:bg-white/10 focus-visible:outline-offset-[-2px]"
+                      className={cn(
+                        'flex min-h-9 w-full items-center gap-3 rounded-md px-2 py-1 text-left text-sm hover:bg-white/10 focus-visible:outline-offset-[-2px]',
+                        routine && 'text-faint',
+                      )}
                     >
                       {isEvent
                         ? <span aria-hidden className="size-3 shrink-0 rounded-full"
-                          style={item.occurrence.busy
+                          style={routine
+                            ? { border: `1px solid ${hex}`, background: `color-mix(in oklab, ${hex} 20%, transparent)` }
+                            : item.occurrence.busy
                             ? { background: hex }
                             : { border: `2px solid ${hex}`, background: 'transparent' }} />
                         : <Circle aria-hidden className="size-3 shrink-0" style={{ color: hex }} />}

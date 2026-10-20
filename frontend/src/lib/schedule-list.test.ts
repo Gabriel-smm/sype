@@ -62,6 +62,18 @@ describe('groupByDay', () => {
     expect(groups).toEqual([])
   })
 
+  it('lists routine occurrences when asked (the schedule view)', () => {
+    const groups = groupByDay(
+      [
+        occ('sleep', '2026-10-20T23:00:00', '2026-10-21T07:00:00', { kind: 'routine' }),
+        occ('class', '2026-10-21T09:00:00', '2026-10-21T10:00:00'),
+      ],
+      [], start, 7, new Date(2026, 9, 30), { includeRoutine: true },
+    )
+    expect(groups.map((g) => g.day.getDate())).toEqual([20, 21])
+    expect(groups[1].items.map((i) => (i.kind === 'event' ? i.occurrence.id : ''))).toEqual(['sleep', 'class'])
+  })
+
   it('keeps an empty today when it is in range', () => {
     const groups = groupByDay([], [], start, 7, new Date(2026, 9, 21, 14, 0))
     expect(groups).toHaveLength(1)

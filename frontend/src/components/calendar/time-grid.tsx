@@ -225,7 +225,9 @@ export function TimeGrid({
 
                   {routineSpans.filter((span) => span.dayOffset === dayOffset).map((span) => (
                     <RoutineBand key={span.id} occurrence={span.occurrence}
-                                 top={px(span.startMinute)} height={px(span.endMinute - span.startMinute)} />
+                                 top={px(span.startMinute)} height={px(span.endMinute - span.startMinute)}
+                                 selected={selected?.kind === 'event' && selected.id === span.occurrence.id}
+                                 onSelect={(occurrence, anchor) => onSelectEvent(occurrence, anchor.getBoundingClientRect())} />
                   ))}
 
                   {laidOut[dayOffset].map((item) => {
