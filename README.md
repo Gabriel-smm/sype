@@ -17,6 +17,11 @@ and fits them into the free time around your classes and sleep.
   Exams become spaced study sessions 10, 6, 3 and 1 days out.
 - **Fits your actual week.** Busy time (classes, meals, sleep) is respected, and focus-heavy
   work goes into the hours you say you're sharpest. Connecting your own calendar is coming next.
+- **A real calendar.** Day, 3-day, week, month and schedule views. Drag on the grid to create an
+  event, drag one to move it, pull its edge to resize it, and undo a delete in one click. Quick
+  create makes either an event or a task, search finds any event, and calendars and categories
+  carry their own colours. Keyboard shortcuts cover views, navigation and creating (press `c`, or
+  `/` to search), and it works on a phone.
 - **Routine included.** Recurring tasks roll forward every week and share the calendar with
   deadline work.
 - **Quick capture.** Type `HIST essay fri 5pm 4h 20%` and it's parsed into a task, with every
@@ -34,7 +39,7 @@ Decompose  →  Score  →  Place into free time  →  Week calendar
 ```
 
 An optional chat assistant can help you capture tasks. It has its own page, past
-conversations are listed in the sidebar, and it slides over any other page from **Ask Sype** (or press `C`). It is off by default (an
+conversations are listed in the sidebar, and it slides over any other page from **Ask Sype** (or press `Ctrl+C`). It is off by default (an
 offline stub) and never touches placement.
 
 ## Quick start

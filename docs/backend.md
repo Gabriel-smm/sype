@@ -34,7 +34,7 @@ Everything sits under `/api`, and Swagger is at `/docs`. `{sid}` is the student 
 | `tasks.py` | CRUD on `/students/{sid}/tasks` and `/tasks/{id}` · `POST /tasks/{id}/complete` and `/skip` · `POST /subtasks/{id}/complete` and `/skip` |
 | `recurring.py` | CRUD on `/students/{sid}/recurring-tasks` and `/recurring-tasks/{id}` |
 | `schedule.py` | `GET /students/{sid}/schedule` · `POST …/generate` · `POST …/slots/{id}/reschedule` |
-| `calendar.py` | `GET`/`POST /students/{sid}/calendars` · `PATCH`/`DELETE /calendars/{id}` (not the primary) · `GET`/`POST /students/{sid}/categories` · `PATCH`/`DELETE /categories/{id}` (`?reassign_to=`) · `GET /students/{sid}/calendar-events?start&end[&calendar_ids]` (occurrences, max 120 days) · `POST /students/{sid}/calendar-events` · `GET`/`PATCH`/`DELETE /calendar-events/{id}` · `POST /calendar-events/{id}/restore` |
+| `calendar.py` | `GET`/`POST /students/{sid}/calendars` · `PATCH`/`DELETE /calendars/{id}` (not the primary) · `GET`/`POST /students/{sid}/categories` · `PATCH`/`DELETE /categories/{id}` (`?reassign_to=`) · `GET /students/{sid}/calendar-events?start&end[&calendar_ids]` (occurrences, max 120 days) · `GET /students/{sid}/calendar-events/search?q&limit` (occurrences matching title, location or description within 365 days either side of today; `q` 1–100 characters, `limit` 1–100, default 25) · `POST /students/{sid}/calendar-events` · `GET`/`PATCH`/`DELETE /calendar-events/{id}` · `POST /calendar-events/{id}/restore` |
 | `events.py` | `GET`/`POST /students/{sid}/events` |
 | `chat.py` | `POST /students/{sid}/chat` (SSE) · `GET …/chat/provider` |
 
@@ -87,6 +87,8 @@ item that can't be placed is returned as unschedulable with a diagnosed reason.
   EXDATE values. It repeats only the cheap static checks and turns iteration errors into
   `RecurrenceError`. A stored series that fails is skipped with a warning in
   `calendar_service.load_occurrences`, so one bad row can't break the calendar or scheduling.
+- **Range limits:** `start` and `end` must fall between years 1970 and 2200 (422 otherwise).
+- **Schedule slots** carry `category_id` and `color_key` (the effective colour of their task: category, else own colour), so the calendar can colour task blocks.
 - **DELETE is a soft delete** (`status=cancelled`); `/restore` reverses it. Hidden calendars
   (`visible=false`) still block scheduling; Free events don't.
 - **Colour rule** (`effective_color`): category colour, else the event's `color_key`, else the
