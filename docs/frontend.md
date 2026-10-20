@@ -32,24 +32,32 @@ phones.
 - **Gestures** (`lib/drag.ts`, `hooks/use-grid-pointer.ts`): drag on empty grid to create, drag an
   event to move it, drag its bottom edge to resize (15-minute snap, Esc or pointer cancel aborts).
   A click opens the popover (edit, duplicate, delete with Undo). The resize handle is pointer-only:
-  keyboard users edit times in the event dialog. Repeating events cannot be dragged one occurrence
-  at a time yet; edit the series in the dialog.
+  keyboard users edit times in the event dialog. Focus returns to the block that opened a popover.
+- **Repeating events** (until per-occurrence editing lands): they never start a drag, only a click.
+  Edit changes the whole series and says so under the dialog title. Delete asks first in an
+  alert dialog ("Delete all events in the series") and removes the series, with Undo. Duplicate
+  copies the clicked occurrence as a one-off event.
 - **Quick create** turns a click or drag into an event or a task. Moves and deletes are optimistic
   (`use-calendar`) and roll back with an error toast when the request fails.
 - **Overnight and multi-day events** split across day columns; events of 24h or longer go in the
   all-day row (`isAllDayLike`).
-- **Search** (`/` or the toolbar) calls `calendar-events/search` and lists matches; picking one jumps there.
+- **Search** (`/` or the toolbar) calls `calendar-events/search` (upcoming first, then past, newest
+  first) and lists matches; picking one jumps to its day and opens its popover. Matches from hidden
+  calendars are marked "Hidden calendar", and picking one shows that calendar again.
+- **Routines** (sleep, meals) open their popover from the band's label, the only clickable part of
+  the band. The schedule view lists them, muted; the month view leaves them out.
 
 ### Event looks
 
-Four looks, chosen by `eventLook` in `lib/colors.ts`:
+Occurrences take one of three looks from `eventLook` in `lib/colors.ts`; task blocks are drawn
+separately by `calendar/task-block.tsx`.
 
 | Look | Drawn as |
 |---|---|
 | Busy | Solid pastel fill, dark ink. |
 | Free | 1px pastel border on a faint fill, pastel text. |
-| Task block | Tinted fill, dashed pastel border, hollow circle that marks it done. Overdue uses the red border. |
-| Routine | Hatched band behind events, not draggable. |
+| Routine | Hatched band behind events, not draggable; its label opens the popover. |
+| Task block (`task-block.tsx`) | Tinted fill, dashed pastel border, hollow circle that marks it done. Overdue uses the red border. |
 
 ## Chat
 
@@ -79,8 +87,9 @@ Four looks, chosen by `eventLook` in `lib/colors.ts`:
 - **Everywhere:** `n` new task, `/` new task (on the calendar it searches instead), `Ctrl+C` chat
   drawer (only when no text is selected and you are not typing, so copy still works), `Ctrl+B` sidebar.
 - **Calendar page:** `d` `x` `w` `m` `a` day, 3 days, week, month, schedule; `t` today; `j` next,
-  `k` or `p` previous; `c` create (an all-day draft in month view); `e` edit the selected event;
-  `Delete` or `Backspace` delete it; `/` search; `Esc` closes the topmost overlay or clears the selection.
+  `k` or `p` previous; `c` create (an all-day draft in month view); `e` edit the open event;
+  `Delete` or `Backspace` delete the open event (a repeating one asks first); `/` search; `Esc`
+  closes the topmost overlay or clears search.
   Single keys are off while typing and with any modifier (`lib/shortcuts.ts`).
 
 ## Design system
