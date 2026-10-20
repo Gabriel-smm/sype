@@ -14,6 +14,7 @@ import {
   VIEWS, parseViewParams, quickDraftFor, rangeFor, step, toViewParams, type CalendarView,
 } from '@/lib/calendar-view'
 import { resolveShortcut } from '@/lib/shortcuts'
+import { isSameDay } from '@/lib/time'
 import { errorMessage, isTyping } from '@/lib/utils'
 import type {
   CalendarEvent, CalendarEventChanges, CalendarEventInput, Occurrence, Schedule, ScheduleSlot, TaskInput,
@@ -78,10 +79,21 @@ export function useCalendarPage({ schedule, createTask, refs }: Options) {
   const range = useMemo(() => rangeFor(view, date), [view, date])
   const calendar = useCalendar(range, schedule)
 
+  // A pending search jump (it polls for the result's block); any navigation cancels it.
+  const jumpTimer = useRef<number | null>(null)
+  const cancelJump = useCallback(() => {
+    if (jumpTimer.current != null) window.clearTimeout(jumpTimer.current)
+    jumpTimer.current = null
+  }, [])
+  useEffect(() => cancelJump, [cancelJump])
+
   const navigate = useCallback((nextView: CalendarView, nextDate: Date) => {
+    cancelJump()
     write(VIEW_KEY, nextView)
-    setParams(toViewParams(nextView, nextDate))
-  }, [setParams])
+    // Staying on the same view and day (Today on today) replaces the entry instead of adding one.
+    const same = nextView === view && isSameDay(nextDate, date)
+    setParams(toViewParams(nextView, nextDate), { replace: same })
+  }, [setParams, cancelJump, view, date])
 
   // Side panel: remembered on desktop, a sheet on phones.
   const [panelOpen, setPanelOpen] = useState(() => read(PANEL_KEY) !== 'closed')
@@ -100,17 +112,20 @@ export function useCalendarPage({ schedule, createTask, refs }: Options) {
   const [slot, setSlot] = useState<ScheduleSlot | null>(null)
   const [categoriesOpen, setCategoriesOpen] = useState(false)
 
-  // The block an overlay was opened from, refocused when it closes.
-  const origin = useRef<HTMLElement | null>(null)
-  // Set while a popover closes because the event dialog is opening.
+  // The element an overlay was opened from, refocused when it closes. It comes from the
+  // triggering event, never document.activeElement (a mouse press may not move focus).
+  // When it has gone (the "+N more" list closed), the item is found again by its id.
+  const origin = useRef<{ element: HTMLElement | null; itemId: string | null }>({ element: null, itemId: null })
+  // Set while a popover closes because a dialog is opening.
   const toDialog = useRef(false)
-  const remember = () => {
-    const active = document.activeElement
-    origin.current = active instanceof HTMLElement && active !== document.body ? active : null
+  const remember = (element: HTMLElement | null, itemId: string | null = null) => {
+    origin.current = { element, itemId }
   }
   const refocus = useCallback(() => {
-    if (!origin.current?.isConnected) return false
-    origin.current.focus({ preventScroll: true })
+    const { element, itemId } = origin.current
+    const target = element?.isConnected ? element : itemId ? itemElement(itemId) : null
+    if (!target) return false
+    target.focus({ preventScroll: true })
     return true
   }, [])
   const onCloseAutoFocus = useCallback((event: Event) => {
@@ -137,29 +152,34 @@ export function useCalendarPage({ schedule, createTask, refs }: Options) {
   const closeQuick = () => setQuick((current) => current && { ...current, anchor: null })
   const quickOpen = quick?.anchor != null
 
-  const selectEvent = (occurrence: Occurrence, anchor: DOMRect) => {
-    remember()
+  const selectEvent = (occurrence: Occurrence, anchor: HTMLElement) => {
+    remember(anchor, occurrence.id)
     closeQuick()
-    setPopover({ occurrence, anchor })
+    setPopover({ occurrence, anchor: anchor.getBoundingClientRect() })
   }
   const selectSlot = (next: ScheduleSlot) => {
     setPopover(null)
     setSlot(next)
   }
-  const openDraft = (draft: QuickCreateDraft, anchor: DOMRect) => {
-    remember()
+  /** A draft from the grid has no origin to return to, so Radix's default applies. */
+  const openDraft = (draft: QuickCreateDraft, anchor: DOMRect, from: HTMLElement | null = null) => {
+    remember(from)
     setPopover(null)
     setQuick({ draft, anchor })
   }
-  const createDraft = (start: Date, end: Date, anchor: DOMRect) => openDraft({ start, end, allDay: false }, anchor)
-  const createAllDay = (day: Date, anchor: DOMRect) =>
-    openDraft({ start: startOfDay(day), end: addDays(startOfDay(day), 1), allDay: true }, anchor)
-  /** `c` and the Create button: all day in month view, else the next half hour on the shown date. */
-  const createHere = (anchor: DOMRect) => {
-    if (view === 'month') createAllDay(date, anchor)
+  const createDraft = (start: Date, end: Date, anchor: DOMRect, from: HTMLElement | null = null) =>
+    openDraft({ start, end, allDay: false }, anchor, from)
+  const createAllDay = (day: Date, anchor: DOMRect, from: HTMLElement | null = null) =>
+    openDraft({ start: startOfDay(day), end: addDays(startOfDay(day), 1), allDay: true }, anchor, from)
+  /**
+   * `c` and the Create buttons: all day in month view, else the next half hour on the
+   * shown date. `from` (the button, or the key's target) gets focus back afterwards.
+   */
+  const createHere = (anchor: DOMRect, from: HTMLElement | null = null) => {
+    if (view === 'month') createAllDay(date, anchor, from)
     else {
       const { start, end } = quickDraftFor(date, new Date())
-      createDraft(start, end, anchor)
+      createDraft(start, end, anchor, from)
     }
   }
 
@@ -243,21 +263,22 @@ export function useCalendarPage({ schedule, createTask, refs }: Options) {
   /** Open a result on its day, with its popover on the block once the day has drawn it. */
   const openResult = (occurrence: Occurrence) => {
     clearSearch()
-    navigate('day', startOfDay(new Date(occurrence.start)))
+    navigate('day', startOfDay(new Date(occurrence.start))) // Also cancels an earlier jump.
     const attempt = (left: number) => {
+      jumpTimer.current = null
       const element = itemElement(occurrence.id)
       if (!element && left > 0) {
-        window.setTimeout(() => attempt(left - 1), 100)
+        jumpTimer.current = window.setTimeout(() => attempt(left - 1), 100)
         return
       }
       element?.scrollIntoView({ block: 'center' })
       element?.focus({ preventScroll: true })
-      origin.current = element
+      remember(element, occurrence.id)
       const anchor = (element ?? toolbar.current)?.getBoundingClientRect() ?? new DOMRect()
       closeQuick()
       setPopover({ occurrence, anchor })
     }
-    window.setTimeout(() => attempt(15), 50)
+    jumpTimer.current = window.setTimeout(() => attempt(15), 50)
   }
 
   const keyboardAnchor = () => {
@@ -301,7 +322,9 @@ export function useCalendarPage({ schedule, createTask, refs }: Options) {
       case 'view': navigate(shortcut.view, date); break
       case 'today': navigate(view, new Date()); break
       case 'step': navigate(view, step(view, date, shortcut.direction)); break
-      case 'create': createHere(keyboardAnchor()); break
+      case 'create':
+        createHere(keyboardAnchor(), event.target instanceof HTMLElement && event.target !== document.body ? event.target : null)
+        break
     }
   }
   const onKeyRef = useRef(onKey)

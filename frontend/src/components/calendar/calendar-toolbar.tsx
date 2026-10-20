@@ -77,7 +77,8 @@ export function CalendarToolbar({
       <div className="ml-auto flex min-w-0 items-center gap-1">
         {search.open ? (
           <form role="search" onSubmit={submit}
-                className="flex h-10 min-w-0 items-center gap-1 rounded-lg bg-white/10 pr-1 pl-3 max-sm:flex-1 sm:w-72">
+                className="flex h-10 min-w-0 items-center gap-1 rounded-lg bg-white/10 pr-1 pl-3 max-sm:flex-1 sm:w-72
+                           has-[input:focus-visible]:outline-2 has-[input:focus-visible]:outline-offset-2 has-[input:focus-visible]:outline-ring">
             <Search aria-hidden className="size-4 shrink-0 text-faint" />
             <input
               ref={searchInputRef}

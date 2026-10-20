@@ -10,7 +10,7 @@ interface CalendarSidePanelProps {
   calendars: Calendar[]
   categories: Category[]
   /** Opens quick-create, as `c` does. */
-  onCreate: (anchor: DOMRect) => void
+  onCreate: (anchor: HTMLElement) => void
   onSelectDate: (day: Date) => void
   onToggleCalendar: (id: number, visible: boolean) => void
   onManageCategories: () => void
@@ -25,7 +25,7 @@ export function CalendarSidePanel({
       <div className="px-3">
         <button
           type="button"
-          onClick={(event) => onCreate(event.currentTarget.getBoundingClientRect())}
+          onClick={(event) => onCreate(event.currentTarget)}
           className="flex h-12 items-center gap-3 rounded-2xl bg-white/10 pr-5 pl-3.5 text-sm font-medium hover:bg-white/15"
         >
           <Plus aria-hidden className="size-6 text-blue-400" strokeWidth={2.25} />

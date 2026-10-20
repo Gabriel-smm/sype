@@ -11,7 +11,8 @@ import type { Occurrence, ScheduleSlot } from '@/types/api'
 import type { GridSelection } from './time-grid'
 
 export interface DayItemHandlers {
-  onSelectEvent: (occurrence: Occurrence, anchor: DOMRect) => void
+  /** `anchor` is the clicked item, which also gets focus back when the popover closes. */
+  onSelectEvent: (occurrence: Occurrence, anchor: HTMLElement) => void
   onSelectSlot: (slot: ScheduleSlot, anchor: DOMRect) => void
 }
 
@@ -27,9 +28,8 @@ export function DayItem({
 }) {
   const click = (event: MouseEvent<HTMLButtonElement>) => {
     event.stopPropagation()
-    const anchor = event.currentTarget.getBoundingClientRect()
-    if (item.kind === 'event') handlers.onSelectEvent(item.occurrence, anchor)
-    else handlers.onSelectSlot(item.slot, anchor)
+    if (item.kind === 'event') handlers.onSelectEvent(item.occurrence, event.currentTarget)
+    else handlers.onSelectSlot(item.slot, event.currentTarget.getBoundingClientRect())
     onActivate?.()
   }
   const base = cn(
@@ -58,7 +58,7 @@ export function DayItem({
   if (isAllDayLike(occurrence)) {
     const free = eventLook(occurrence) === 'free'
     return (
-      <button type="button" onClick={click} aria-label={`${title}, all day${free ? ', free' : ''}`}
+      <button type="button" onClick={click} data-item-id={occurrence.id} aria-label={`${title}, all day${free ? ', free' : ''}`}
         className={cn(base, 'font-semibold')}
         style={free
           ? { background: `color-mix(in oklab, ${hex} 10%, transparent)`, border: `1px solid ${hex}`, color: hex }
@@ -69,7 +69,7 @@ export function DayItem({
   }
 
   return (
-    <button type="button" onClick={click} className={cn(base, 'text-white hover:bg-white/10')}
+    <button type="button" onClick={click} data-item-id={occurrence.id} className={cn(base, 'text-white hover:bg-white/10')}
       aria-label={`${title}, ${formatTimeRange(start, new Date(occurrence.end))}`}>
       <span aria-hidden className="size-2 shrink-0 rounded-full" style={{ background: hex }} />
       <span className="shrink-0 tnum text-faint">{formatShortTime(start)}</span>

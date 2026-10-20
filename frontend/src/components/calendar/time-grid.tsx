@@ -45,7 +45,8 @@ interface TimeGridProps {
   selected: GridSelection
   /** A draft being quick-created, kept on the grid while its popover is open. */
   draft?: { start: Date; end: Date } | null
-  onSelectEvent: (occurrence: Occurrence, anchor: DOMRect) => void
+  /** `anchor` is the chip or label clicked, which also gets focus back when the popover closes. */
+  onSelectEvent: (occurrence: Occurrence, anchor: HTMLElement) => void
   onSelectSlot: (slot: ScheduleSlot) => void
   onCreateDraft: (start: Date, end: Date, anchor: DOMRect) => void
   onMoveEvent: (occurrence: Occurrence, start: Date, end: Date) => void
@@ -90,7 +91,7 @@ export function TimeGrid({
   }, [])
 
   function select(target: DragTarget, anchor: HTMLElement) {
-    if (target.kind === 'event') onSelectEvent(target.occurrence, anchor.getBoundingClientRect())
+    if (target.kind === 'event') onSelectEvent(target.occurrence, anchor)
     else onSelectSlot(target.slot)
   }
 
@@ -227,7 +228,7 @@ export function TimeGrid({
                     <RoutineBand key={span.id} occurrence={span.occurrence}
                                  top={px(span.startMinute)} height={px(span.endMinute - span.startMinute)}
                                  selected={selected?.kind === 'event' && selected.id === span.occurrence.id}
-                                 onSelect={(occurrence, anchor) => onSelectEvent(occurrence, anchor.getBoundingClientRect())} />
+                                 onSelect={onSelectEvent} />
                   ))}
 
                   {laidOut[dayOffset].map((item) => {
@@ -250,7 +251,8 @@ export function TimeGrid({
                           selected: isSelected(target),
                           faded: dragged === keyOf(target),
                           onSelect: (anchor) => select(target, anchor),
-                          onPointerDown: (event) => gesture.startMove(event, target),
+                          // Repeating events can't move one at a time yet, so they never start a drag.
+                          onPointerDown: editable ? (event) => gesture.startMove(event, target) : undefined,
                           onResizePointerDown: (event, chip) => gesture.startResize(event, target, chip),
                         })}
                       </Fragment>

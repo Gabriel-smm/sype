@@ -23,6 +23,7 @@ export interface ChipInteraction {
   /** The dragged copy: raised, showing the live time range. */
   lifted?: boolean
   onSelect: (anchor: HTMLElement) => void
+  /** Starts a move. Without it the chip is fixed (a repeating event): a click only selects. */
   onPointerDown?: PointerHandler
   onResizePointerDown?: (event: PointerEvent<HTMLElement>, chip: HTMLElement) => void
 }
@@ -51,6 +52,7 @@ export function ChipFrame({
   children: ReactNode
 }) {
   const { selected, faded, lifted, onSelect, onPointerDown, onResizePointerDown } = interaction
+  const fixed = !onPointerDown && !lifted
   return (
     <div
       role="button"
@@ -59,11 +61,14 @@ export function ChipFrame({
       aria-pressed={selected}
       data-chip
       data-item-id={itemId}
-      onPointerDown={onPointerDown}
+      // A fixed chip still stops the column from starting a drag-create under it.
+      onPointerDown={fixed ? (event) => event.stopPropagation() : onPointerDown}
+      onClick={fixed ? (event) => onSelect(event.currentTarget) : undefined}
       onKeyDown={chipKeyDown(onSelect)}
       className={cn(
         'absolute overflow-hidden rounded-(--radius-event) px-1.5 text-xs leading-4 select-none',
         onPointerDown && 'pointer-fine:touch-none',
+        fixed && 'cursor-default',
         lifted ? 'pointer-events-none z-30 cursor-grabbing shadow-2xl' : 'z-20',
         faded && 'opacity-50',
         selected && !lifted && 'ring-2 ring-ring ring-offset-1 ring-offset-background',

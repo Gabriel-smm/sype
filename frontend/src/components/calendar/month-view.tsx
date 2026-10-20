@@ -16,7 +16,7 @@ interface MonthViewProps {
   occurrences: Occurrence[]
   slots: ScheduleSlot[]
   selected: GridSelection
-  onSelectEvent: (occurrence: Occurrence, anchor: DOMRect) => void
+  onSelectEvent: (occurrence: Occurrence, anchor: HTMLElement) => void
   onSelectSlot: (slot: ScheduleSlot, anchor: DOMRect) => void
   onCreateAllDay: (day: Date, anchor: DOMRect) => void
   onOpenDay: (day: Date) => void

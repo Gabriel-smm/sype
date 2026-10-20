@@ -14,7 +14,8 @@ interface AllDayRowProps {
   bars: AllDayBar[]
   gutter: number
   selectedId: string | null
-  onSelect: (occurrence: Occurrence, anchor: DOMRect) => void
+  /** `anchor` is the bar, which also gets focus back when the popover closes. */
+  onSelect: (occurrence: Occurrence, anchor: HTMLElement) => void
 }
 
 /** All-day events and anything 24h or longer, as bars spanning the days they cover. */
@@ -63,7 +64,7 @@ export function AllDayRow({ days, bars, gutter, selectedId, onSelect }: AllDayRo
               type="button"
               data-item-id={occurrence.id}
               aria-pressed={selectedId === occurrence.id}
-              onClick={(event) => onSelect(occurrence, event.currentTarget.getBoundingClientRect())}
+              onClick={(event) => onSelect(occurrence, event.currentTarget)}
               className={cn(
                 'mr-2 ml-px truncate rounded-(--radius-event) px-2 text-left text-xs leading-5 font-semibold',
                 clippedStart && 'rounded-l-none',

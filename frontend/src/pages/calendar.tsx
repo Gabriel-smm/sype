@@ -56,9 +56,9 @@ export function CalendarPage({
       date={date}
       calendars={calendar.calendars}
       categories={calendar.categories}
-      onCreate={(anchor) => {
+      onCreate={(button) => {
         panel.setSheetOpen(false)
-        on.createHere(anchor)
+        on.createHere(button.getBoundingClientRect(), button)
       }}
       onSelectDate={selectDate}
       onToggleCalendar={(id, visible) => void calendar.setCalendarVisible(id, visible)}
@@ -79,7 +79,7 @@ export function CalendarPage({
     body = (
       <ScheduleView start={range.start} days={range.days.length} occurrences={calendar.occurrences}
                     slots={schedule.slots} onSelectEvent={on.selectEvent} onSelectSlot={on.selectSlot}
-                    onCreate={on.createHere} />
+                    onCreate={(button) => on.createHere(button.getBoundingClientRect(), button)} />
     )
   } else {
     const draft = page.quick?.anchor && !page.quick.draft.allDay ? page.quick.draft : null

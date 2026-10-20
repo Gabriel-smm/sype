@@ -15,9 +15,10 @@ interface ScheduleViewProps {
   /** Already filtered to the visible calendars. */
   occurrences: Occurrence[]
   slots: ScheduleSlot[]
-  onSelectEvent: (occurrence: Occurrence, anchor: DOMRect) => void
+  /** `anchor` is the row, which also gets focus back when the popover closes. */
+  onSelectEvent: (occurrence: Occurrence, anchor: HTMLElement) => void
   onSelectSlot: (slot: ScheduleSlot, anchor: DOMRect) => void
-  onCreate: (anchor: DOMRect) => void
+  onCreate: (anchor: HTMLElement) => void
 }
 
 /** The schedule view: a list grouped by day, each row a dot, its time range and the title. */
@@ -34,7 +35,7 @@ export function ScheduleView({
     return (
       <div className="flex h-full flex-col items-center justify-center gap-3 p-8 text-center">
         <p className="text-lg">Nothing planned</p>
-        <Button variant="secondary" onClick={(event) => onCreate(event.currentTarget.getBoundingClientRect())}>
+        <Button variant="secondary" onClick={(event) => onCreate(event.currentTarget)}>
           Create
         </Button>
       </div>
@@ -77,11 +78,11 @@ export function ScheduleView({
                   <li key={isEvent ? `e-${item.occurrence.id}` : `s-${item.slot.id}`}>
                     <button
                       type="button"
+                      data-item-id={isEvent ? item.occurrence.id : undefined}
                       aria-label={`${title}, ${range}`}
                       onClick={(event) => {
-                        const anchor = event.currentTarget.getBoundingClientRect()
-                        if (isEvent) onSelectEvent(item.occurrence, anchor)
-                        else onSelectSlot(item.slot, anchor)
+                        if (isEvent) onSelectEvent(item.occurrence, event.currentTarget)
+                        else onSelectSlot(item.slot, event.currentTarget.getBoundingClientRect())
                       }}
                       className={cn(
                         'flex min-h-9 w-full items-center gap-3 rounded-md px-2 py-1 text-left text-sm hover:bg-white/10 focus-visible:outline-offset-[-2px]',
