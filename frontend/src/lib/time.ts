@@ -1,7 +1,7 @@
-// Week arithmetic shared by the calendar grid and the parameter page's week strip.
+// Week and time arithmetic shared by the Setup week strip, tasks and capture parsing.
 import { addDays, startOfWeek } from 'date-fns'
 
-import type { Block, Occurrence } from '@/types/api'
+import type { Block } from '@/types/api'
 
 export const DAY_NAMES = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 export const MINUTES_IN_DAY = 1440
@@ -26,10 +26,6 @@ export function isSameDay(a: Date, b: Date): boolean {
     a.getMonth() === b.getMonth() &&
     a.getDate() === b.getDate()
   )
-}
-
-export function minutesSinceMidnight(date: Date): number {
-  return date.getHours() * 60 + date.getMinutes()
 }
 
 export function parseHhmm(value: string): number {
@@ -140,91 +136,6 @@ export function expandRecurring<B extends Block & { kind?: string }>(
   return spans
 }
 
-/**
- * Project dated event occurrences onto the seven day columns of one week.
- *
- * An occurrence is split at each midnight into one span per day. Parts that
- * fall outside the week are dropped; unlike weekly blocks they never wrap.
- */
-export interface OccurrenceSpan {
-  id: string
-  occurrence: Occurrence
-  dayOffset: number
-  startMinute: number
-  endMinute: number
-}
-
-export function occurrenceSpans(occurrences: Occurrence[], weekStart: Date): OccurrenceSpan[] {
-  const spans: OccurrenceSpan[] = []
-
-  occurrences.forEach((occurrence) => {
-    const start = new Date(occurrence.start)
-    const end = new Date(occurrence.end)
-
-    for (let offset = 0; offset < 7; offset += 1) {
-      const dayStart = addDays(weekStart, offset)
-      const dayEnd = addDays(weekStart, offset + 1)
-      if (start >= dayEnd || end <= dayStart) continue
-
-      spans.push({
-        id: `${occurrence.id}-${offset}`,
-        occurrence,
-        dayOffset: offset,
-        startMinute: start > dayStart ? minutesSinceMidnight(start) : 0,
-        endMinute: end < dayEnd ? minutesSinceMidnight(end) : MINUTES_IN_DAY,
-      })
-    }
-  })
-
-  return spans
-}
-
 function labelFor(kind: string): string {
   return kind === 'productive' ? 'Focus time' : 'Busy'
-}
-
-/**
- * Lay overlapping items side by side, the way a week calendar does: walk them in
- * start order, drop each into the first column whose last item has already
- * ended, and give every item in a cluster the same width.
- */
-interface Timed {
-  startMinute: number
-  endMinute: number
-}
-
-export type Placed<T> = T & { column: number; columns: number }
-
-export function layoutColumns<T extends Timed>(items: T[]): Placed<T>[] {
-  const sorted = [...items].sort(
-    (a, b) => a.startMinute - b.startMinute || b.endMinute - a.endMinute,
-  )
-
-  const placed: Placed<T>[] = []
-  let cluster: { item: T; column: number }[] = []
-  let columnEnds: number[] = []
-
-  const flush = () => {
-    cluster.forEach((entry) => {
-      placed.push({ ...entry.item, column: entry.column, columns: columnEnds.length })
-    })
-    cluster = []
-    columnEnds = []
-  }
-
-  sorted.forEach((item) => {
-    if (columnEnds.length && columnEnds.every((end) => end <= item.startMinute)) flush()
-
-    let column = columnEnds.findIndex((end) => end <= item.startMinute)
-    if (column === -1) {
-      column = columnEnds.length
-      columnEnds.push(item.endMinute)
-    } else {
-      columnEnds[column] = item.endMinute
-    }
-    cluster.push({ item, column })
-  })
-
-  flush()
-  return placed
 }

@@ -157,16 +157,6 @@
   .tnum {
     font-variant-numeric: tabular-nums;
   }
-
-  /* Busy blocks (sleep, class, meals): striped reads as "not available"
-     without competing with the work blocks. */
-  .hatched {
-    background-image: repeating-linear-gradient(
-      -45deg,
-      oklch(1 0 0 / 0.07) 0 1px,
-      transparent 1px 7px
-    );
-  }
 }
 
 /* Motion answers actions; reduced motion stills it. */

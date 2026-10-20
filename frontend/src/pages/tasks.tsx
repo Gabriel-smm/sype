@@ -1,6 +1,6 @@
 import { Check, CheckSquare, ChevronDown, Plus, Repeat, Sparkles, Wrench, X } from 'lucide-react'
 import { useState } from 'react'
-import { Link, useNavigate, useSearchParams } from 'react-router'
+import { Link, useSearchParams } from 'react-router'
 
 import { SectionLabel } from '@/components/layout/section-label'
 import { SubjectPill } from '@/components/tasks/subject-pill'
@@ -194,7 +194,6 @@ export function TasksPage({ tasks, schedule, busy, actions, onOpenTask, onCaptur
 }
 
 function HighHurdle({ task, busy, actions, onOpen }: { task: Task; busy: boolean; actions: Actions; onOpen: () => void }) {
-  const navigate = useNavigate()
   const [open, setOpen] = useState(false)
   const steps = task.subtasks ?? []
   const insight = `~${hoursLabel(remaining(task))} • ${FOCUS_TYPES.has(task.task_type) ? 'Heavy Focus' : 'Light Focus'}`
@@ -221,7 +220,6 @@ function HighHurdle({ task, busy, actions, onOpen }: { task: Task; busy: boolean
       </button>
       <div className="flex gap-2">
         <Button variant="success" size="sm" disabled={busy} onClick={() => void actions.completeTask(task.id)}>Mark done</Button>
-        <Button variant="secondary" size="sm" onClick={() => navigate('/')}>Schedule</Button>
       </div>
 
       {open && steps.length > 0 && (

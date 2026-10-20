@@ -23,6 +23,3 @@ export interface Actions {
   ) => Promise<unknown>
   deleteRecurringTask: (id: number) => Promise<unknown>
 }
-
-/** Done / Skip on a scheduled session; a session is a step when it has a subtask. */
-export type SlotAction = (id: number, isSubtask: boolean) => Promise<unknown>

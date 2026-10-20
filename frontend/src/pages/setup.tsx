@@ -2,7 +2,7 @@ import { History, Repeat, SlidersHorizontal, Target, type LucideIcon } from 'luc
 import { useEffect, useRef, type ReactNode } from 'react'
 import { useLocation } from 'react-router'
 
-import { WeekStrip } from '@/components/schedule/week-strip'
+import { WeekStrip } from '@/components/setup/week-strip'
 import { ActivityLog } from '@/components/setup/activity-log'
 import { BlockList } from '@/components/setup/block-list'
 import { RecurringTasks } from '@/components/setup/recurring-tasks'
