@@ -70,6 +70,9 @@ item that can't be placed is returned as unschedulable with a diagnosed reason.
 
 ## Calendar events
 
+No frontend editor uses the write endpoints; they stay for seeding, tests and a future Google
+Calendar sync.
+
 - `GET …/calendar-events` returns **occurrences** in a range, including ones that straddle its
   edges. Series are expanded in `recurrence.py`; a malformed `recurrence` is a 422.
 - **Recurrence rules** (`validate_recurrence`, run on create/PATCH): at most 100 items and at most
