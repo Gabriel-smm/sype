@@ -29,16 +29,20 @@ interface CalendarPageProps {
   onComplete: SlotAction
   onSkip: SlotAction
   onOpenTask: (taskId: number) => void
+  /** Reloads the app's data after a category change, so task blocks recolour. */
+  onCategoriesChanged: () => void
 }
 
 /** Sype's Google-Calendar-style page: toolbar, side panel, the current view and its overlays. */
 export function CalendarPage({
-  schedule, settings, busy, actions, onRegenerate, onMoveSlot, onComplete, onSkip, onOpenTask,
+  schedule, settings, busy, actions, onRegenerate, onMoveSlot, onComplete, onSkip, onOpenTask, onCategoriesChanged,
 }: CalendarPageProps) {
   const toolbar = useRef<HTMLDivElement>(null)
   const main = useRef<HTMLDivElement>(null)
   const searchInput = useRef<HTMLInputElement>(null)
-  const page = useCalendarPage({ schedule, createTask: actions.createTask, refs: { toolbar, main, searchInput } })
+  const page = useCalendarPage({
+    schedule, createTask: actions.createTask, onCategoriesChanged, refs: { toolbar, main, searchInput },
+  })
   const { view, date, range, calendar, on, panel } = page
 
   const completeSlot = (slot: ScheduleSlot) => {
@@ -68,7 +72,7 @@ export function CalendarPage({
 
   let body
   if (page.search.current) {
-    body = <SearchResults {...page.search.current} onSelect={on.openResult} />
+    body = <SearchResults {...page.search.current} calendars={calendar.calendars} onSelect={on.openResult} />
   } else if (view === 'month') {
     body = (
       <MonthView date={date} occurrences={calendar.occurrences} slots={schedule.slots} selected={page.selected}

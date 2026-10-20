@@ -20,8 +20,13 @@ const fail = (e: unknown) => { toast.error(errorMessage(e)) }
  * roll back with an error toast when the request fails. Create/update/category
  * mutations resolve to true on success so dialogs can stay open on failure.
  * `refreshKey` must be a primitive or otherwise stable value (it is an effect dependency).
+ * `onCategoriesChanged` runs after a category is renamed, recoloured or deleted.
  */
-export function useCalendar(range: { start: Date; end: Date }, refreshKey: unknown) {
+export function useCalendar(
+  range: { start: Date; end: Date },
+  refreshKey: unknown,
+  { onCategoriesChanged }: { onCategoriesChanged?: () => void } = {},
+) {
   const [all, setAll] = useState<Occurrence[]>([])
   const [calendars, setCalendars] = useState<Calendar[]>([])
   const [categories, setCategories] = useState<Category[]>([])
@@ -70,6 +75,8 @@ export function useCalendar(range: { start: Date; end: Date }, refreshKey: unkno
   const loadCategories = useCallback(async () => {
     try { setCategories(await api.categories()) } catch (e) { toast.error(errorMessage(e)) }
   }, [])
+  // Bumped by reloadCalendars() to fetch the calendar and category lists again.
+  const [listReloads, setListReloads] = useState(0)
   useEffect(() => {
     let current = true
     Promise.all([api.calendars(), api.categories()])
@@ -80,7 +87,12 @@ export function useCalendar(range: { start: Date; end: Date }, refreshKey: unkno
       })
       .catch((e: unknown) => { if (current) toast.error(errorMessage(e)) })
     return () => { current = false }
-  }, [])
+  }, [listReloads])
+  /** Fetch calendars and categories again (e.g. after a calendar is added or synced elsewhere), then the events. */
+  const reloadCalendars = useCallback(() => {
+    setListReloads((n) => n + 1)
+    refetch()
+  }, [refetch])
 
   const occurrences = useMemo(() => {
     const hidden = calendars.filter((c) => !c.visible).map((c) => c.id)
@@ -172,21 +184,6 @@ export function useCalendar(range: { start: Date; end: Date }, refreshKey: unkno
     })
   }, [settle])
 
-  const duplicateEvent = useCallback(async (eventId: number): Promise<boolean> => {
-    try {
-      const e = await api.getCalendarEvent(eventId)
-      await api.createCalendarEvent({
-        calendar_id: e.calendar_id, title: e.title, description: e.description,
-        location: e.location, start: e.start, end: e.end, all_day: e.all_day, busy: e.busy,
-        kind: e.kind, category_id: e.category_id, color_key: e.color_key,
-        recurrence: e.recurrence,
-      })
-      toast('Event created')
-      refetch()
-      return true
-    } catch (e) { fail(e); return false }
-  }, [refetch])
-
   const setCalendarVisible = useCallback(async (id: number, visible: boolean): Promise<void> => {
     const previous = calendarsRef.current.find((c) => c.id === id)?.visible ?? !visible
     setCalendars((list) => list.map((c) => (c.id === id ? { ...c, visible } : c)))
@@ -201,16 +198,28 @@ export function useCalendar(range: { start: Date; end: Date }, refreshKey: unkno
   const createCategory = useCallback(async (input: CategoryInput): Promise<boolean> => {
     try { await api.createCategory(input); await loadCategories(); return true } catch (e) { fail(e); return false }
   }, [loadCategories])
+  // Task blocks take their colour from the schedule, so a category change also refreshes it.
+  const categoriesChanged = useRef(onCategoriesChanged)
+  useEffect(() => { categoriesChanged.current = onCategoriesChanged })
+  const afterCategoryChange = useCallback(async () => {
+    await loadCategories()
+    refetch()
+    categoriesChanged.current?.()
+  }, [loadCategories, refetch])
   const updateCategory = useCallback(async (id: number, changes: CategoryChanges): Promise<boolean> => {
-    try { await api.updateCategory(id, changes); await loadCategories(); refetch(); return true } catch (e) { fail(e); return false }
-  }, [loadCategories, refetch])
+    try { await api.updateCategory(id, changes) } catch (e) { fail(e); return false }
+    await afterCategoryChange()
+    return true
+  }, [afterCategoryChange])
   const deleteCategory = useCallback(async (id: number, reassignTo?: number): Promise<boolean> => {
-    try { await api.deleteCategory(id, reassignTo); await loadCategories(); refetch(); return true } catch (e) { fail(e); return false }
-  }, [loadCategories, refetch])
+    try { await api.deleteCategory(id, reassignTo) } catch (e) { fail(e); return false }
+    await afterCategoryChange()
+    return true
+  }, [afterCategoryChange])
 
   return {
     occurrences, calendars, categories, loading, error, refetch,
-    createEvent, updateEvent, moveEvent, deleteEvent, duplicateEvent, setCalendarVisible,
+    createEvent, updateEvent, moveEvent, deleteEvent, setCalendarVisible, reloadCalendars,
     createCategory, updateCategory, deleteCategory,
   }
 }

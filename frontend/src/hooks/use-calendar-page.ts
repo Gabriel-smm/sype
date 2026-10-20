@@ -63,6 +63,8 @@ export interface CalendarPageRefs {
 interface Options {
   schedule: Schedule
   createTask: (input: TaskInput) => Promise<unknown>
+  /** Reloads the app's data (the schedule's task-block colours follow categories). */
+  onCategoriesChanged?: () => void
   refs: CalendarPageRefs
 }
 
@@ -70,14 +72,14 @@ interface Options {
  * The calendar page's state: view and date in the URL, the side panel, the
  * popovers and dialogs, search, focus return and the page's shortcuts.
  */
-export function useCalendarPage({ schedule, createTask, refs }: Options) {
+export function useCalendarPage({ schedule, createTask, onCategoriesChanged, refs }: Options) {
   const { toolbar, main, searchInput } = refs
   const mobile = useIsMobile()
   const [params, setParams] = useSearchParams()
   const fallback: CalendarView = storedView() ?? (mobile ? 'day' : 'week')
   const { view, date } = useMemo(() => parseViewParams(params, fallback), [params, fallback])
   const range = useMemo(() => rangeFor(view, date), [view, date])
-  const calendar = useCalendar(range, schedule)
+  const calendar = useCalendar(range, schedule, { onCategoriesChanged })
 
   // A pending search jump (it polls for the result's block); any navigation cancels it.
   const jumpTimer = useRef<number | null>(null)
@@ -263,6 +265,10 @@ export function useCalendarPage({ schedule, createTask, refs }: Options) {
   /** Open a result on its day, with its popover on the block once the day has drawn it. */
   const openResult = (occurrence: Occurrence) => {
     clearSearch()
+    // A result from a hidden calendar shows that calendar again, or its block would never draw.
+    if (calendar.calendars.some((c) => c.id === occurrence.calendar_id && !c.visible)) {
+      void calendar.setCalendarVisible(occurrence.calendar_id, true)
+    }
     navigate('day', startOfDay(new Date(occurrence.start))) // Also cancels an earlier jump.
     const attempt = (left: number) => {
       jumpTimer.current = null

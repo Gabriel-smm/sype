@@ -96,7 +96,8 @@ export function App() {
               <CalendarPage schedule={schedule} settings={settings} busy={busy} actions={actions}
                             onRegenerate={() => void data.regenerate()}
                             onMoveSlot={(slot, start, end) => void data.moveSlot(slot, start, end).catch(() => {})}
-                            onComplete={data.onComplete} onSkip={data.onSkip} onOpenTask={setEditingId} />
+                            onComplete={data.onComplete} onSkip={data.onSkip} onOpenTask={setEditingId}
+                            onCategoriesChanged={() => void data.refresh()} />
             } />
             <Route path="calendar" element={<Redirect to="/" replace />} />
             <Route path="week" element={<Redirect to="/" replace />} />

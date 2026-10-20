@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import type { Occurrence } from '@/types/api'
-import { applyOptimisticMove, insertOccurrences, removeEvent, removeOccurrence, withoutCalendar } from './calendar-state'
+import { applyOptimisticMove, insertOccurrences, removeEvent, withoutCalendar } from './calendar-state'
 
 const occ = (id: string, calendar_id = 1, start = '2026-09-16T09:00:00', end = '2026-09-16T10:00:00') =>
   ({
@@ -41,14 +41,6 @@ describe('withoutCalendar', () => {
   })
   it('keeps everything when nothing is hidden', () => {
     expect(withoutCalendar(list, [])).toEqual(list)
-  })
-})
-
-describe('removeOccurrence', () => {
-  it('removes by id without mutating', () => {
-    const list = [occ('a'), occ('b')]
-    expect(removeOccurrence(list, 'a').map((o) => o.id)).toEqual(['b'])
-    expect(list).toHaveLength(2)
   })
 })
 

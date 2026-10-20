@@ -72,6 +72,8 @@ function EventForm({
   const [endDate, setEndDate] = useState(datePart(shownEnd0))
   const [endTime, setEndTime] = useState(timePart(end0))
   const [busy, setBusy] = useState(busy0)
+  // Once Busy/Free is set by hand in this dialog, toggling All day stops changing it.
+  const [busyTouched, setBusyTouched] = useState(false)
   const [calendarId, setCalendarId] = useState<number | null>(
     initial.calendar_id ?? (calendars.find((c) => c.is_primary) ?? calendars[0])?.id ?? null,
   )
@@ -100,6 +102,8 @@ function EventForm({
   }
   const toggleAllDay = (next: boolean) => {
     setAllDay(next)
+    // The defaults: all-day events are Free, timed events Busy.
+    if (!busyTouched) setBusy(!next)
     if (!next && startDate) {
       setStartTime('09:00'); setEndTime('10:00'); setEndDate(startDate)
     }
@@ -211,7 +215,7 @@ function EventForm({
 
       <div className="flex items-center justify-between gap-3">
         <label htmlFor="event-busy" className="text-sm">Show as busy</label>
-        <Switch id="event-busy" checked={busy} onCheckedChange={setBusy} />
+        <Switch id="event-busy" checked={busy} onCheckedChange={(next) => { setBusy(next); setBusyTouched(true) }} />
       </div>
 
       <label className="block">

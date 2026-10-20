@@ -16,10 +16,6 @@ export function withoutCalendar(list: Occurrence[], hiddenIds: Set<number> | num
   return hidden.size === 0 ? list : list.filter((o) => !hidden.has(o.calendar_id))
 }
 
-export function removeOccurrence(list: Occurrence[], occurrenceId: string): Occurrence[] {
-  return list.filter((o) => o.id !== occurrenceId)
-}
-
 /** Every occurrence of one event (deleting a repeating event removes the whole series). */
 export function removeEvent(list: Occurrence[], eventId: number): Occurrence[] {
   return list.filter((o) => o.event_id !== eventId)
