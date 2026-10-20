@@ -148,6 +148,7 @@ export function useCalendar(range: { start: Date; end: Date }, refreshKey: unkno
 
   const deleteEvent = useCallback(async (o: Occurrence): Promise<void> => {
     // Deleting removes the whole series, so every occurrence of the event goes.
+    // The page confirms first when `o` repeats.
     const removed = allRef.current.filter((x) => x.event_id === o.event_id)
     generation.current += 1
     setAll((list) => removeEvent(list, o.event_id))
@@ -161,7 +162,7 @@ export function useCalendar(range: { start: Date; end: Date }, refreshKey: unkno
       return
     }
     settle()
-    toast('Event deleted', {
+    toast(o.recurring ? `Deleted every “${o.title || '(No title)'}”` : 'Event deleted', {
       action: {
         label: 'Undo',
         onClick: () => {

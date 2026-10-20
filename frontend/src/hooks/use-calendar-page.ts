@@ -30,15 +30,22 @@ function write(key: string, value: string) {
 }
 const storedView = () => VIEWS.find((entry) => entry.view === read(VIEW_KEY))?.view ?? null
 
-/** The series row as dialog input; without `id` it becomes a copy. */
-function dialogInitial(series: CalendarEvent, withId: boolean): EventDialogInitial {
-  return {
-    ...(withId ? { id: series.id } : {}),
+/**
+ * The series row as dialog input.
+ * - Edit (`copyOf` absent): keeps the id, the series times and its recurrence,
+ *   so saving changes every event in the series.
+ * - Duplicate (`copyOf` set): no id, the clicked occurrence's own start and end,
+ *   and no recurrence, so the copy is a one-off event on that day.
+ */
+function dialogInitial(series: CalendarEvent, copyOf?: Occurrence): EventDialogInitial {
+  const shared = {
     calendar_id: series.calendar_id, title: series.title, description: series.description,
-    location: series.location, start: series.start, end: series.end, all_day: series.all_day,
-    busy: series.busy, kind: series.kind, category_id: series.category_id, color_key: series.color_key,
-    recurrence: series.recurrence,
+    location: series.location, all_day: series.all_day, busy: series.busy, kind: series.kind,
+    category_id: series.category_id, color_key: series.color_key,
   }
+  return copyOf
+    ? { ...shared, start: copyOf.start, end: copyOf.end, recurrence: [] }
+    : { ...shared, id: series.id, start: series.start, end: series.end, recurrence: series.recurrence }
 }
 
 const itemElement = (id: string) =>
@@ -159,7 +166,7 @@ export function useCalendarPage({ schedule, createTask, refs }: Options) {
   const openDialog = (occurrence: Occurrence, asCopy: boolean) => {
     toDialog.current = true
     api.getCalendarEvent(occurrence.event_id)
-      .then((series) => setDialog({ initial: dialogInitial(series, !asCopy), open: true }))
+      .then((series) => setDialog({ initial: dialogInitial(series, asCopy ? occurrence : undefined), open: true }))
       .catch((reason: unknown) => {
         toDialog.current = false
         toast.error(errorMessage(reason))
@@ -174,6 +181,21 @@ export function useCalendarPage({ schedule, createTask, refs }: Options) {
   const saveDialog = (input: CalendarEventInput | CalendarEventChanges, id?: number) =>
     id != null ? calendar.updateEvent(id, input) : calendar.createEvent(input as CalendarEventInput)
   const closeDialog = () => setDialog((current) => current && { ...current, open: false })
+
+  // Deleting a repeating occurrence deletes its series, so it asks first.
+  const [confirmDelete, setConfirmDelete] = useState<Occurrence | null>(null)
+  const remove = (occurrence: Occurrence) => {
+    if (!occurrence.recurring) {
+      void calendar.deleteEvent(occurrence)
+      return
+    }
+    toDialog.current = true // The closing popover leaves focus to the confirmation.
+    setConfirmDelete(occurrence)
+  }
+  const confirmRemove = (occurrence: Occurrence) => {
+    setConfirmDelete(null)
+    void calendar.deleteEvent(occurrence)
+  }
 
   const changeColor = (occurrence: Occurrence, pick: ColorPick) => {
     // A category's colour wins, so a plain swatch also clears the category.
@@ -249,7 +271,7 @@ export function useCalendarPage({ schedule, createTask, refs }: Options) {
     const shortcut = resolveShortcut(event, isTyping(event.target))
     if (!shortcut) return
     // Dialogs, sheets and quick-create own their keys (Radix closes them on Esc).
-    if (quickOpen || dialog?.open || slot || categoriesOpen || sheetOpen) return
+    if (quickOpen || dialog?.open || confirmDelete || slot || categoriesOpen || sheetOpen) return
     // Another app overlay (chat, capture, task) has focus. The event popover is ours.
     if (!popover && event.target instanceof Element
       && event.target.closest('[role="dialog"], [role="alertdialog"], [role="menu"]')) return
@@ -268,7 +290,7 @@ export function useCalendarPage({ schedule, createTask, refs }: Options) {
         if (!popover) return
         event.preventDefault()
         if (shortcut.type === 'edit') openDialog(popover.occurrence, false)
-        else void calendar.deleteEvent(popover.occurrence)
+        else remove(popover.occurrence)
         setPopover(null)
         return
     }
@@ -294,7 +316,7 @@ export function useCalendarPage({ schedule, createTask, refs }: Options) {
     mobile, view, date, range, calendar, navigate, selected,
     panel: { open: mobile ? sheetOpen : panelOpen, toggle: togglePanel, sheetOpen, setSheetOpen },
     popover: popover && shownOccurrence ? { ...popover, occurrence: shownOccurrence } : null,
-    quick, dialog, slot, categoriesOpen,
+    quick, dialog, slot, categoriesOpen, confirmDelete,
     search: {
       open: searchOpen, query, current: search,
       onOpen: openSearch, onQueryChange: setQuery, onSubmit: submitSearch, onClear: clearSearch,
@@ -306,7 +328,8 @@ export function useCalendarPage({ schedule, createTask, refs }: Options) {
       closeSlot: () => setSlot(null),
       edit: (o: Occurrence) => openDialog(o, false),
       duplicate: (o: Occurrence) => openDialog(o, true),
-      remove: (o: Occurrence) => void calendar.deleteEvent(o),
+      remove, confirmRemove,
+      cancelRemove: () => setConfirmDelete(null),
       changeColor, moreOptions, saveDialog, closeDialog, onCloseAutoFocus, onDialogCloseAutoFocus,
       createTask: createTaskSafely,
       setCategoriesOpen,

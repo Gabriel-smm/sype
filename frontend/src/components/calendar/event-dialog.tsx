@@ -15,7 +15,11 @@ export type EventDialogInitial = CalendarEventInput & { id?: number }
 
 interface Props {
   open: boolean
-  /** For edit and duplicate, pass the series row from api.getCalendarEvent (full description, series times, own category). */
+  /**
+   * For edit, the series row from api.getCalendarEvent (full description, series times, own
+   * category). A duplicate passes the same row without `id`, with the clicked occurrence's
+   * times and no recurrence, so it saves as a one-off.
+   */
   initial: EventDialogInitial
   calendars: Calendar[]
   categories: Category[]
@@ -58,6 +62,8 @@ function EventForm({
   // All-day ends are exclusive in the API, but people read "last day".
   const shownEnd0 = allDay0 ? new Date(end0.getFullYear(), end0.getMonth(), end0.getDate() - 1) : end0
   const busy0 = initial.busy ?? !allDay0
+  // Editing a repeating event edits the series (its first start and end are shown).
+  const series = initial.id != null && (initial.recurrence?.length ?? 0) > 0
 
   const [title, setTitle] = useState(initial.title)
   const [allDay, setAllDay] = useState(allDay0)
@@ -158,8 +164,16 @@ function EventForm({
 
   return (
     <form onSubmit={submit} className="space-y-4 p-5">
-      <DialogTitle className="text-xl">{initial.id == null ? 'New event' : 'Edit event'}</DialogTitle>
-      <DialogDescription className="sr-only">Event details</DialogDescription>
+      <div>
+        <DialogTitle className="text-xl">{initial.id == null ? 'New event' : 'Edit event'}</DialogTitle>
+        {series ? (
+          <DialogDescription className="mt-1 text-sm text-sidebar-foreground/70">
+            Changes apply to every event in the series
+          </DialogDescription>
+        ) : (
+          <DialogDescription className="sr-only">Event details</DialogDescription>
+        )}
+      </div>
 
       <Input autoFocus value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Add title" aria-label="Title" />
 

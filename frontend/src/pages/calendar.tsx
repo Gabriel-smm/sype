@@ -3,6 +3,7 @@ import { useRef } from 'react'
 import { CalendarSidePanel } from '@/components/calendar/calendar-side-panel'
 import { CalendarToolbar } from '@/components/calendar/calendar-toolbar'
 import { CategoryManagerDialog } from '@/components/calendar/category-manager-dialog'
+import { DeleteSeriesDialog } from '@/components/calendar/delete-series-dialog'
 import { EventDialog } from '@/components/calendar/event-dialog'
 import { EventPopover } from '@/components/calendar/event-popover'
 import { MonthView } from '@/components/calendar/month-view'
@@ -189,6 +190,13 @@ export function CalendarPage({
           onCloseAutoFocus={on.onDialogCloseAutoFocus}
         />
       )}
+
+      <DeleteSeriesDialog
+        occurrence={page.confirmDelete}
+        onCancel={on.cancelRemove}
+        onConfirm={on.confirmRemove}
+        onCloseAutoFocus={on.onDialogCloseAutoFocus}
+      />
 
       <CategoryManagerDialog
         open={page.categoriesOpen}

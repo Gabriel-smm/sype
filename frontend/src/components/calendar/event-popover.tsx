@@ -85,7 +85,10 @@ function EventDetails({
     <div>
       <div className="flex items-center justify-end gap-0.5 px-2 pt-2">
         <Button variant="ghost" size="icon-sm" aria-label="Edit" onClick={run(onEdit)}><Pencil className="size-4" /></Button>
-        <Button variant="ghost" size="icon-sm" aria-label="Delete" onClick={run(onDelete)}><Trash2 className="size-4" /></Button>
+        <Button variant="ghost" size="icon-sm" onClick={run(onDelete)}
+                aria-label={occurrence.recurring ? 'Delete all events in the series' : 'Delete'}>
+          <Trash2 className="size-4" />
+        </Button>
         <Button variant="ghost" size="icon-sm" aria-label="Duplicate" onClick={run(onDuplicate)}><Copy className="size-4" /></Button>
         <Button variant="ghost" size="icon-sm" aria-label="Close" onClick={onClose}><X className="size-4" /></Button>
       </div>
