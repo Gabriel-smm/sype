@@ -4,7 +4,7 @@
 
 [![CI](https://github.com/Gabriel-smm/sype/actions/workflows/ci.yml/badge.svg)](https://github.com/Gabriel-smm/sype/actions/workflows/ci.yml)
 
-Sype puts academic deadlines and everyday routine (gym, laundry, chores) on one calendar. It
+Sype puts academic deadlines and everyday routine (gym, laundry, chores) into one plan. It
 weighs each task by **how soon it's due**, **how much of the grade it's worth**, **how stressed
 you are about it**, and **how much work is left**. Then it splits big assignments into sessions
 and fits them into the free time around your classes and sleep.
@@ -17,7 +17,7 @@ and fits them into the free time around your classes and sleep.
   Exams become spaced study sessions 10, 6, 3 and 1 days out.
 - **Fits your actual week.** Busy time (classes, meals, sleep) is respected, and focus-heavy
   work goes into the hours you say you're sharpest. Connecting your own calendar is coming next.
-- **Routine included.** Recurring tasks roll forward every week and share the calendar with
+- **Routine included.** Recurring tasks roll forward every week and share the plan with
   deadline work.
 - **Quick capture.** Type `HIST essay fri 5pm 4h 20%` and it's parsed into a task, with every
   guess shown back so you can correct it.
@@ -30,7 +30,7 @@ unit-tested rules, so the same inputs always give the same week:
 ```
 Tasks + recurring routine
         ↓
-Decompose  →  Score  →  Place into free time  →  Week calendar
+Decompose  →  Score  →  Place into free time  →  Your week
 ```
 
 An optional chat assistant can help you capture tasks. It has its own page, past

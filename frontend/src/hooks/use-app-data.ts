@@ -3,12 +3,12 @@ import { toast } from 'sonner'
 
 import { placementSummary, type PlacementSummary } from '@/lib/agenda'
 import { api } from '@/lib/api'
-import { formatClock, toApiDateTime } from '@/lib/time'
+import { formatClock } from '@/lib/time'
 import { errorMessage } from '@/lib/utils'
 import type {
-  ActivityEvent, Meta, Schedule, ScheduleSlot, Settings, Task, TaskChanges,
+  ActivityEvent, Meta, Schedule, Settings, Task, TaskChanges,
 } from '@/types/api'
-import type { Actions, SlotAction } from '@/types/app'
+import type { Actions } from '@/types/app'
 
 function announcePlacement(title: string, summary: PlacementSummary, onEdit: () => void) {
   const action = { label: 'Edit', onClick: onEdit }
@@ -127,18 +127,11 @@ export function useAppData({ openTask }: Options) {
     }
   }, [run, titleOf, openTask])
 
-  const onComplete: SlotAction = (id, isSubtask) =>
-    isSubtask ? actions.completeSubtask(id) : actions.completeTask(id)
-  const onSkip: SlotAction = (id, isSubtask) =>
-    isSubtask ? actions.skipSubtask(id) : actions.skipTask(id)
-
   const regenerate = () => run(async () => setSchedule(await api.generateSchedule()))
-  const moveSlot = (slot: ScheduleSlot, start: Date, end: Date) =>
-    run(() => api.moveSlot(slot.id, toApiDateTime(start), toApiDateTime(end)))
 
   return {
     meta, settings, tasks, schedule, events, busy, error,
-    refresh, actions, onComplete, onSkip, regenerate, moveSlot,
+    refresh, actions, regenerate,
   }
 }
 

@@ -1,5 +1,5 @@
 import {
-  CalendarDays, ChevronDown, ChevronRight, ClipboardList, Keyboard, MessageSquare, PanelLeftClose, PanelLeftOpen, Plus,
+  ChevronDown, ChevronRight, ClipboardList, Keyboard, LayoutDashboard, MessageSquare, PanelLeftClose, PanelLeftOpen, Plus,
   RotateCw, Search,
   Settings2, type LucideIcon,
 } from 'lucide-react'
@@ -31,7 +31,7 @@ interface NavItem {
 
 // Sype's nav, plus Setup for the weekly schedule and ranking.
 const NAV: NavItem[] = [
-  { to: '/', title: 'Calendar', icon: CalendarDays },
+  { to: '/', title: 'Overview', icon: LayoutDashboard },
   { to: '/tasks', title: 'Tasks', icon: ClipboardList },
   { to: '/chat', title: 'Chat', icon: MessageSquare },
   { to: '/setup', title: 'Setup', icon: Settings2 },

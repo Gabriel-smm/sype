@@ -12,8 +12,8 @@ import { Toaster } from '@/components/ui/sonner'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { useAppData } from '@/hooks/use-app-data'
 import { useChat } from '@/hooks/use-chat'
-import { CalendarPage } from '@/pages/calendar'
 import { ChatPage } from '@/pages/chat'
+import { OverviewPage } from '@/pages/overview'
 import { SetupPage } from '@/pages/setup'
 import { TasksPage } from '@/pages/tasks'
 
@@ -88,12 +88,7 @@ export function App() {
           )}
         >
           <Routes>
-            <Route index element={
-              <CalendarPage schedule={schedule} settings={settings} busy={busy}
-                            onRegenerate={() => void data.regenerate()}
-                            onMoveSlot={(slot, start, end) => void data.moveSlot(slot, start, end)}
-                            onComplete={data.onComplete} onSkip={data.onSkip} onOpenTask={setEditingId} />
-            } />
+            <Route index element={<OverviewPage />} />
             <Route path="calendar" element={<Redirect to="/" replace />} />
             <Route path="week" element={<Redirect to="/" replace />} />
             <Route path="tasks" element={
