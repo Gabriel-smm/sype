@@ -60,11 +60,35 @@ command/env var/convention). A PR that changes behaviour without its doc update 
 - Before opening a PR: run every standard check above (or dispatch the `test-runner` agent),
   update docs, and fill in the PR template. CI must be green.
 
-## Skills: check actively
+## Development process: lean by default
 
-Before every change, scan the installed skills and invoke each one that applies (e.g.
-`superpowers:brainstorming` for new work, `test-driven-development`, `systematic-debugging`,
-`verification-before-completion` before claiming done, `code-review` before a PR).
+Sype is a single-user local app, not a product with real customers. Spend effort in proportion:
+
+- **Build inline.** Implement tasks yourself in the session. Don't dispatch a subagent per task,
+  and don't run a separate reviewer per task. Use subagents only for broad codebase searches or
+  genuinely independent parallel work.
+- **One review per PR, at the end.** It's a single reviewer pass, and only for large or risky
+  PRs (data migrations, scheduler changes). Fix the Critical and Important findings in one
+  round, then stop. Minor findings go in the PR description, not into more fix rounds.
+- **Short plans.** For work that's already specified, write a task list with the key decisions,
+  not test code or full designs. Ask questions only when the answer changes what gets built.
+- **Tests where they pay.** TDD for pure logic in `backend/app` and `frontend/src/lib`. Components
+  are verified by lint, typecheck and build, plus a short manual checklist for the user.
+- **Run checks once per commit batch**, not after every edit.
+- **Skills:** `frontend-design:frontend-design` for UI work and `systematic-debugging` for bugs.
+  Others only when they clearly change the outcome. Skip brainstorming for already-specified work.
+
+**Security baseline** (keep it; anything beyond it is out of scope unless asked):
+- Validate input at the API boundary with Pydantic: types, enums, lengths and ranges.
+- Bound anything that could hang or blow up: the size of recurrence and imported files, date
+  ranges, list lengths.
+- Use the ORM and parameterised queries, never string-built SQL.
+- Keep secrets out of the repo, `.env` only.
+- CORS stays restricted to localhost.
+- Treat imported files (.ics) as untrusted data.
+
+Not needed here: auth hardening, rate limiting, exhaustive DST or locale polish, pixel-perfect
+review loops.
 
 **Frontend work: always invoke `frontend-design:frontend-design` first.** The UI must not look
 AI-generated. Build on the tokens in `frontend/src/index.css` and the primitives in
@@ -75,4 +99,4 @@ rounded cards everywhere, or decorative shadows and motion. See `docs/frontend.m
 
 `test-runner` (haiku) runs checks and reports failures. `scheduler-architect` (opus) handles
 changes to `scoring.py`, `decompose.py`, `scheduler.py`, `pipeline.py`. Everything else runs on
-the Sonnet default.
+the Sonnet default. Use agents sparingly, as the lean process above describes.
